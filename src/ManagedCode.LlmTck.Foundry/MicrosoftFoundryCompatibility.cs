@@ -4,7 +4,7 @@ namespace ManagedCode.LlmTck.Foundry;
 
 public static class MicrosoftFoundryCompatibility
 {
-    public const string ProviderId = "microsoft-foundry";
+    public const string ProviderId = LlmTckCompatibilityTags.MicrosoftFoundry;
 
     public static LlmTckProviderProfile Profile { get; } =
         new()
@@ -23,6 +23,11 @@ public static class MicrosoftFoundryCompatibility
                 LlmTckProviderCapability.Tools,
                 LlmTckProviderCapability.StructuredOutput,
             ],
-            CompatibilityTags = ["microsoft-foundry", "azure-ai-foundry", "openai-compatible"],
+            CompatibilityTags =
+            [
+                ProviderId,
+                LlmTckCompatibilityTags.AzureAIFoundry,
+                LlmTckCompatibilityTags.OpenAICompatible,
+            ],
         };
 }

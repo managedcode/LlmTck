@@ -8,6 +8,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\ManagedCode.LlmTck.Aspire\ManagedCode.LlmTck.Aspire.csproj" IsAspireProjectResource="false" />
+    <ProjectReference Include="..\..\src\ManagedCode.LlmTck\ManagedCode.LlmTck.csproj" IsAspireProjectResource="false" />
     <ProjectReference Include="..\ManagedCode.LlmTck.Service\ManagedCode.LlmTck.Service.csproj" />
   </ItemGroup>
 </Project>

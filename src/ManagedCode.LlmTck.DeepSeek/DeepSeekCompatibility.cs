@@ -4,7 +4,7 @@ namespace ManagedCode.LlmTck.DeepSeek;
 
 public static class DeepSeekCompatibility
 {
-    public const string ProviderId = "deepseek";
+    public const string ProviderId = LlmTckCompatibilityTags.DeepSeek;
 
     public static LlmTckProviderProfile Profile { get; } =
         new()
@@ -20,6 +20,6 @@ public static class DeepSeekCompatibility
                 LlmTckProviderCapability.Tools,
                 LlmTckProviderCapability.StructuredOutput,
             ],
-            CompatibilityTags = ["deepseek", "openai-compatible"],
+            CompatibilityTags = [ProviderId, LlmTckCompatibilityTags.OpenAICompatible],
         };
 }

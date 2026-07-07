@@ -4,7 +4,7 @@ namespace ManagedCode.LlmTck.Groq;
 
 public static class GroqCompatibility
 {
-    public const string ProviderId = "groq";
+    public const string ProviderId = LlmTckCompatibilityTags.Groq;
 
     public static LlmTckProviderProfile Profile { get; } =
         new()
@@ -20,6 +20,6 @@ public static class GroqCompatibility
                 LlmTckProviderCapability.Tools,
                 LlmTckProviderCapability.StructuredOutput,
             ],
-            CompatibilityTags = ["groq", "openai-compatible"],
+            CompatibilityTags = [ProviderId, LlmTckCompatibilityTags.OpenAICompatible],
         };
 }

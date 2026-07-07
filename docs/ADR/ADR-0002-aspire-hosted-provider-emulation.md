@@ -10,7 +10,7 @@ The library is intended for integration tests, not only unit tests. It must star
 
 ## Decision
 
-Ship an Aspire extension package that adds an LLM TCK project resource to an AppHost. The integration test references the sample AppHost and starts it with `Aspire.Hosting.Testing`, then calls the running service through `Microsoft.Extensions.AI` clients and HTTP endpoints.
+Ship an Aspire extension package that adds an LLM TCK project resource to an AppHost. The integration test builds the AppHost model directly in test code with `Aspire.Hosting.Testing`, adds the sample service through `ManagedCode.LlmTck.Aspire`, then calls the running service through `Microsoft.Extensions.AI`, Azure OpenAI, Microsoft Foundry, and HTTP endpoints.
 
 ## Consequences
 

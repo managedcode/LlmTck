@@ -4,7 +4,7 @@ namespace ManagedCode.LlmTck.Perplexity;
 
 public static class PerplexityCompatibility
 {
-    public const string ProviderId = "perplexity";
+    public const string ProviderId = LlmTckCompatibilityTags.Perplexity;
 
     public static LlmTckProviderProfile Profile { get; } =
         new()
@@ -18,6 +18,6 @@ public static class PerplexityCompatibility
                 LlmTckProviderCapability.Chat,
                 LlmTckProviderCapability.StreamingChat,
             ],
-            CompatibilityTags = ["perplexity", "openai-compatible"],
+            CompatibilityTags = [ProviderId, LlmTckCompatibilityTags.OpenAICompatible],
         };
 }

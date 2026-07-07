@@ -4,7 +4,7 @@ namespace ManagedCode.LlmTck.Gemini;
 
 public static class GeminiCompatibility
 {
-    public const string ProviderId = "gemini";
+    public const string ProviderId = LlmTckCompatibilityTags.Gemini;
 
     public static LlmTckProviderProfile Profile { get; } =
         new()
@@ -23,6 +23,11 @@ public static class GeminiCompatibility
                 LlmTckProviderCapability.Tools,
                 LlmTckProviderCapability.StructuredOutput,
             ],
-            CompatibilityTags = ["gemini", "google-ai", "openai-compatible"],
+            CompatibilityTags =
+            [
+                ProviderId,
+                LlmTckCompatibilityTags.GoogleAI,
+                LlmTckCompatibilityTags.OpenAICompatible,
+            ],
         };
 }

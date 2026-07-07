@@ -4,7 +4,7 @@ namespace ManagedCode.LlmTck.Ollama;
 
 public static class OllamaCompatibility
 {
-    public const string ProviderId = "ollama";
+    public const string ProviderId = LlmTckCompatibilityTags.Ollama;
 
     public static LlmTckProviderProfile Profile { get; } =
         new()
@@ -20,6 +20,11 @@ public static class OllamaCompatibility
                 LlmTckProviderCapability.Embeddings,
                 LlmTckProviderCapability.Tools,
             ],
-            CompatibilityTags = ["ollama", "local-llm", "openai-compatible"],
+            CompatibilityTags =
+            [
+                ProviderId,
+                LlmTckCompatibilityTags.LocalLlm,
+                LlmTckCompatibilityTags.OpenAICompatible,
+            ],
         };
 }

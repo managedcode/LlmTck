@@ -4,7 +4,7 @@ namespace ManagedCode.LlmTck.Cohere;
 
 public static class CohereCompatibility
 {
-    public const string ProviderId = "cohere";
+    public const string ProviderId = LlmTckCompatibilityTags.Cohere;
 
     public static LlmTckProviderProfile Profile { get; } =
         new()
@@ -21,6 +21,6 @@ public static class CohereCompatibility
                 LlmTckProviderCapability.Tools,
                 LlmTckProviderCapability.StructuredOutput,
             ],
-            CompatibilityTags = ["cohere"],
+            CompatibilityTags = [ProviderId],
         };
 }

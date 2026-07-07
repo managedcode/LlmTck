@@ -4,7 +4,7 @@ namespace ManagedCode.LlmTck.Anthropic;
 
 public static class AnthropicCompatibility
 {
-    public const string ProviderId = "anthropic";
+    public const string ProviderId = LlmTckCompatibilityTags.Anthropic;
 
     public static LlmTckProviderProfile Profile { get; } =
         new()
@@ -20,6 +20,11 @@ public static class AnthropicCompatibility
                 LlmTckProviderCapability.Tools,
                 LlmTckProviderCapability.StructuredOutput,
             ],
-            CompatibilityTags = ["anthropic", "claude", "messages-api"],
+            CompatibilityTags =
+            [
+                ProviderId,
+                LlmTckCompatibilityTags.Claude,
+                LlmTckCompatibilityTags.MessagesApi,
+            ],
         };
 }

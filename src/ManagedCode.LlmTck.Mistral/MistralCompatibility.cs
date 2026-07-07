@@ -4,7 +4,7 @@ namespace ManagedCode.LlmTck.Mistral;
 
 public static class MistralCompatibility
 {
-    public const string ProviderId = "mistral";
+    public const string ProviderId = LlmTckCompatibilityTags.Mistral;
 
     public static LlmTckProviderProfile Profile { get; } =
         new()
@@ -21,6 +21,6 @@ public static class MistralCompatibility
                 LlmTckProviderCapability.Tools,
                 LlmTckProviderCapability.StructuredOutput,
             ],
-            CompatibilityTags = ["mistral", "openai-compatible"],
+            CompatibilityTags = [ProviderId, LlmTckCompatibilityTags.OpenAICompatible],
         };
 }

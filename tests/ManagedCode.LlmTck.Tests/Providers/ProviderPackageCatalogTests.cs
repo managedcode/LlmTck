@@ -40,19 +40,27 @@ public sealed class ProviderPackageCatalogTests
         await Assert.That(profiles.Select(profile => profile.Id))
             .IsEquivalentTo(
                 [
-                    "openai",
-                    "azure-openai",
-                    "microsoft-foundry",
-                    "anthropic",
-                    "gemini",
-                    "groq",
-                    "mistral",
-                    "ollama",
-                    "cohere",
-                    "bedrock",
-                    "openrouter",
-                    "deepseek",
-                    "perplexity",
+                    OpenAiCompatibility.ProviderId,
+                    AzureOpenAiCompatibility.ProviderId,
+                    MicrosoftFoundryCompatibility.ProviderId,
+                    AnthropicCompatibility.ProviderId,
+                    GeminiCompatibility.ProviderId,
+                    GroqCompatibility.ProviderId,
+                    MistralCompatibility.ProviderId,
+                    OllamaCompatibility.ProviderId,
+                    CohereCompatibility.ProviderId,
+                    BedrockCompatibility.ProviderId,
+                    OpenRouterCompatibility.ProviderId,
+                    DeepSeekCompatibility.ProviderId,
+                    PerplexityCompatibility.ProviderId,
+                ]
+            );
+        await Assert.That(AzureOpenAiCompatibility.Profile.CompatibilityTags)
+            .IsEquivalentTo(
+                [
+                    AzureOpenAiCompatibility.ProviderId,
+                    LlmTckCompatibilityTags.OpenAICompatible,
+                    LlmTckCompatibilityTags.Foundry,
                 ]
             );
         await Assert.That(profiles.All(profile => !string.IsNullOrWhiteSpace(profile.DisplayName)))
@@ -80,7 +88,9 @@ public sealed class ProviderPackageCatalogTests
                                 or LlmTckProtocolFamily.DeepSeek
                                 or LlmTckProtocolFamily.Perplexity
                     )
-                    .All(profile => profile.CompatibilityTags.Contains("openai-compatible"))
+                    .All(profile =>
+                        profile.CompatibilityTags.Contains(LlmTckCompatibilityTags.OpenAICompatible)
+                    )
             )
             .IsTrue();
     }

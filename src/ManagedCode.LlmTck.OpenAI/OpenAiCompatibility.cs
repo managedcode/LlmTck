@@ -4,7 +4,7 @@ namespace ManagedCode.LlmTck.OpenAI;
 
 public static class OpenAiCompatibility
 {
-    public const string ProviderId = "openai";
+    public const string ProviderId = LlmTckCompatibilityTags.OpenAI;
 
     public static LlmTckProviderProfile Profile { get; } =
         new()
@@ -23,6 +23,6 @@ public static class OpenAiCompatibility
                 LlmTckProviderCapability.Tools,
                 LlmTckProviderCapability.StructuredOutput,
             ],
-            CompatibilityTags = ["openai", "openai-compatible"],
+            CompatibilityTags = [ProviderId, LlmTckCompatibilityTags.OpenAICompatible],
         };
 }

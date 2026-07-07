@@ -4,7 +4,7 @@ namespace ManagedCode.LlmTck.Bedrock;
 
 public static class BedrockCompatibility
 {
-    public const string ProviderId = "bedrock";
+    public const string ProviderId = LlmTckCompatibilityTags.Bedrock;
 
     public static LlmTckProviderProfile Profile { get; } =
         new()
@@ -22,6 +22,11 @@ public static class BedrockCompatibility
                 LlmTckProviderCapability.Tools,
                 LlmTckProviderCapability.StructuredOutput,
             ],
-            CompatibilityTags = ["amazon-bedrock", "aws-bedrock", "bedrock"],
+            CompatibilityTags =
+            [
+                LlmTckCompatibilityTags.AmazonBedrock,
+                LlmTckCompatibilityTags.AwsBedrock,
+                ProviderId,
+            ],
         };
 }

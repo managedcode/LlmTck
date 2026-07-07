@@ -4,7 +4,7 @@ namespace ManagedCode.LlmTck.OpenRouter;
 
 public static class OpenRouterCompatibility
 {
-    public const string ProviderId = "openrouter";
+    public const string ProviderId = LlmTckCompatibilityTags.OpenRouter;
 
     public static LlmTckProviderProfile Profile { get; } =
         new()
@@ -20,6 +20,6 @@ public static class OpenRouterCompatibility
                 LlmTckProviderCapability.Tools,
                 LlmTckProviderCapability.StructuredOutput,
             ],
-            CompatibilityTags = ["openrouter", "openai-compatible"],
+            CompatibilityTags = [ProviderId, LlmTckCompatibilityTags.OpenAICompatible],
         };
 }

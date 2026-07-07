@@ -4,7 +4,7 @@ namespace ManagedCode.LlmTck.AzureOpenAI;
 
 public static class AzureOpenAiCompatibility
 {
-    public const string ProviderId = "azure-openai";
+    public const string ProviderId = LlmTckCompatibilityTags.AzureOpenAI;
 
     public static LlmTckProviderProfile Profile { get; } =
         new()
@@ -23,6 +23,11 @@ public static class AzureOpenAiCompatibility
                 LlmTckProviderCapability.Tools,
                 LlmTckProviderCapability.StructuredOutput,
             ],
-            CompatibilityTags = ["azure-openai", "openai-compatible", "foundry"],
+            CompatibilityTags =
+            [
+                ProviderId,
+                LlmTckCompatibilityTags.OpenAICompatible,
+                LlmTckCompatibilityTags.Foundry,
+            ],
         };
 }
