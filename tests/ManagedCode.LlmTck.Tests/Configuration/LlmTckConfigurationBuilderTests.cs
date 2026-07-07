@@ -13,7 +13,19 @@ public sealed class LlmTckConfigurationBuilderTests
             .AddModel("docs-model", LlmTckModelKind.Chat)
             .AddModel("docs-model", LlmTckModelKind.Embedding)
             .WithDefaultEmbeddingVector(0.5f, 0.75f)
+            .WithDefaultImageDataUri("data:image/png;base64,Zm9v")
             .WithDefaultAudio([1, 2, 3], "audio/test")
+            .AddDataset(
+                "docs-dataset",
+                dataset => dataset
+                    .AddChatScenario(
+                        "dataset-scenario",
+                        scenario => scenario
+                            .ForModel("llm-tck-chat")
+                            .WhenUserContains("dataset")
+                            .Responds("dataset response")
+                    )
+            )
             .AddChatScenario(
                 "duplicate-scenario",
                 scenario => scenario
@@ -34,6 +46,7 @@ public sealed class LlmTckConfigurationBuilderTests
 
         configuration.Models.Clear();
         configuration.ChatScenarios[0].Match.Messages.Clear();
+        configuration.Datasets[0].ChatScenarios[0].Match.Messages.Clear();
         configuration.ChatScenarios[0].Responses[0].StreamChunks.Add("mutated");
         configuration.DefaultEmbeddingVector.Clear();
         configuration.DefaultAudioBytes[0] = 99;
@@ -46,7 +59,11 @@ public sealed class LlmTckConfigurationBuilderTests
         await Assert.That(rebuilt.ChatScenarios[0].Match.Messages[0].Content).IsEqualTo("new");
         await Assert.That(rebuilt.ChatScenarios[0].Responses[0].Error?.Code).IsEqualTo("teapot");
         await Assert.That(rebuilt.ChatScenarios[0].Responses[0].DelayMilliseconds).IsEqualTo(25);
+        await Assert.That(rebuilt.Datasets).Count().IsEqualTo(1);
+        await Assert.That(rebuilt.Datasets[0].ChatScenarios[0].Match.Messages[0].Content)
+            .IsEqualTo("dataset");
         await Assert.That(rebuilt.DefaultEmbeddingVector).IsEquivalentTo([0.5f, 0.75f]);
+        await Assert.That(rebuilt.DefaultImageDataUri).IsEqualTo("data:image/png;base64,Zm9v");
         await Assert.That(rebuilt.DefaultAudioBytes).IsEquivalentTo((byte[])[1, 2, 3]);
         await Assert.That(rebuilt.DefaultAudioMediaType).IsEqualTo("audio/test");
     }
@@ -65,6 +82,9 @@ public sealed class LlmTckConfigurationBuilderTests
         );
         await ShouldThrowAsync<ArgumentException>(
             () => new LlmTckConfigurationBuilder().WithDefaultEmbeddingVector()
+        );
+        await ShouldThrowAsync<ArgumentException>(
+            () => new LlmTckConfigurationBuilder().WithDefaultImageDataUri("https://example.com")
         );
         await ShouldThrowAsync<ArgumentException>(
             () => new LlmTckConfigurationBuilder().WithDefaultAudio([], "audio/wav")
@@ -97,6 +117,9 @@ public sealed class LlmTckConfigurationBuilderTests
         );
         await ShouldThrowAsync<InvalidOperationException>(
             () => new LlmTckScenarioBuilder("id").Build()
+        );
+        await ShouldThrowAsync<ArgumentNullException>(
+            () => new LlmTckScenarioDatasetBuilder("id").AddChatScenario("scenario", null!)
         );
     }
 

@@ -8,6 +8,7 @@ LLM TCK provides deterministic provider emulation for integration tests. Test su
 
 - `ManagedCode.LlmTck` owns provider-neutral runtime state: models, scenarios, match rules, deterministic modality fixtures, auth checks, and assertion events.
 - `ManagedCode.LlmTck.OpenAI` owns OpenAI-compatible DTOs and mapping from runtime results to wire responses.
+- `ManagedCode.LlmTck.AzureOpenAI`, `ManagedCode.LlmTck.Foundry`, `ManagedCode.LlmTck.Anthropic`, `ManagedCode.LlmTck.Gemini`, `ManagedCode.LlmTck.Groq`, `ManagedCode.LlmTck.Mistral`, `ManagedCode.LlmTck.Ollama`, `ManagedCode.LlmTck.Cohere`, `ManagedCode.LlmTck.Bedrock`, `ManagedCode.LlmTck.OpenRouter`, `ManagedCode.LlmTck.DeepSeek`, and `ManagedCode.LlmTck.Perplexity` own provider compatibility profiles and future provider-specific wire contracts.
 - `ManagedCode.LlmTck.Hosting` exposes the runtime through ASP.NET Core endpoints.
 - `ManagedCode.LlmTck.Client` exposes a control client and `Microsoft.Extensions.AI` clients.
 - `ManagedCode.LlmTck.Aspire` adds AppHost convenience methods over Aspire project resources.
@@ -16,7 +17,7 @@ LLM TCK provides deterministic provider emulation for integration tests. Test su
 
 ## Runtime Flow
 
-1. Tests configure the runtime through `AddLlmTck(...)` at host startup or through `POST /__llm-tck/configure`.
+1. Tests configure the runtime through `AddLlmTck(...)` at host startup, through `LlmTckClient.ConfigureAsync(config => ...)`, or through `POST /__llm-tck/configure`.
 2. Provider requests arrive through `/v1/*` endpoints.
 3. Hosting maps provider requests into provider-neutral runtime requests.
 4. The runtime checks bearer-token requirements, configured model IDs, model modality kind, and scenario match rules.
@@ -27,8 +28,16 @@ Control endpoints use the same bearer-token requirement when one is configured, 
 
 ## Determinism
 
-Chat scenarios are queued. Each matched request consumes the next response. Streaming responses use explicit chunks. Embeddings return configured vectors. Image and audio endpoints return fixed fixture content.
+Chat scenarios are queued. Each matched request consumes the next response. Streaming responses use explicit chunks. Datasets are named groups of active scenarios so tests can load conversation sets before a run. Embeddings return configured vectors. Image and audio endpoints return fixed fixture content.
+
+## Client Configuration Surface
+
+`ManagedCode.LlmTck.Client` owns the universal pre-test configuration API. A test can create one `LlmTckClient`, optionally bind a bearer token, call `ConfigureAsync(config => ...)`, and then create `Microsoft.Extensions.AI` chat, embedding, and image clients from the same control client. Audio fixtures are reachable through `LlmTckClient.GenerateAudioAsync(...)` until a first-party `Microsoft.Extensions.AI` audio abstraction exists.
+
+The client builder wraps the provider-neutral configuration builder; it does not create a separate runtime model. This keeps startup configuration, control endpoint configuration, and raw JSON configuration on the same contract.
 
 ## Compatibility Strategy
 
-OpenAI compatibility is the first implemented provider surface. Additional provider packages should follow the same shape: provider-specific DTOs and mapping in a separate package, no provider-specific behavior in the core runtime.
+OpenAI compatibility is the first implemented provider endpoint surface. The provider matrix is explicit: OpenAI, Azure OpenAI, Microsoft Foundry, Anthropic, Gemini, Groq, Mistral, Ollama, Cohere, Amazon Bedrock, OpenRouter, DeepSeek, and Perplexity each have a package-level compatibility profile. Provider-specific DTOs and mapping belong in the matching provider package; provider-neutral scenario behavior stays in the core runtime.
+
+Aspire integration selects compatibility with fluent methods such as `.WithOpenAICompatibility()`, `.WithAzureOpenAICompatibility()`, or `.WithAnthropicCompatibility()`. `.WithEndpoint(...)` records the target provider base URL as configuration so AppHost wiring, tests, and docs use the same shape.

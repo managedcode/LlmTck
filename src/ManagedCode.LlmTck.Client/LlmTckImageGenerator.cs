@@ -1,3 +1,4 @@
+using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
 using ManagedCode.LlmTck.OpenAI;
@@ -5,8 +6,11 @@ using Microsoft.Extensions.AI;
 
 namespace ManagedCode.LlmTck.Client;
 
-public sealed class LlmTckImageGenerator(HttpClient httpClient, string defaultModelId = "llm-tck-image")
-    : IImageGenerator
+public sealed class LlmTckImageGenerator(
+    HttpClient httpClient,
+    string defaultModelId = "llm-tck-image",
+    string? bearerToken = null
+) : IImageGenerator
 {
     private static readonly JsonSerializerOptions _jsonOptions = new(JsonSerializerDefaults.Web);
 
@@ -24,8 +28,14 @@ public sealed class LlmTckImageGenerator(HttpClient httpClient, string defaultMo
             Prompt = request.Prompt ?? string.Empty,
         };
 
+        using var requestMessage = new HttpRequestMessage(HttpMethod.Post, "/v1/images/generations")
+        {
+            Content = JsonContent.Create(httpRequest, options: _jsonOptions),
+        };
+        ApplyBearerToken(requestMessage);
+
         using var response = await httpClient
-            .PostAsJsonAsync("/v1/images/generations", httpRequest, _jsonOptions, cancellationToken)
+            .SendAsync(requestMessage, cancellationToken)
             .ConfigureAwait(false);
         response.EnsureSuccessStatusCode();
 
@@ -56,5 +66,13 @@ public sealed class LlmTckImageGenerator(HttpClient httpClient, string defaultMo
 
     public void Dispose()
     {
+    }
+
+    private void ApplyBearerToken(HttpRequestMessage request)
+    {
+        if (!string.IsNullOrWhiteSpace(bearerToken))
+        {
+            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", bearerToken);
+        }
     }
 }

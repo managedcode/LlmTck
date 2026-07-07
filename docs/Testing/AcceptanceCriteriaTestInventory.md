@@ -18,4 +18,6 @@
 | `IChatClient` fake follows dotnet/extensions delegate pattern | `MicrosoftExtensionsAiClientTests.TestChatClient_UsesDotnetExtensionsCallbackPatternAsync` |
 | Streaming fake follows delegate pattern | `MicrosoftExtensionsAiClientTests.TestChatClient_StreamsThroughCallbackPatternAsync` |
 | `Microsoft.Extensions.AI` clients call the compatibility server | `MicrosoftExtensionsAiClientTests.MicrosoftExtensionsAiClients_InvokeLlmTckThroughOpenAiCompatibilityEndpointsAsync` |
-| Aspire AppHost starts and serves all implemented modalities | `AspireIntegrationTests.AddLlmTck_StartsAspireProjectAndSupportsMicrosoftExtensionsAiAsync` |
+| Universal client API configures datasets, models, auth, and modality fixtures before a test | `LlmTckClientConfigurationTests.ConfigureAsync_WithFluentClientApi_LoadsDatasetAndFixturesAsync` |
+| Provider packages expose stable compatibility profiles | `ProviderPackageCatalogTests.ProviderPackages_ExposeExpectedCompatibilityProfilesAsync` |
+| Aspire AppHost starts, configures endpoint/API key, and serves all implemented modalities | `AspireIntegrationTests.AddLlmTck_StartsAspireProjectAndSupportsMicrosoftExtensionsAiAsync` |

@@ -94,8 +94,7 @@ public sealed class LlmTckRuntime : ILlmTckRuntime
                 return UnknownModel(request.ModelId, LlmTckModelKind.Chat);
             }
 
-            scenario = _configuration
-                .ChatScenarios
+            scenario = GetChatScenarios(_configuration)
                 .FirstOrDefault(candidate => ScenarioMatches(candidate, request));
 
             if (scenario is null)
@@ -366,6 +365,13 @@ public sealed class LlmTckRuntime : ILlmTckRuntime
     private static bool HasRequiredToken(string? required, string? supplied)
     {
         return string.IsNullOrEmpty(required) || string.Equals(required, supplied, StringComparison.Ordinal);
+    }
+
+    private static IEnumerable<LlmTckScenario> GetChatScenarios(LlmTckConfiguration configuration)
+    {
+        return configuration.ChatScenarios.Concat(
+            configuration.Datasets.SelectMany(dataset => dataset.ChatScenarios)
+        );
     }
 
     private bool IsConfiguredModel(string modelId, LlmTckModelKind kind)

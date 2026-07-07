@@ -9,6 +9,8 @@ public sealed record LlmTckConfiguration
 
     public List<LlmTckScenario> ChatScenarios { get; init; } = [];
 
+    public List<LlmTckScenarioDataset> Datasets { get; init; } = [];
+
     public string? RequiredBearerToken { get; init; }
 
     public List<float> DefaultEmbeddingVector { get; init; } = [0.125f, 0.25f, 0.5f];

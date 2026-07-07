@@ -20,6 +20,18 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\ManagedCode.LlmTck\ManagedCode.LlmTck.csproj" />
     <ProjectReference Include="..\..\src\ManagedCode.LlmTck.OpenAI\ManagedCode.LlmTck.OpenAI.csproj" />
+    <ProjectReference Include="..\..\src\ManagedCode.LlmTck.AzureOpenAI\ManagedCode.LlmTck.AzureOpenAI.csproj" />
+    <ProjectReference Include="..\..\src\ManagedCode.LlmTck.Foundry\ManagedCode.LlmTck.Foundry.csproj" />
+    <ProjectReference Include="..\..\src\ManagedCode.LlmTck.Anthropic\ManagedCode.LlmTck.Anthropic.csproj" />
+    <ProjectReference Include="..\..\src\ManagedCode.LlmTck.Gemini\ManagedCode.LlmTck.Gemini.csproj" />
+    <ProjectReference Include="..\..\src\ManagedCode.LlmTck.Groq\ManagedCode.LlmTck.Groq.csproj" />
+    <ProjectReference Include="..\..\src\ManagedCode.LlmTck.Mistral\ManagedCode.LlmTck.Mistral.csproj" />
+    <ProjectReference Include="..\..\src\ManagedCode.LlmTck.Ollama\ManagedCode.LlmTck.Ollama.csproj" />
+    <ProjectReference Include="..\..\src\ManagedCode.LlmTck.Cohere\ManagedCode.LlmTck.Cohere.csproj" />
+    <ProjectReference Include="..\..\src\ManagedCode.LlmTck.Bedrock\ManagedCode.LlmTck.Bedrock.csproj" />
+    <ProjectReference Include="..\..\src\ManagedCode.LlmTck.OpenRouter\ManagedCode.LlmTck.OpenRouter.csproj" />
+    <ProjectReference Include="..\..\src\ManagedCode.LlmTck.DeepSeek\ManagedCode.LlmTck.DeepSeek.csproj" />
+    <ProjectReference Include="..\..\src\ManagedCode.LlmTck.Perplexity\ManagedCode.LlmTck.Perplexity.csproj" />
     <ProjectReference Include="..\..\src\ManagedCode.LlmTck.Hosting\ManagedCode.LlmTck.Hosting.csproj" />
     <ProjectReference Include="..\..\src\ManagedCode.LlmTck.Client\ManagedCode.LlmTck.Client.csproj" />
     <ProjectReference Include="..\..\src\ManagedCode.LlmTck.Aspire\ManagedCode.LlmTck.Aspire.csproj" />

@@ -1,3 +1,4 @@
+using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Runtime.CompilerServices;
 using System.Text;
@@ -7,8 +8,11 @@ using Microsoft.Extensions.AI;
 
 namespace ManagedCode.LlmTck.Client;
 
-public sealed class LlmTckChatClient(HttpClient httpClient, string defaultModelId = "llm-tck-chat")
-    : IChatClient
+public sealed class LlmTckChatClient(
+    HttpClient httpClient,
+    string defaultModelId = "llm-tck-chat",
+    string? bearerToken = null
+) : IChatClient
 {
     private static readonly JsonSerializerOptions _jsonOptions = new(JsonSerializerDefaults.Web);
 
@@ -24,9 +28,8 @@ public sealed class LlmTckChatClient(HttpClient httpClient, string defaultModelI
         ArgumentNullException.ThrowIfNull(messages);
 
         var request = CreateRequest(messages, options, stream: false);
-        using var response = await httpClient
-            .PostAsJsonAsync("/v1/chat/completions", request, _jsonOptions, cancellationToken)
-            .ConfigureAwait(false);
+        using var httpRequest = CreateJsonRequest(request);
+        using var response = await httpClient.SendAsync(httpRequest, cancellationToken).ConfigureAwait(false);
         response.EnsureSuccessStatusCode();
 
         var completion = await response
@@ -61,6 +64,7 @@ public sealed class LlmTckChatClient(HttpClient httpClient, string defaultModelI
                 "application/json"
             ),
         };
+        ApplyBearerToken(httpRequest);
 
         using var response = await httpClient
             .SendAsync(httpRequest, HttpCompletionOption.ResponseHeadersRead, cancellationToken)
@@ -133,5 +137,23 @@ public sealed class LlmTckChatClient(HttpClient httpClient, string defaultModelI
                 })
                 .ToList(),
         };
+    }
+
+    private HttpRequestMessage CreateJsonRequest(OpenAiChatCompletionRequest request)
+    {
+        var httpRequest = new HttpRequestMessage(HttpMethod.Post, "/v1/chat/completions")
+        {
+            Content = JsonContent.Create(request, options: _jsonOptions),
+        };
+        ApplyBearerToken(httpRequest);
+        return httpRequest;
+    }
+
+    private void ApplyBearerToken(HttpRequestMessage request)
+    {
+        if (!string.IsNullOrWhiteSpace(bearerToken))
+        {
+            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", bearerToken);
+        }
     }
 }

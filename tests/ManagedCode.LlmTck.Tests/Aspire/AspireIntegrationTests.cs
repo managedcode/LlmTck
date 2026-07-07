@@ -22,9 +22,12 @@ public sealed class AspireIntegrationTests
 
         await using var app = await builder.BuildAsync(timeout.Token);
         await app.StartAsync(timeout.Token);
-        await app.ResourceNotifications.WaitForResourceHealthyAsync("llm-tck", timeout.Token);
+        await app.ResourceNotifications.WaitForResourceHealthyAsync(
+            "openai-compatible",
+            timeout.Token
+        );
 
-        using var httpClient = app.CreateHttpClient("llm-tck", "http");
+        using var httpClient = app.CreateHttpClient("openai-compatible", "http");
         httpClient.DefaultRequestHeaders.Authorization =
             new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", "test-key");
 
@@ -34,6 +37,7 @@ public sealed class AspireIntegrationTests
             new LlmTckEmbeddingGenerator(httpClient);
         using IImageGenerator imageGenerator = new LlmTckImageGenerator(httpClient);
 
+        var root = await httpClient.GetFromJsonAsync<JsonElement>("/", timeout.Token);
         var models = await httpClient.GetFromJsonAsync<JsonElement>("/v1/models", timeout.Token);
         var chat = await chatClient.GetResponseAsync(
             [new ChatMessage(ChatRole.User, "What color is the largest animal?")],
@@ -68,6 +72,9 @@ public sealed class AspireIntegrationTests
         var assertions = await controlClient.GetAssertionsAsync(timeout.Token);
 
         await Assert.That(models.GetProperty("data").GetArrayLength()).IsGreaterThanOrEqualTo(4);
+        await Assert.That(root.GetProperty("endpoint").GetString())
+            .IsEqualTo("https://api.example.com/v1");
+        await Assert.That(root.GetProperty("openAiCompatibility").GetString()).IsEqualTo("true");
         await Assert.That(chat.Text).IsEqualTo("blue whale");
         await Assert.That(string.Concat(streamChunks)).IsEqualTo("blue whale");
         await Assert.That(embeddings).Count().IsEqualTo(2);

@@ -2,16 +2,57 @@
 
 `ManagedCode.LlmTck` is a deterministic Technology Compatibility Kit for LLM APIs. It gives tests a local provider-compatible server that can be hosted by Aspire, scripted with explicit scenarios, and called through regular HTTP or `Microsoft.Extensions.AI`.
 
-The first slice covers OpenAI-compatible chat, streaming chat, models, embeddings, image generation, audio speech fixtures, bearer-token failures, scenario misses, and assertion summaries.
+The implemented OpenAI-compatible surface covers chat, streaming chat, models, embeddings, image generation, audio speech fixtures, bearer-token failures, scenario misses, and assertion summaries.
 When a bearer token is configured, both provider endpoints and control endpoints require it.
 
 ## Packages
 
 - `ManagedCode.LlmTck`: provider-neutral scenario runtime and assertion state.
 - `ManagedCode.LlmTck.OpenAI`: OpenAI-compatible wire contracts.
+- `ManagedCode.LlmTck.AzureOpenAI`: Azure OpenAI compatibility profile and future wire contracts.
+- `ManagedCode.LlmTck.Foundry`: Microsoft Foundry compatibility profile and future wire contracts.
+- `ManagedCode.LlmTck.Anthropic`: Anthropic Messages compatibility profile and future wire contracts.
+- `ManagedCode.LlmTck.Gemini`: Gemini compatibility profile and future wire contracts.
+- `ManagedCode.LlmTck.Groq`: Groq compatibility profile and future wire contracts.
+- `ManagedCode.LlmTck.Mistral`: Mistral compatibility profile and future wire contracts.
+- `ManagedCode.LlmTck.Ollama`: Ollama compatibility profile and future wire contracts.
+- `ManagedCode.LlmTck.Cohere`: Cohere compatibility profile and future wire contracts.
+- `ManagedCode.LlmTck.Bedrock`: Amazon Bedrock compatibility profile and future wire contracts.
+- `ManagedCode.LlmTck.OpenRouter`: OpenRouter compatibility profile and future wire contracts.
+- `ManagedCode.LlmTck.DeepSeek`: DeepSeek compatibility profile and future wire contracts.
+- `ManagedCode.LlmTck.Perplexity`: Perplexity compatibility profile and future wire contracts.
 - `ManagedCode.LlmTck.Hosting`: ASP.NET Core endpoint mapping.
 - `ManagedCode.LlmTck.Client`: control client plus `IChatClient`, `IEmbeddingGenerator<string, Embedding<float>>`, and `IImageGenerator` implementations.
 - `ManagedCode.LlmTck.Aspire`: Aspire AppHost extension methods.
+
+## Provider Packages
+
+Provider packages keep vendor-specific protocol and compatibility metadata out of the provider-neutral runtime. The package surface exists now so applications can select a provider family explicitly; provider-specific DTOs and endpoint mappings are added inside each package as support grows.
+
+| Package | Provider ID | Protocol family | Default endpoint shape |
+| --- | --- | --- | --- |
+| `ManagedCode.LlmTck.OpenAI` | `openai` | OpenAI | `/v1` |
+| `ManagedCode.LlmTck.AzureOpenAI` | `azure-openai` | Azure OpenAI | `/openai/deployments/{deployment}/chat/completions` |
+| `ManagedCode.LlmTck.Foundry` | `microsoft-foundry` | Microsoft Foundry | `/models/chat/completions` |
+| `ManagedCode.LlmTck.Anthropic` | `anthropic` | Anthropic Messages | `/v1/messages` |
+| `ManagedCode.LlmTck.Gemini` | `gemini` | Gemini | `/v1beta/models/{model}:generateContent` |
+| `ManagedCode.LlmTck.Groq` | `groq` | Groq | `/openai/v1/chat/completions` |
+| `ManagedCode.LlmTck.Mistral` | `mistral` | Mistral | `/v1/chat/completions` |
+| `ManagedCode.LlmTck.Ollama` | `ollama` | Ollama | `/api/chat` |
+| `ManagedCode.LlmTck.Cohere` | `cohere` | Cohere | `/v2/chat` |
+| `ManagedCode.LlmTck.Bedrock` | `bedrock` | Amazon Bedrock | `/model/{modelId}/converse` |
+| `ManagedCode.LlmTck.OpenRouter` | `openrouter` | OpenRouter | `/api/v1/chat/completions` |
+| `ManagedCode.LlmTck.DeepSeek` | `deepseek` | DeepSeek | `/v1/chat/completions` |
+| `ManagedCode.LlmTck.Perplexity` | `perplexity` | Perplexity | `/chat/completions` |
+
+Use a provider profile when code needs a stable package-level declaration without starting a host:
+
+```csharp
+using ManagedCode.LlmTck.AzureOpenAI;
+
+var profile = AzureOpenAiCompatibility.Profile;
+Console.WriteLine(profile.Id); // azure-openai
+```
 
 ## Configuration Model
 
@@ -121,14 +162,39 @@ using ManagedCode.LlmTck.Aspire;
 var builder = DistributedApplication.CreateBuilder(args);
 
 builder
-    .AddLlmTck("llm-tck", "../ManagedCode.LlmTck.Service/ManagedCode.LlmTck.Service.csproj")
+    .AddLlmTck("openai-compatible", "../ManagedCode.LlmTck.Service/ManagedCode.LlmTck.Service.csproj")
+    .WithEndpoint("https://api.example.com/v1")
     .WithOpenAICompatibility()
     .WithApiKey("test-key");
 
 builder.Build().Run();
 ```
 
-The sample service reads `LlmTck:RequiredBearerToken`, so `.WithApiKey("test-key")` protects both `/v1/*` provider endpoints and `/__llm-tck/*` control endpoints.
+The sample service reads `LlmTck:Endpoint` and `LlmTck:RequiredBearerToken`, so `.WithEndpoint(...)` records the target provider base URL and `.WithApiKey("test-key")` protects both `/v1/*` provider endpoints and `/__llm-tck/*` control endpoints.
+
+Provider compatibility flags are explicit:
+
+```csharp
+builder
+    .AddLlmTck("azure-openai", "../ManagedCode.LlmTck.Service/ManagedCode.LlmTck.Service.csproj")
+    .WithEndpoint("https://contoso.openai.azure.com")
+    .WithAzureOpenAICompatibility()
+    .WithApiKey(apiKey);
+
+builder
+    .AddLlmTck("anthropic", "../ManagedCode.LlmTck.Service/ManagedCode.LlmTck.Service.csproj")
+    .WithEndpoint("https://api.anthropic.com")
+    .WithAnthropicCompatibility()
+    .WithApiKey(apiKey);
+
+builder
+    .AddLlmTck("gemini", "../ManagedCode.LlmTck.Service/ManagedCode.LlmTck.Service.csproj")
+    .WithEndpoint("https://generativelanguage.googleapis.com")
+    .WithGeminiCompatibility()
+    .WithApiKey(apiKey);
+```
+
+Other selectors follow the same pattern: `.WithFoundryCompatibility()`, `.WithGroqCompatibility()`, `.WithMistralCompatibility()`, `.WithOllamaCompatibility()`, `.WithCohereCompatibility()`, `.WithBedrockCompatibility()`, `.WithOpenRouterCompatibility()`, `.WithDeepSeekCompatibility()`, and `.WithPerplexityCompatibility()`.
 
 ## Chat Scenarios
 
@@ -301,6 +367,62 @@ var bytes = await audio.Content.ReadAsByteArrayAsync();
 
 Use runtime reconfiguration when each test needs a different provider script.
 
+### Configure Before A Test
+
+Use `ManagedCode.LlmTck.Client` as the universal test control surface. A test can start or discover the hosted TCK, create one `LlmTckClient`, load all required models, datasets, scripted responses, errors, embeddings, images, and audio fixtures, and then call the provider through regular clients.
+
+```csharp
+using ManagedCode.LlmTck.Client;
+using Microsoft.Extensions.AI;
+
+using var httpClient = new HttpClient { BaseAddress = new Uri("http://localhost:5000") };
+var tck = LlmTckClient.Create(httpClient, bearerToken: "test-key");
+
+await tck.ConfigureAsync(
+    config => config
+        .RequireBearerToken("test-key")
+        .UseChatModel("test-chat")
+        .UseEmbeddingModel("test-embedding")
+        .UseImageModel("test-image")
+        .UseAudioModel("test-audio")
+        .UseEmbeddingVector(0.9f, 0.8f)
+        .UseImageDataUri("data:image/png;base64,Zm9v")
+        .UseAudio([1, 2, 3, 4], "audio/test")
+        .UseDataset(
+            "checkout-flow",
+            dataset => dataset
+                .AddChatScenario(
+                    "invoice-total",
+                    scenario => scenario
+                        .ForModel("test-chat")
+                        .WhenUserContains("invoice total")
+                        .Responds("{\"total\":42.50}", "{\"total\":", "42.50", "}"))
+                .AddChatScenario(
+                    "provider-rate-limit",
+                    scenario => scenario
+                        .ForModel("test-chat")
+                        .WhenUserContains("rate limit")
+                        .Fails(429, "rate_limit_exceeded", "Scripted rate limit."))),
+    resetFirst: true);
+
+using IChatClient chat = tck.CreateChatClient("test-chat");
+using IEmbeddingGenerator<string, Embedding<float>> embeddings =
+    tck.CreateEmbeddingGenerator("test-embedding");
+using IImageGenerator images = tck.CreateImageGenerator("test-image");
+
+var response = await chat.GetResponseAsync(
+[
+    new ChatMessage(ChatRole.User, "What is the invoice total?"),
+]);
+
+var vector = await embeddings.GenerateAsync(["invoice"]);
+var image = await images.GenerateAsync(new ImageGenerationRequest { Prompt = "fixture" });
+var audio = await tck.GenerateAudioAsync("test-audio", "speak this");
+var assertions = await tck.GetAssertionsAsync();
+```
+
+`resetFirst: true` clears previous assertion events and scenario positions before the new configuration is applied. Named datasets are active after configuration; they group scenarios so a test can load a whole conversation set without flattening everything by hand.
+
 ### Configure With `LlmTckClient`
 
 ```csharp
@@ -408,6 +530,17 @@ var response = await chatClient.GetResponseAsync(
 ]);
 
 Console.WriteLine(response.Text);
+```
+
+When a bearer token is required, prefer creating the modality clients from the control client so the same token is applied consistently:
+
+```csharp
+var tck = LlmTckClient.Create(httpClient, bearerToken: "test-key");
+
+using IChatClient chatClient = tck.CreateChatClient("docs-chat");
+using IEmbeddingGenerator<string, Embedding<float>> embeddings =
+    tck.CreateEmbeddingGenerator("docs-embedding");
+using IImageGenerator images = tck.CreateImageGenerator("docs-image");
 ```
 
 Streaming uses the same client:

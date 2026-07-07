@@ -47,6 +47,26 @@ public sealed class LlmTckConfigurationBuilder
         return this;
     }
 
+    public LlmTckConfigurationBuilder AddDataset(
+        string id,
+        Action<LlmTckScenarioDatasetBuilder> configure
+    )
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(id);
+        ArgumentNullException.ThrowIfNull(configure);
+
+        var builder = new LlmTckScenarioDatasetBuilder(id);
+        configure(builder);
+        var dataset = builder.Build();
+
+        _configuration.Datasets.RemoveAll(existing =>
+            string.Equals(existing.Id, id, StringComparison.OrdinalIgnoreCase)
+        );
+        _configuration.Datasets.Add(dataset);
+
+        return this;
+    }
+
     public LlmTckConfigurationBuilder WithDefaultEmbeddingVector(params float[] values)
     {
         ArgumentNullException.ThrowIfNull(values);
@@ -58,6 +78,18 @@ public sealed class LlmTckConfigurationBuilder
         _configuration.DefaultEmbeddingVector.Clear();
         _configuration.DefaultEmbeddingVector.AddRange(values);
 
+        return this;
+    }
+
+    public LlmTckConfigurationBuilder WithDefaultImageDataUri(string dataUri)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(dataUri);
+        if (!dataUri.StartsWith("data:", StringComparison.OrdinalIgnoreCase))
+        {
+            throw new ArgumentException("Image fixture must be a data URI.", nameof(dataUri));
+        }
+
+        _configuration = _configuration with { DefaultImageDataUri = dataUri };
         return this;
     }
 
@@ -92,12 +124,13 @@ public sealed class LlmTckConfigurationBuilder
         {
             Models = [.. configuration.Models],
             ChatScenarios = [.. configuration.ChatScenarios.Select(SnapshotScenario)],
+            Datasets = [.. configuration.Datasets.Select(SnapshotDataset)],
             DefaultEmbeddingVector = [.. configuration.DefaultEmbeddingVector],
             DefaultAudioBytes = [.. configuration.DefaultAudioBytes],
         };
     }
 
-    private static LlmTckScenario SnapshotScenario(LlmTckScenario scenario)
+    internal static LlmTckScenario SnapshotScenario(LlmTckScenario scenario)
     {
         return scenario with
         {
@@ -109,6 +142,14 @@ public sealed class LlmTckConfigurationBuilder
                     StreamChunks = [.. response.StreamChunks],
                 }),
             ],
+        };
+    }
+
+    private static LlmTckScenarioDataset SnapshotDataset(LlmTckScenarioDataset dataset)
+    {
+        return dataset with
+        {
+            ChatScenarios = [.. dataset.ChatScenarios.Select(SnapshotScenario)],
         };
     }
 }

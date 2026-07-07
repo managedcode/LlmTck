@@ -88,6 +88,9 @@ Rule format:
 - Prefer official .NET packages and abstractions before writing custom protocol code.
 - Tests that fake `IChatClient` should use the dotnet/extensions pattern: a tiny fake class with delegate callbacks, not Moq or NSubstitute.
 - Keep provider wire formats in provider packages such as `ManagedCode.LlmTck.OpenAI`; keep deterministic scenario behavior in `ManagedCode.LlmTck`.
+- Keep the provider package matrix explicit. Do not ship the TCK as only OpenAI-compatible; maintain package surfaces for OpenAI, Azure OpenAI, Microsoft Foundry, Anthropic, Gemini, Groq, Mistral, Ollama, Cohere, Amazon Bedrock, OpenRouter, DeepSeek, and Perplexity.
+- The client package must expose a universal pre-test configuration API so tests can spawn a client, reset or configure the hosted TCK, load models, auth, datasets, scenarios, scripted errors, embeddings, images, and audio fixtures without hand-authoring raw DTOs.
+- Aspire examples must show endpoint configuration with `.WithEndpoint(...)`, compatibility selection, and API key wiring so users see the complete integration path.
 - Aspire integration must start the sample AppHost in tests before a change is considered covered.
 - Do not hide nondeterminism behind retries. Model responses, stream chunks, errors, auth requirements, embeddings, images, and audio fixtures should be explicit.
 
@@ -95,6 +98,18 @@ Rule format:
 
 - `src/ManagedCode.LlmTck`: provider-neutral runtime, scenarios, assertions, and model catalog.
 - `src/ManagedCode.LlmTck.OpenAI`: OpenAI-compatible request/response shapes and mapping.
+- `src/ManagedCode.LlmTck.AzureOpenAI`: Azure OpenAI compatibility profile and future Azure OpenAI wire contracts.
+- `src/ManagedCode.LlmTck.Foundry`: Microsoft Foundry compatibility profile and future Foundry wire contracts.
+- `src/ManagedCode.LlmTck.Anthropic`: Anthropic Messages compatibility profile and future Anthropic wire contracts.
+- `src/ManagedCode.LlmTck.Gemini`: Gemini compatibility profile and future Gemini wire contracts.
+- `src/ManagedCode.LlmTck.Groq`: Groq compatibility profile and future Groq wire contracts.
+- `src/ManagedCode.LlmTck.Mistral`: Mistral compatibility profile and future Mistral wire contracts.
+- `src/ManagedCode.LlmTck.Ollama`: Ollama compatibility profile and future Ollama wire contracts.
+- `src/ManagedCode.LlmTck.Cohere`: Cohere compatibility profile and future Cohere wire contracts.
+- `src/ManagedCode.LlmTck.Bedrock`: Amazon Bedrock compatibility profile and future Bedrock wire contracts.
+- `src/ManagedCode.LlmTck.OpenRouter`: OpenRouter compatibility profile and future OpenRouter wire contracts.
+- `src/ManagedCode.LlmTck.DeepSeek`: DeepSeek compatibility profile and future DeepSeek wire contracts.
+- `src/ManagedCode.LlmTck.Perplexity`: Perplexity compatibility profile and future Perplexity wire contracts.
 - `src/ManagedCode.LlmTck.Hosting`: ASP.NET Core provider and control endpoints.
 - `src/ManagedCode.LlmTck.Client`: control client and `Microsoft.Extensions.AI` clients.
 - `src/ManagedCode.LlmTck.Aspire`: Aspire AppHost extension methods.

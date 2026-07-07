@@ -1,3 +1,4 @@
+using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
 using ManagedCode.LlmTck.OpenAI;
@@ -7,7 +8,8 @@ namespace ManagedCode.LlmTck.Client;
 
 public sealed class LlmTckEmbeddingGenerator(
     HttpClient httpClient,
-    string defaultModelId = "llm-tck-embedding"
+    string defaultModelId = "llm-tck-embedding",
+    string? bearerToken = null
 ) : IEmbeddingGenerator<string, Embedding<float>>
 {
     private static readonly JsonSerializerOptions _jsonOptions = new(JsonSerializerDefaults.Web);
@@ -26,8 +28,14 @@ public sealed class LlmTckEmbeddingGenerator(
             input = values.ToArray(),
         };
 
+        using var httpRequest = new HttpRequestMessage(HttpMethod.Post, "/v1/embeddings")
+        {
+            Content = JsonContent.Create(request, options: _jsonOptions),
+        };
+        ApplyBearerToken(httpRequest);
+
         using var response = await httpClient
-            .PostAsJsonAsync("/v1/embeddings", request, _jsonOptions, cancellationToken)
+            .SendAsync(httpRequest, cancellationToken)
             .ConfigureAwait(false);
         response.EnsureSuccessStatusCode();
 
@@ -54,5 +62,13 @@ public sealed class LlmTckEmbeddingGenerator(
 
     public void Dispose()
     {
+    }
+
+    private void ApplyBearerToken(HttpRequestMessage request)
+    {
+        if (!string.IsNullOrWhiteSpace(bearerToken))
+        {
+            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", bearerToken);
+        }
     }
 }

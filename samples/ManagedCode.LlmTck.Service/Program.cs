@@ -3,6 +3,8 @@ using ManagedCode.LlmTck.Models;
 
 var builder = WebApplication.CreateBuilder(args);
 
+var endpoint = builder.Configuration["LlmTck:Endpoint"];
+var openAiCompatibility = builder.Configuration["LLM_TCK_OPENAI_COMPATIBILITY"];
 var requiredBearerToken = builder.Configuration["LlmTck:RequiredBearerToken"];
 builder.Services.AddLlmTck(options =>
 {
@@ -28,6 +30,18 @@ builder.Services.AddLlmTck(options =>
 
 var app = builder.Build();
 
-app.MapGet("/", () => Results.Ok(new { name = "LLM TCK", status = "ready" }));
+app.MapGet(
+    "/",
+    () =>
+        Results.Ok(
+            new
+            {
+                name = "LLM TCK",
+                status = "ready",
+                endpoint,
+                openAiCompatibility,
+            }
+        )
+);
 app.MapLlmTck();
 app.Run();
