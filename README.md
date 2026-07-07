@@ -212,7 +212,7 @@ app.Run();
 Install the Aspire integration package in the AppHost:
 
 ```bash
-dotnet add package ManagedCode.LlmTck.Aspire --version 0.0.4
+dotnet add package ManagedCode.LlmTck.Aspire --version 0.0.5
 ```
 
 Then add the package-owned TCK resource directly:
@@ -231,7 +231,7 @@ builder
 builder.Build().Run();
 ```
 
-`AddLlmTck()` creates a `LlmTckResource` backed by the versioned container image `ghcr.io/managedcode/llm-tck:0.0.4` and exposes its `http` endpoint. `.WithEndpoint(...)` records the target provider base URL as `LlmTck:Endpoint`, and `.WithApiKey("test-key")` sets `LlmTck:RequiredBearerToken` so both `/v1/*` provider endpoints and `/__llm-tck/*` control endpoints require the same bearer token.
+`AddLlmTck()` creates a `LlmTckResource` backed by the versioned container image `ghcr.io/managedcode/llm-tck:0.0.5` and exposes its `http` endpoint. `.WithEndpoint(...)` records the target provider base URL as `LlmTck:Endpoint`, and `.WithApiKey("test-key")` sets `LlmTck:RequiredBearerToken` so both `/v1/*` provider endpoints and `/__llm-tck/*` control endpoints require the same bearer token.
 
 Provider compatibility flags are explicit:
 
