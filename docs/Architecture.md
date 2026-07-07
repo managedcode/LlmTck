@@ -38,6 +38,6 @@ The client builder wraps the provider-neutral configuration builder; it does not
 
 ## Compatibility Strategy
 
-OpenAI compatibility is the first implemented provider endpoint surface. The provider matrix is explicit: OpenAI, Azure OpenAI, Microsoft Foundry, Anthropic, Gemini, Groq, Mistral, Ollama, Cohere, Amazon Bedrock, OpenRouter, DeepSeek, and Perplexity each have a package-level compatibility profile. Provider-specific DTOs and mapping belong in the matching provider package; provider-neutral scenario behavior stays in the core runtime.
+OpenAI compatibility is the first implemented provider endpoint surface. The hosted surface also maps Azure OpenAI deployment routes and Microsoft Foundry / Azure AI Inference chat and embedding routes so the official Azure SDK clients can call the TCK directly. The provider matrix is explicit: OpenAI, Azure OpenAI, Microsoft Foundry, Anthropic, Gemini, Groq, Mistral, Ollama, Cohere, Amazon Bedrock, OpenRouter, DeepSeek, and Perplexity each have a package-level compatibility profile. Provider-specific DTOs and mapping belong in the matching provider package; provider-neutral scenario behavior stays in the core runtime.
 
 Aspire integration selects compatibility with fluent methods such as `.WithOpenAICompatibility()`, `.WithAzureOpenAICompatibility()`, or `.WithAnthropicCompatibility()`. `.WithEndpoint(...)` records the target provider base URL as configuration so AppHost wiring, tests, and docs use the same shape.

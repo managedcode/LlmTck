@@ -37,7 +37,7 @@ public sealed class LlmTckChatClient(
             .ReadFromJsonAsync<OpenAiChatCompletionResponse>(_jsonOptions, cancellationToken)
             .ConfigureAwait(false);
 
-        var text = completion?.Choices.FirstOrDefault()?.Message.Content ?? string.Empty;
+        var text = completion?.Choices.FirstOrDefault()?.Message.TextContent ?? string.Empty;
         return new ChatResponse(new ChatMessage(ChatRole.Assistant, text))
         {
             ModelId = completion?.Model,
@@ -98,13 +98,14 @@ public sealed class LlmTckChatClient(
 
             var chunk = JsonSerializer.Deserialize<OpenAiChatCompletionChunk>(payload, _jsonOptions);
             var choice = chunk?.Choices.FirstOrDefault();
-            if (!string.IsNullOrEmpty(choice?.Delta.Content))
+            var text = choice?.Delta.TextContent;
+            if (!string.IsNullOrEmpty(text))
             {
-                yield return new ChatResponseUpdate(ChatRole.Assistant, choice.Delta.Content)
+                yield return new ChatResponseUpdate(ChatRole.Assistant, text)
                 {
                     ModelId = chunk?.Model,
                     ResponseId = chunk?.Id,
-                    FinishReason = choice.FinishReason == "stop" ? ChatFinishReason.Stop : null,
+                    FinishReason = choice?.FinishReason == "stop" ? ChatFinishReason.Stop : null,
                 };
             }
         }
@@ -133,7 +134,7 @@ public sealed class LlmTckChatClient(
                 .Select(message => new OpenAiChatMessage
                 {
                     Role = message.Role.Value,
-                    Content = message.Text,
+                    Content = OpenAiChatMessage.FromText(message.Role.Value, message.Text).Content,
                 })
                 .ToList(),
         };

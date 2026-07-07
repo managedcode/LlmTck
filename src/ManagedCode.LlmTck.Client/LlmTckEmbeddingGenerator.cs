@@ -48,7 +48,7 @@ public sealed class LlmTckEmbeddingGenerator(
             payload
                 ?.Data
                 .OrderBy(item => item.Index)
-                .Select(item => new Embedding<float>(item.Embedding.ToArray()) { ModelId = payload.Model })
+                .Select(item => new Embedding<float>(item.Vector) { ModelId = payload.Model })
                 .ToList()
             ?? [];
 

@@ -75,6 +75,26 @@ public static class LlmTckEndpointRouteBuilderExtensions
         endpoints.MapPost("/v1/embeddings", CreateEmbeddingAsync);
         endpoints.MapPost("/v1/images/generations", GenerateImageAsync);
         endpoints.MapPost("/v1/audio/speech", GenerateAudioAsync);
+        endpoints.MapPost("/chat/completions", CompleteChatAsync);
+        endpoints.MapPost("/embeddings", CreateEmbeddingAsync);
+        endpoints.MapPost("/models/chat/completions", CompleteChatAsync);
+        endpoints.MapPost("/models/embeddings", CreateEmbeddingAsync);
+        endpoints.MapPost(
+            "/openai/deployments/{deployment}/chat/completions",
+            CompleteAzureOpenAiChatAsync
+        );
+        endpoints.MapPost(
+            "/openai/deployments/{deployment}/embeddings",
+            CreateAzureOpenAiEmbeddingAsync
+        );
+        endpoints.MapPost(
+            "/openai/deployments/{deployment}/images/generations",
+            GenerateAzureOpenAiImageAsync
+        );
+        endpoints.MapPost(
+            "/openai/deployments/{deployment}/audio/speech",
+            GenerateAzureOpenAiAudioAsync
+        );
 
         return endpoints;
     }
@@ -113,6 +133,27 @@ public static class LlmTckEndpointRouteBuilderExtensions
         CancellationToken cancellationToken
     )
     {
+        return await CompleteChatCoreAsync(context, runtime, null, cancellationToken).ConfigureAwait(false);
+    }
+
+    private static async Task<IResult> CompleteAzureOpenAiChatAsync(
+        string deployment,
+        HttpContext context,
+        ILlmTckRuntime runtime,
+        CancellationToken cancellationToken
+    )
+    {
+        return await CompleteChatCoreAsync(context, runtime, deployment, cancellationToken)
+            .ConfigureAwait(false);
+    }
+
+    private static async Task<IResult> CompleteChatCoreAsync(
+        HttpContext context,
+        ILlmTckRuntime runtime,
+        string? modelOverride,
+        CancellationToken cancellationToken
+    )
+    {
         var read = await ReadJsonAsync<OpenAiChatCompletionRequest>(context, cancellationToken)
             .ConfigureAwait(false);
         if (read.Error is not null)
@@ -125,7 +166,9 @@ public static class LlmTckEndpointRouteBuilderExtensions
             return InvalidRequest("Missing chat completion body.");
         }
 
-        var request = read.Value;
+        var request = string.IsNullOrWhiteSpace(modelOverride)
+            ? read.Value
+            : read.Value with { Model = modelOverride };
         var validationError = ValidateChatRequest(request);
         if (validationError is not null)
         {
@@ -135,7 +178,7 @@ public static class LlmTckEndpointRouteBuilderExtensions
         var result = await runtime
             .CompleteChatAsync(
                 OpenAiWireMapper.ToRuntimeRequest(request),
-                ReadBearerToken(context),
+                ReadAccessToken(context),
                 cancellationToken
             )
             .ConfigureAwait(false);
@@ -163,6 +206,28 @@ public static class LlmTckEndpointRouteBuilderExtensions
         CancellationToken cancellationToken
     )
     {
+        return await CreateEmbeddingCoreAsync(context, runtime, null, cancellationToken)
+            .ConfigureAwait(false);
+    }
+
+    private static async Task<IResult> CreateAzureOpenAiEmbeddingAsync(
+        string deployment,
+        HttpContext context,
+        ILlmTckRuntime runtime,
+        CancellationToken cancellationToken
+    )
+    {
+        return await CreateEmbeddingCoreAsync(context, runtime, deployment, cancellationToken)
+            .ConfigureAwait(false);
+    }
+
+    private static async Task<IResult> CreateEmbeddingCoreAsync(
+        HttpContext context,
+        ILlmTckRuntime runtime,
+        string? modelOverride,
+        CancellationToken cancellationToken
+    )
+    {
         var read = await ReadJsonAsync<OpenAiEmbeddingRequest>(context, cancellationToken)
             .ConfigureAwait(false);
         if (read.Error is not null)
@@ -175,7 +240,9 @@ public static class LlmTckEndpointRouteBuilderExtensions
             return Results.BadRequest(OpenAiWireMapper.ToError("invalid_request", "Missing embedding body."));
         }
 
-        var request = read.Value;
+        var request = string.IsNullOrWhiteSpace(modelOverride)
+            ? read.Value
+            : read.Value with { Model = modelOverride };
         var validationError = ValidateEmbeddingRequest(request);
         if (validationError is not null)
         {
@@ -184,11 +251,17 @@ public static class LlmTckEndpointRouteBuilderExtensions
 
         var inputs = ReadEmbeddingInputs(request.Input);
         var result = await runtime
-            .CreateEmbeddingAsync(request.Model, inputs, ReadBearerToken(context), cancellationToken)
+            .CreateEmbeddingAsync(request.Model, inputs, ReadAccessToken(context), cancellationToken)
             .ConfigureAwait(false);
 
         return result.IsSuccess
-            ? Results.Json(OpenAiWireMapper.ToEmbeddingResponse(request.Model, result.Vectors))
+            ? Results.Json(
+                OpenAiWireMapper.ToEmbeddingResponse(
+                    request.Model,
+                    result.Vectors,
+                    request.UsesBase64Encoding
+                )
+            )
             : Results.Json(
                 OpenAiWireMapper.ToError(result.ErrorCode!, result.ErrorMessage!),
                 statusCode: result.StatusCode
@@ -198,6 +271,28 @@ public static class LlmTckEndpointRouteBuilderExtensions
     private static async Task<IResult> GenerateImageAsync(
         HttpContext context,
         ILlmTckRuntime runtime,
+        CancellationToken cancellationToken
+    )
+    {
+        return await GenerateImageCoreAsync(context, runtime, null, cancellationToken)
+            .ConfigureAwait(false);
+    }
+
+    private static async Task<IResult> GenerateAzureOpenAiImageAsync(
+        string deployment,
+        HttpContext context,
+        ILlmTckRuntime runtime,
+        CancellationToken cancellationToken
+    )
+    {
+        return await GenerateImageCoreAsync(context, runtime, deployment, cancellationToken)
+            .ConfigureAwait(false);
+    }
+
+    private static async Task<IResult> GenerateImageCoreAsync(
+        HttpContext context,
+        ILlmTckRuntime runtime,
+        string? modelOverride,
         CancellationToken cancellationToken
     )
     {
@@ -213,7 +308,9 @@ public static class LlmTckEndpointRouteBuilderExtensions
             return Results.BadRequest(OpenAiWireMapper.ToError("invalid_request", "Missing image body."));
         }
 
-        var request = read.Value;
+        var request = string.IsNullOrWhiteSpace(modelOverride)
+            ? read.Value
+            : read.Value with { Model = modelOverride };
         var validationError = ValidateImageRequest(request);
         if (validationError is not null)
         {
@@ -221,7 +318,7 @@ public static class LlmTckEndpointRouteBuilderExtensions
         }
 
         var result = await runtime
-            .GenerateImageAsync(request.Model, request.Prompt, ReadBearerToken(context), cancellationToken)
+            .GenerateImageAsync(request.Model, request.Prompt, ReadAccessToken(context), cancellationToken)
             .ConfigureAwait(false);
 
         return result.IsSuccess
@@ -238,6 +335,28 @@ public static class LlmTckEndpointRouteBuilderExtensions
         CancellationToken cancellationToken
     )
     {
+        return await GenerateAudioCoreAsync(context, runtime, null, cancellationToken)
+            .ConfigureAwait(false);
+    }
+
+    private static async Task<IResult> GenerateAzureOpenAiAudioAsync(
+        string deployment,
+        HttpContext context,
+        ILlmTckRuntime runtime,
+        CancellationToken cancellationToken
+    )
+    {
+        return await GenerateAudioCoreAsync(context, runtime, deployment, cancellationToken)
+            .ConfigureAwait(false);
+    }
+
+    private static async Task<IResult> GenerateAudioCoreAsync(
+        HttpContext context,
+        ILlmTckRuntime runtime,
+        string? modelOverride,
+        CancellationToken cancellationToken
+    )
+    {
         var read = await ReadJsonAsync<OpenAiAudioSpeechRequest>(context, cancellationToken)
             .ConfigureAwait(false);
         if (read.Error is not null)
@@ -250,7 +369,9 @@ public static class LlmTckEndpointRouteBuilderExtensions
             return Results.BadRequest(OpenAiWireMapper.ToError("invalid_request", "Missing audio body."));
         }
 
-        var request = read.Value;
+        var request = string.IsNullOrWhiteSpace(modelOverride)
+            ? read.Value
+            : read.Value with { Model = modelOverride };
         var validationError = ValidateAudioRequest(request);
         if (validationError is not null)
         {
@@ -258,7 +379,7 @@ public static class LlmTckEndpointRouteBuilderExtensions
         }
 
         var result = await runtime
-            .GenerateAudioAsync(request.Model, request.Input, ReadBearerToken(context), cancellationToken)
+            .GenerateAudioAsync(request.Model, request.Input, ReadAccessToken(context), cancellationToken)
             .ConfigureAwait(false);
 
         return result.IsSuccess
@@ -309,6 +430,18 @@ public static class LlmTckEndpointRouteBuilderExtensions
             : null;
     }
 
+    private static string? ReadAccessToken(HttpContext context)
+    {
+        var bearerToken = ReadBearerToken(context);
+        if (!string.IsNullOrWhiteSpace(bearerToken))
+        {
+            return bearerToken;
+        }
+
+        var apiKey = context.Request.Headers["api-key"].ToString();
+        return string.IsNullOrWhiteSpace(apiKey) ? null : apiKey;
+    }
+
     private static List<string> ReadEmbeddingInputs(JsonElement input)
     {
         return input.ValueKind == JsonValueKind.Array
@@ -321,7 +454,7 @@ public static class LlmTckEndpointRouteBuilderExtensions
 
     private static IResult? AuthorizeControlRequest(HttpContext context, ILlmTckRuntime runtime)
     {
-        return runtime.IsBearerTokenAccepted(ReadBearerToken(context))
+        return runtime.IsBearerTokenAccepted(ReadAccessToken(context))
             ? null
             : Results.Json(
                 OpenAiWireMapper.ToError(
@@ -367,7 +500,11 @@ public static class LlmTckEndpointRouteBuilderExtensions
             return InvalidRequest("At least one chat message is required.");
         }
 
-        return request.Messages.Any(message => message is null || string.IsNullOrWhiteSpace(message.Role) || message.Content is null)
+        return request.Messages.Any(message =>
+                message is null
+                || string.IsNullOrWhiteSpace(message.Role)
+                || message.Content.ValueKind is JsonValueKind.Undefined or JsonValueKind.Null
+            )
             ? InvalidRequest("Every chat message requires a role and content.")
             : null;
     }

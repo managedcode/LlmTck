@@ -1,3 +1,4 @@
+using System.Text.Json;
 using System.Text.Json.Serialization;
 
 namespace ManagedCode.LlmTck.OpenAI;
@@ -20,7 +21,32 @@ public sealed record OpenAiChatMessage
     public string Role { get; init; } = "user";
 
     [JsonPropertyName("content")]
-    public string Content { get; init; } = string.Empty;
+    public JsonElement Content { get; init; } = JsonSerializer.SerializeToElement(string.Empty);
+
+    [JsonIgnore]
+    public string TextContent => ReadTextContent(Content);
+
+    public static OpenAiChatMessage FromText(string role, string content)
+    {
+        return new()
+        {
+            Role = role,
+            Content = JsonSerializer.SerializeToElement(content),
+        };
+    }
+
+    private static string ReadTextContent(JsonElement content)
+    {
+        return content.ValueKind switch
+        {
+            JsonValueKind.String => content.GetString() ?? string.Empty,
+            JsonValueKind.Array => string.Concat(content.EnumerateArray().Select(ReadTextContent)),
+            JsonValueKind.Object when content.TryGetProperty("text", out var text) => ReadTextContent(text),
+            JsonValueKind.Object when content.TryGetProperty("content", out var nested) => ReadTextContent(nested),
+            JsonValueKind.Undefined or JsonValueKind.Null => string.Empty,
+            _ => content.ToString(),
+        };
+    }
 }
 
 public sealed record OpenAiChatCompletionResponse
@@ -39,6 +65,9 @@ public sealed record OpenAiChatCompletionResponse
 
     [JsonPropertyName("choices")]
     public List<OpenAiChatChoice> Choices { get; init; } = [];
+
+    [JsonPropertyName("usage")]
+    public OpenAiUsage Usage { get; init; } = new();
 }
 
 public sealed record OpenAiChatChoice
@@ -81,4 +110,16 @@ public sealed record OpenAiChatChunkChoice
 
     [JsonPropertyName("finish_reason")]
     public string? FinishReason { get; init; }
+}
+
+public sealed record OpenAiUsage
+{
+    [JsonPropertyName("prompt_tokens")]
+    public int PromptTokens { get; init; }
+
+    [JsonPropertyName("completion_tokens")]
+    public int CompletionTokens { get; init; }
+
+    [JsonPropertyName("total_tokens")]
+    public int TotalTokens { get; init; }
 }

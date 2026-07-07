@@ -17,7 +17,7 @@ public static class OpenAiWireMapper
                 .Select(message => new LlmTckMessage
                 {
                     Role = message.Role,
-                    Content = message.Content,
+                    Content = message.TextContent,
                 })
                 .ToList(),
         };
@@ -37,13 +37,10 @@ public static class OpenAiWireMapper
                 new OpenAiChatChoice
                 {
                     Index = 0,
-                    Message = new OpenAiChatMessage
-                    {
-                        Role = "assistant",
-                        Content = result.Content,
-                    },
+                    Message = OpenAiChatMessage.FromText("assistant", result.Content),
                 },
             ],
+            Usage = CreateUsage(0, result.Content),
         };
     }
 
@@ -65,11 +62,7 @@ public static class OpenAiWireMapper
                 new OpenAiChatChunkChoice
                 {
                     Index = 0,
-                    Delta = new OpenAiChatMessage
-                    {
-                        Role = "assistant",
-                        Content = content,
-                    },
+                    Delta = OpenAiChatMessage.FromText("assistant", content),
                     FinishReason = finishReason,
                 },
             ],
@@ -93,19 +86,22 @@ public static class OpenAiWireMapper
 
     public static OpenAiEmbeddingResponse ToEmbeddingResponse(
         string model,
-        IReadOnlyList<IReadOnlyList<float>> vectors
+        IReadOnlyList<IReadOnlyList<float>> vectors,
+        bool encodeAsBase64 = false
     )
     {
         return new()
         {
+            Id = CreateResponseId(),
             Model = model,
             Data = vectors
-                .Select((vector, index) => new OpenAiEmbeddingData
-                {
-                    Index = index,
-                    Embedding = [.. vector],
-                })
+                .Select((vector, index) => OpenAiEmbeddingData.FromVector(index, vector, encodeAsBase64))
                 .ToList(),
+            Usage = new OpenAiUsage
+            {
+                PromptTokens = vectors.Count,
+                TotalTokens = vectors.Count,
+            },
         };
     }
 
@@ -136,5 +132,18 @@ public static class OpenAiWireMapper
     public static string CreateResponseId()
     {
         return $"llmtck-{Guid.NewGuid():N}";
+    }
+
+    private static OpenAiUsage CreateUsage(int promptTokens, string completion)
+    {
+        var completionTokens = string.IsNullOrWhiteSpace(completion)
+            ? 0
+            : completion.Split(' ', StringSplitOptions.RemoveEmptyEntries).Length;
+        return new()
+        {
+            PromptTokens = promptTokens,
+            CompletionTokens = completionTokens,
+            TotalTokens = promptTokens + completionTokens,
+        };
     }
 }

@@ -54,6 +54,59 @@ var profile = AzureOpenAiCompatibility.Profile;
 Console.WriteLine(profile.Id); // azure-openai
 ```
 
+## Azure OpenAI And Foundry SDKs
+
+Azure OpenAI deployment routes use the deployment name as the TCK model id. API keys sent through the official SDK's `api-key` header are accepted anywhere a bearer token would be accepted.
+
+```csharp
+using Azure.AI.OpenAI;
+using OpenAI.Chat;
+using OpenAI.Embeddings;
+using System.ClientModel;
+
+var azure = new AzureOpenAIClient(
+    new Uri("http://localhost:5000"),
+    new ApiKeyCredential("test-key"));
+
+ChatClient chat = azure.GetChatClient("gpt-4.1-mini");
+EmbeddingClient embeddings = azure.GetEmbeddingClient("text-embedding-3-small");
+
+var answer = await chat.CompleteChatAsync(
+[
+    new UserChatMessage("What is the invoice total?"),
+]);
+
+var vector = await embeddings.GenerateEmbeddingAsync("invoice");
+```
+
+Microsoft Foundry / Azure AI Inference clients call the root `/chat/completions` and `/embeddings` routes. Set `Model` to the model id configured in LLM TCK.
+
+```csharp
+using Azure;
+using Azure.AI.Inference;
+
+var endpoint = new Uri("http://localhost:5000");
+var credential = new AzureKeyCredential("test-key");
+
+var chat = new ChatCompletionsClient(endpoint, credential);
+var embeddings = new EmbeddingsClient(endpoint, credential);
+
+var completion = await chat.CompleteAsync(
+    new ChatCompletionsOptions(
+    [
+        new ChatRequestUserMessage("What is the invoice total?"),
+    ])
+    {
+        Model = "gpt-4.1-mini",
+    });
+
+var embedding = await embeddings.EmbedAsync(
+    new EmbeddingsOptions(["invoice"])
+    {
+        Model = "text-embedding-3-small",
+    });
+```
+
 ## Configuration Model
 
 LLM TCK is configured with one `LlmTckConfiguration`.
