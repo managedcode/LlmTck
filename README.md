@@ -7,23 +7,25 @@ When a bearer token is configured, both provider endpoints and control endpoints
 
 ## Packages
 
-- [`ManagedCode.LlmTck`](https://www.nuget.org/packages/ManagedCode.LlmTck): provider-neutral scenario runtime and assertion state.
-- [`ManagedCode.LlmTck.OpenAI`](https://www.nuget.org/packages/ManagedCode.LlmTck.OpenAI): OpenAI-compatible wire contracts.
-- [`ManagedCode.LlmTck.AzureOpenAI`](https://www.nuget.org/packages/ManagedCode.LlmTck.AzureOpenAI): Azure OpenAI compatibility profile and future wire contracts.
-- [`ManagedCode.LlmTck.Foundry`](https://www.nuget.org/packages/ManagedCode.LlmTck.Foundry): Microsoft Foundry compatibility profile and future wire contracts.
-- [`ManagedCode.LlmTck.Anthropic`](https://www.nuget.org/packages/ManagedCode.LlmTck.Anthropic): Anthropic Messages compatibility profile and future wire contracts.
-- [`ManagedCode.LlmTck.Gemini`](https://www.nuget.org/packages/ManagedCode.LlmTck.Gemini): Gemini compatibility profile and future wire contracts.
-- [`ManagedCode.LlmTck.Groq`](https://www.nuget.org/packages/ManagedCode.LlmTck.Groq): Groq compatibility profile and future wire contracts.
-- [`ManagedCode.LlmTck.Mistral`](https://www.nuget.org/packages/ManagedCode.LlmTck.Mistral): Mistral compatibility profile and future wire contracts.
-- [`ManagedCode.LlmTck.Ollama`](https://www.nuget.org/packages/ManagedCode.LlmTck.Ollama): Ollama compatibility profile and future wire contracts.
-- [`ManagedCode.LlmTck.Cohere`](https://www.nuget.org/packages/ManagedCode.LlmTck.Cohere): Cohere compatibility profile and future wire contracts.
-- [`ManagedCode.LlmTck.Bedrock`](https://www.nuget.org/packages/ManagedCode.LlmTck.Bedrock): Amazon Bedrock compatibility profile and future wire contracts.
-- [`ManagedCode.LlmTck.OpenRouter`](https://www.nuget.org/packages/ManagedCode.LlmTck.OpenRouter): OpenRouter compatibility profile and future wire contracts.
-- [`ManagedCode.LlmTck.DeepSeek`](https://www.nuget.org/packages/ManagedCode.LlmTck.DeepSeek): DeepSeek compatibility profile and future wire contracts.
-- [`ManagedCode.LlmTck.Perplexity`](https://www.nuget.org/packages/ManagedCode.LlmTck.Perplexity): Perplexity compatibility profile and future wire contracts.
-- [`ManagedCode.LlmTck.Hosting`](https://www.nuget.org/packages/ManagedCode.LlmTck.Hosting): ASP.NET Core endpoint mapping.
-- [`ManagedCode.LlmTck.Client`](https://www.nuget.org/packages/ManagedCode.LlmTck.Client): control client plus `IChatClient`, `IEmbeddingGenerator<string, Embedding<float>>`, and `IImageGenerator` implementations.
-- [`ManagedCode.LlmTck.Aspire`](https://www.nuget.org/packages/ManagedCode.LlmTck.Aspire): Aspire AppHost extension methods.
+| Package | NuGet | Description |
+| --- | --- | --- |
+| [`ManagedCode.LlmTck`](https://www.nuget.org/packages/ManagedCode.LlmTck) | [![NuGet](https://img.shields.io/nuget/v/ManagedCode.LlmTck.svg)](https://www.nuget.org/packages/ManagedCode.LlmTck) | Provider-neutral scenario runtime and assertion state. |
+| [`ManagedCode.LlmTck.OpenAI`](https://www.nuget.org/packages/ManagedCode.LlmTck.OpenAI) | [![NuGet](https://img.shields.io/nuget/v/ManagedCode.LlmTck.OpenAI.svg)](https://www.nuget.org/packages/ManagedCode.LlmTck.OpenAI) | OpenAI-compatible wire contracts. |
+| [`ManagedCode.LlmTck.AzureOpenAI`](https://www.nuget.org/packages/ManagedCode.LlmTck.AzureOpenAI) | [![NuGet](https://img.shields.io/nuget/v/ManagedCode.LlmTck.AzureOpenAI.svg)](https://www.nuget.org/packages/ManagedCode.LlmTck.AzureOpenAI) | Azure OpenAI compatibility profile and future wire contracts. |
+| [`ManagedCode.LlmTck.Foundry`](https://www.nuget.org/packages/ManagedCode.LlmTck.Foundry) | [![NuGet](https://img.shields.io/nuget/v/ManagedCode.LlmTck.Foundry.svg)](https://www.nuget.org/packages/ManagedCode.LlmTck.Foundry) | Microsoft Foundry compatibility profile and future wire contracts. |
+| [`ManagedCode.LlmTck.Anthropic`](https://www.nuget.org/packages/ManagedCode.LlmTck.Anthropic) | [![NuGet](https://img.shields.io/nuget/v/ManagedCode.LlmTck.Anthropic.svg)](https://www.nuget.org/packages/ManagedCode.LlmTck.Anthropic) | Anthropic Messages compatibility profile and future wire contracts. |
+| [`ManagedCode.LlmTck.Gemini`](https://www.nuget.org/packages/ManagedCode.LlmTck.Gemini) | [![NuGet](https://img.shields.io/nuget/v/ManagedCode.LlmTck.Gemini.svg)](https://www.nuget.org/packages/ManagedCode.LlmTck.Gemini) | Gemini compatibility profile and future wire contracts. |
+| [`ManagedCode.LlmTck.Groq`](https://www.nuget.org/packages/ManagedCode.LlmTck.Groq) | [![NuGet](https://img.shields.io/nuget/v/ManagedCode.LlmTck.Groq.svg)](https://www.nuget.org/packages/ManagedCode.LlmTck.Groq) | Groq compatibility profile and future wire contracts. |
+| [`ManagedCode.LlmTck.Mistral`](https://www.nuget.org/packages/ManagedCode.LlmTck.Mistral) | [![NuGet](https://img.shields.io/nuget/v/ManagedCode.LlmTck.Mistral.svg)](https://www.nuget.org/packages/ManagedCode.LlmTck.Mistral) | Mistral compatibility profile and future wire contracts. |
+| [`ManagedCode.LlmTck.Ollama`](https://www.nuget.org/packages/ManagedCode.LlmTck.Ollama) | [![NuGet](https://img.shields.io/nuget/v/ManagedCode.LlmTck.Ollama.svg)](https://www.nuget.org/packages/ManagedCode.LlmTck.Ollama) | Ollama compatibility profile and future wire contracts. |
+| [`ManagedCode.LlmTck.Cohere`](https://www.nuget.org/packages/ManagedCode.LlmTck.Cohere) | [![NuGet](https://img.shields.io/nuget/v/ManagedCode.LlmTck.Cohere.svg)](https://www.nuget.org/packages/ManagedCode.LlmTck.Cohere) | Cohere compatibility profile and future wire contracts. |
+| [`ManagedCode.LlmTck.Bedrock`](https://www.nuget.org/packages/ManagedCode.LlmTck.Bedrock) | [![NuGet](https://img.shields.io/nuget/v/ManagedCode.LlmTck.Bedrock.svg)](https://www.nuget.org/packages/ManagedCode.LlmTck.Bedrock) | Amazon Bedrock compatibility profile and future wire contracts. |
+| [`ManagedCode.LlmTck.OpenRouter`](https://www.nuget.org/packages/ManagedCode.LlmTck.OpenRouter) | [![NuGet](https://img.shields.io/nuget/v/ManagedCode.LlmTck.OpenRouter.svg)](https://www.nuget.org/packages/ManagedCode.LlmTck.OpenRouter) | OpenRouter compatibility profile and future wire contracts. |
+| [`ManagedCode.LlmTck.DeepSeek`](https://www.nuget.org/packages/ManagedCode.LlmTck.DeepSeek) | [![NuGet](https://img.shields.io/nuget/v/ManagedCode.LlmTck.DeepSeek.svg)](https://www.nuget.org/packages/ManagedCode.LlmTck.DeepSeek) | DeepSeek compatibility profile and future wire contracts. |
+| [`ManagedCode.LlmTck.Perplexity`](https://www.nuget.org/packages/ManagedCode.LlmTck.Perplexity) | [![NuGet](https://img.shields.io/nuget/v/ManagedCode.LlmTck.Perplexity.svg)](https://www.nuget.org/packages/ManagedCode.LlmTck.Perplexity) | Perplexity compatibility profile and future wire contracts. |
+| [`ManagedCode.LlmTck.Hosting`](https://www.nuget.org/packages/ManagedCode.LlmTck.Hosting) | [![NuGet](https://img.shields.io/nuget/v/ManagedCode.LlmTck.Hosting.svg)](https://www.nuget.org/packages/ManagedCode.LlmTck.Hosting) | ASP.NET Core endpoint mapping. |
+| [`ManagedCode.LlmTck.Client`](https://www.nuget.org/packages/ManagedCode.LlmTck.Client) | [![NuGet](https://img.shields.io/nuget/v/ManagedCode.LlmTck.Client.svg)](https://www.nuget.org/packages/ManagedCode.LlmTck.Client) | Control client plus `IChatClient`, `IEmbeddingGenerator<string, Embedding<float>>`, and `IImageGenerator` implementations. |
+| [`ManagedCode.LlmTck.Aspire`](https://www.nuget.org/packages/ManagedCode.LlmTck.Aspire) | [![NuGet](https://img.shields.io/nuget/v/ManagedCode.LlmTck.Aspire.svg)](https://www.nuget.org/packages/ManagedCode.LlmTck.Aspire) | Aspire AppHost extension methods. |
 
 ## Provider Packages
 
