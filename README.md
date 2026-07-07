@@ -7,23 +7,23 @@ When a bearer token is configured, both provider endpoints and control endpoints
 
 ## Packages
 
-- `ManagedCode.LlmTck`: provider-neutral scenario runtime and assertion state.
-- `ManagedCode.LlmTck.OpenAI`: OpenAI-compatible wire contracts.
-- `ManagedCode.LlmTck.AzureOpenAI`: Azure OpenAI compatibility profile and future wire contracts.
-- `ManagedCode.LlmTck.Foundry`: Microsoft Foundry compatibility profile and future wire contracts.
-- `ManagedCode.LlmTck.Anthropic`: Anthropic Messages compatibility profile and future wire contracts.
-- `ManagedCode.LlmTck.Gemini`: Gemini compatibility profile and future wire contracts.
-- `ManagedCode.LlmTck.Groq`: Groq compatibility profile and future wire contracts.
-- `ManagedCode.LlmTck.Mistral`: Mistral compatibility profile and future wire contracts.
-- `ManagedCode.LlmTck.Ollama`: Ollama compatibility profile and future wire contracts.
-- `ManagedCode.LlmTck.Cohere`: Cohere compatibility profile and future wire contracts.
-- `ManagedCode.LlmTck.Bedrock`: Amazon Bedrock compatibility profile and future wire contracts.
-- `ManagedCode.LlmTck.OpenRouter`: OpenRouter compatibility profile and future wire contracts.
-- `ManagedCode.LlmTck.DeepSeek`: DeepSeek compatibility profile and future wire contracts.
-- `ManagedCode.LlmTck.Perplexity`: Perplexity compatibility profile and future wire contracts.
-- `ManagedCode.LlmTck.Hosting`: ASP.NET Core endpoint mapping.
-- `ManagedCode.LlmTck.Client`: control client plus `IChatClient`, `IEmbeddingGenerator<string, Embedding<float>>`, and `IImageGenerator` implementations.
-- `ManagedCode.LlmTck.Aspire`: Aspire AppHost extension methods.
+- [`ManagedCode.LlmTck`](https://www.nuget.org/packages/ManagedCode.LlmTck): provider-neutral scenario runtime and assertion state.
+- [`ManagedCode.LlmTck.OpenAI`](https://www.nuget.org/packages/ManagedCode.LlmTck.OpenAI): OpenAI-compatible wire contracts.
+- [`ManagedCode.LlmTck.AzureOpenAI`](https://www.nuget.org/packages/ManagedCode.LlmTck.AzureOpenAI): Azure OpenAI compatibility profile and future wire contracts.
+- [`ManagedCode.LlmTck.Foundry`](https://www.nuget.org/packages/ManagedCode.LlmTck.Foundry): Microsoft Foundry compatibility profile and future wire contracts.
+- [`ManagedCode.LlmTck.Anthropic`](https://www.nuget.org/packages/ManagedCode.LlmTck.Anthropic): Anthropic Messages compatibility profile and future wire contracts.
+- [`ManagedCode.LlmTck.Gemini`](https://www.nuget.org/packages/ManagedCode.LlmTck.Gemini): Gemini compatibility profile and future wire contracts.
+- [`ManagedCode.LlmTck.Groq`](https://www.nuget.org/packages/ManagedCode.LlmTck.Groq): Groq compatibility profile and future wire contracts.
+- [`ManagedCode.LlmTck.Mistral`](https://www.nuget.org/packages/ManagedCode.LlmTck.Mistral): Mistral compatibility profile and future wire contracts.
+- [`ManagedCode.LlmTck.Ollama`](https://www.nuget.org/packages/ManagedCode.LlmTck.Ollama): Ollama compatibility profile and future wire contracts.
+- [`ManagedCode.LlmTck.Cohere`](https://www.nuget.org/packages/ManagedCode.LlmTck.Cohere): Cohere compatibility profile and future wire contracts.
+- [`ManagedCode.LlmTck.Bedrock`](https://www.nuget.org/packages/ManagedCode.LlmTck.Bedrock): Amazon Bedrock compatibility profile and future wire contracts.
+- [`ManagedCode.LlmTck.OpenRouter`](https://www.nuget.org/packages/ManagedCode.LlmTck.OpenRouter): OpenRouter compatibility profile and future wire contracts.
+- [`ManagedCode.LlmTck.DeepSeek`](https://www.nuget.org/packages/ManagedCode.LlmTck.DeepSeek): DeepSeek compatibility profile and future wire contracts.
+- [`ManagedCode.LlmTck.Perplexity`](https://www.nuget.org/packages/ManagedCode.LlmTck.Perplexity): Perplexity compatibility profile and future wire contracts.
+- [`ManagedCode.LlmTck.Hosting`](https://www.nuget.org/packages/ManagedCode.LlmTck.Hosting): ASP.NET Core endpoint mapping.
+- [`ManagedCode.LlmTck.Client`](https://www.nuget.org/packages/ManagedCode.LlmTck.Client): control client plus `IChatClient`, `IEmbeddingGenerator<string, Embedding<float>>`, and `IImageGenerator` implementations.
+- [`ManagedCode.LlmTck.Aspire`](https://www.nuget.org/packages/ManagedCode.LlmTck.Aspire): Aspire AppHost extension methods.
 
 ## Provider Packages
 
