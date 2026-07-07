@@ -38,7 +38,6 @@
     <ProjectReference Include="..\..\src\ManagedCode.LlmTck.Hosting\ManagedCode.LlmTck.Hosting.csproj" />
     <ProjectReference Include="..\..\src\ManagedCode.LlmTck.Client\ManagedCode.LlmTck.Client.csproj" />
     <ProjectReference Include="..\..\src\ManagedCode.LlmTck.Aspire\ManagedCode.LlmTck.Aspire.csproj" />
-    <ProjectReference Include="..\..\samples\ManagedCode.LlmTck.Service\ManagedCode.LlmTck.Service.csproj" ReferenceOutputAssembly="false" />
   </ItemGroup>
 
   <ItemGroup>

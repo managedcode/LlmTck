@@ -11,9 +11,9 @@ LLM TCK provides deterministic provider emulation for integration tests. Test su
 - `ManagedCode.LlmTck.AzureOpenAI`, `ManagedCode.LlmTck.Foundry`, `ManagedCode.LlmTck.Anthropic`, `ManagedCode.LlmTck.Gemini`, `ManagedCode.LlmTck.Groq`, `ManagedCode.LlmTck.Mistral`, `ManagedCode.LlmTck.Ollama`, `ManagedCode.LlmTck.Cohere`, `ManagedCode.LlmTck.Bedrock`, `ManagedCode.LlmTck.OpenRouter`, `ManagedCode.LlmTck.DeepSeek`, and `ManagedCode.LlmTck.Perplexity` own provider compatibility profiles and future provider-specific wire contracts.
 - `ManagedCode.LlmTck.Hosting` exposes the runtime through ASP.NET Core endpoints.
 - `ManagedCode.LlmTck.Client` exposes a control client and `Microsoft.Extensions.AI` clients.
-- `ManagedCode.LlmTck.Aspire` adds AppHost convenience methods over Aspire project resources.
+- `ManagedCode.LlmTck.Aspire` adds a package-owned Aspire resource with `builder.AddLlmTck()`.
 - `samples/ManagedCode.LlmTck.Service` is the runnable HTTP provider emulator.
-- `samples/ManagedCode.LlmTck.AppHost` wires the service into Aspire.
+- `samples/ManagedCode.LlmTck.AppHost` shows the consumer AppHost shape for the Aspire package.
 
 ## Runtime Flow
 
@@ -40,4 +40,4 @@ The client builder wraps the provider-neutral configuration builder; it does not
 
 OpenAI compatibility is the first implemented provider endpoint surface. The hosted surface also maps Azure OpenAI deployment routes and Microsoft Foundry / Azure AI Inference chat and embedding routes so the official Azure SDK clients can call the TCK directly. The provider matrix is explicit: OpenAI, Azure OpenAI, Microsoft Foundry, Anthropic, Gemini, Groq, Mistral, Ollama, Cohere, Amazon Bedrock, OpenRouter, DeepSeek, and Perplexity each have a package-level compatibility profile. Provider-specific DTOs and mapping belong in the matching provider package; provider-neutral scenario behavior stays in the core runtime.
 
-Aspire integration selects compatibility with fluent methods such as `.WithOpenAICompatibility()`, `.WithAzureOpenAICompatibility()`, or `.WithAnthropicCompatibility()`. `.WithEndpoint(...)` records the target provider base URL as configuration so AppHost wiring, tests, and docs use the same shape.
+Aspire integration adds the TCK through `builder.AddLlmTck()` without requiring consumer AppHosts to reference a service project or generated `Projects.*` metadata type. The package-owned resource uses the versioned `ghcr.io/managedcode/llm-tck` container image. Compatibility is selected with fluent methods such as `.WithOpenAICompatibility()`, `.WithAzureOpenAICompatibility()`, or `.WithAnthropicCompatibility()`. `.WithEndpoint(...)` records the target provider base URL as configuration so AppHost wiring, tests, and docs use the same shape.

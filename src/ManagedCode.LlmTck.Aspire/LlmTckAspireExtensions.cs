@@ -5,130 +5,145 @@ namespace ManagedCode.LlmTck.Aspire;
 
 public static class LlmTckAspireExtensions
 {
-    public static IResourceBuilder<ProjectResource> AddLlmTck(
+    public static IResourceBuilder<LlmTckResource> AddLlmTck(
         this IDistributedApplicationBuilder builder,
-        string name,
-        string projectPath
+        [ResourceName] string name = LlmTckResource.DefaultName
     )
     {
         ArgumentNullException.ThrowIfNull(builder);
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
-        ArgumentException.ThrowIfNullOrWhiteSpace(projectPath);
 
-        return builder
-            .AddProject(name, projectPath)
-            .WithEnvironment("LLM_TCK_RESOURCE_NAME", name)
-            .WithEnvironment("LLM_TCK_OPENAI_COMPATIBILITY", "true");
+        var resource = new LlmTckResource(name);
+
+        return ConfigureLlmTckResource(builder.AddResource(resource), name)
+            .WithImage(LlmTckContainerImageTags.Image, LlmTckContainerImageTags.Tag)
+            .WithImageRegistry(LlmTckContainerImageTags.Registry)
+            .WithHttpEndpoint(targetPort: LlmTckResource.HttpPort, name: "http")
+            .WithHttpHealthCheck("/");
     }
 
-    public static IResourceBuilder<ProjectResource> WithOpenAICompatibility(
-        this IResourceBuilder<ProjectResource> builder,
+    public static IResourceBuilder<TResource> WithOpenAICompatibility<TResource>(
+        this IResourceBuilder<TResource> builder,
         bool enabled = true
     )
+        where TResource : IResourceWithEnvironment
     {
         return WithCompatibility(builder, "OPENAI", enabled);
     }
 
-    public static IResourceBuilder<ProjectResource> WithAzureOpenAICompatibility(
-        this IResourceBuilder<ProjectResource> builder,
+    public static IResourceBuilder<TResource> WithAzureOpenAICompatibility<TResource>(
+        this IResourceBuilder<TResource> builder,
         bool enabled = true
     )
+        where TResource : IResourceWithEnvironment
     {
         return WithCompatibility(builder, "AZURE_OPENAI", enabled);
     }
 
-    public static IResourceBuilder<ProjectResource> WithFoundryCompatibility(
-        this IResourceBuilder<ProjectResource> builder,
+    public static IResourceBuilder<TResource> WithFoundryCompatibility<TResource>(
+        this IResourceBuilder<TResource> builder,
         bool enabled = true
     )
+        where TResource : IResourceWithEnvironment
     {
         return WithCompatibility(builder, "MICROSOFT_FOUNDRY", enabled);
     }
 
-    public static IResourceBuilder<ProjectResource> WithAnthropicCompatibility(
-        this IResourceBuilder<ProjectResource> builder,
+    public static IResourceBuilder<TResource> WithAnthropicCompatibility<TResource>(
+        this IResourceBuilder<TResource> builder,
         bool enabled = true
     )
+        where TResource : IResourceWithEnvironment
     {
         return WithCompatibility(builder, "ANTHROPIC", enabled);
     }
 
-    public static IResourceBuilder<ProjectResource> WithGeminiCompatibility(
-        this IResourceBuilder<ProjectResource> builder,
+    public static IResourceBuilder<TResource> WithGeminiCompatibility<TResource>(
+        this IResourceBuilder<TResource> builder,
         bool enabled = true
     )
+        where TResource : IResourceWithEnvironment
     {
         return WithCompatibility(builder, "GEMINI", enabled);
     }
 
-    public static IResourceBuilder<ProjectResource> WithGroqCompatibility(
-        this IResourceBuilder<ProjectResource> builder,
+    public static IResourceBuilder<TResource> WithGroqCompatibility<TResource>(
+        this IResourceBuilder<TResource> builder,
         bool enabled = true
     )
+        where TResource : IResourceWithEnvironment
     {
         return WithCompatibility(builder, "GROQ", enabled);
     }
 
-    public static IResourceBuilder<ProjectResource> WithMistralCompatibility(
-        this IResourceBuilder<ProjectResource> builder,
+    public static IResourceBuilder<TResource> WithMistralCompatibility<TResource>(
+        this IResourceBuilder<TResource> builder,
         bool enabled = true
     )
+        where TResource : IResourceWithEnvironment
     {
         return WithCompatibility(builder, "MISTRAL", enabled);
     }
 
-    public static IResourceBuilder<ProjectResource> WithOllamaCompatibility(
-        this IResourceBuilder<ProjectResource> builder,
+    public static IResourceBuilder<TResource> WithOllamaCompatibility<TResource>(
+        this IResourceBuilder<TResource> builder,
         bool enabled = true
     )
+        where TResource : IResourceWithEnvironment
     {
         return WithCompatibility(builder, "OLLAMA", enabled);
     }
 
-    public static IResourceBuilder<ProjectResource> WithCohereCompatibility(
-        this IResourceBuilder<ProjectResource> builder,
+    public static IResourceBuilder<TResource> WithCohereCompatibility<TResource>(
+        this IResourceBuilder<TResource> builder,
         bool enabled = true
     )
+        where TResource : IResourceWithEnvironment
     {
         return WithCompatibility(builder, "COHERE", enabled);
     }
 
-    public static IResourceBuilder<ProjectResource> WithBedrockCompatibility(
-        this IResourceBuilder<ProjectResource> builder,
+    public static IResourceBuilder<TResource> WithBedrockCompatibility<TResource>(
+        this IResourceBuilder<TResource> builder,
         bool enabled = true
     )
+        where TResource : IResourceWithEnvironment
     {
         return WithCompatibility(builder, "BEDROCK", enabled);
     }
 
-    public static IResourceBuilder<ProjectResource> WithOpenRouterCompatibility(
-        this IResourceBuilder<ProjectResource> builder,
+    public static IResourceBuilder<TResource> WithOpenRouterCompatibility<TResource>(
+        this IResourceBuilder<TResource> builder,
         bool enabled = true
     )
+        where TResource : IResourceWithEnvironment
     {
         return WithCompatibility(builder, "OPENROUTER", enabled);
     }
 
-    public static IResourceBuilder<ProjectResource> WithDeepSeekCompatibility(
-        this IResourceBuilder<ProjectResource> builder,
+    public static IResourceBuilder<TResource> WithDeepSeekCompatibility<TResource>(
+        this IResourceBuilder<TResource> builder,
         bool enabled = true
     )
+        where TResource : IResourceWithEnvironment
     {
         return WithCompatibility(builder, "DEEPSEEK", enabled);
     }
 
-    public static IResourceBuilder<ProjectResource> WithPerplexityCompatibility(
-        this IResourceBuilder<ProjectResource> builder,
+    public static IResourceBuilder<TResource> WithPerplexityCompatibility<TResource>(
+        this IResourceBuilder<TResource> builder,
         bool enabled = true
     )
+        where TResource : IResourceWithEnvironment
     {
         return WithCompatibility(builder, "PERPLEXITY", enabled);
     }
 
-    public static IResourceBuilder<ProjectResource> WithEndpoint(
-        this IResourceBuilder<ProjectResource> builder,
+    public static IResourceBuilder<TResource> WithEndpoint<TResource>(
+        this IResourceBuilder<TResource> builder,
         string endpoint
     )
+        where TResource : IResourceWithEnvironment
     {
         ArgumentNullException.ThrowIfNull(builder);
         ArgumentException.ThrowIfNullOrWhiteSpace(endpoint);
@@ -146,10 +161,11 @@ public static class LlmTckAspireExtensions
             .WithEnvironment("LLM_TCK_ENDPOINT", endpointUri.AbsoluteUri);
     }
 
-    public static IResourceBuilder<ProjectResource> WithApiKey(
-        this IResourceBuilder<ProjectResource> builder,
+    public static IResourceBuilder<TResource> WithApiKey<TResource>(
+        this IResourceBuilder<TResource> builder,
         string apiKey
     )
+        where TResource : IResourceWithEnvironment
     {
         ArgumentNullException.ThrowIfNull(builder);
         ArgumentException.ThrowIfNullOrWhiteSpace(apiKey);
@@ -157,11 +173,12 @@ public static class LlmTckAspireExtensions
         return builder.WithEnvironment("LlmTck__RequiredBearerToken", apiKey);
     }
 
-    private static IResourceBuilder<ProjectResource> WithCompatibility(
-        IResourceBuilder<ProjectResource> builder,
+    private static IResourceBuilder<TResource> WithCompatibility<TResource>(
+        IResourceBuilder<TResource> builder,
         string provider,
         bool enabled
     )
+        where TResource : IResourceWithEnvironment
     {
         ArgumentNullException.ThrowIfNull(builder);
         ArgumentException.ThrowIfNullOrWhiteSpace(provider);
@@ -170,5 +187,16 @@ public static class LlmTckAspireExtensions
             $"LLM_TCK_{provider}_COMPATIBILITY",
             enabled ? "true" : "false"
         );
+    }
+
+    private static IResourceBuilder<TResource> ConfigureLlmTckResource<TResource>(
+        IResourceBuilder<TResource> builder,
+        string name
+    )
+        where TResource : IResourceWithEnvironment
+    {
+        return builder
+            .WithEnvironment("LLM_TCK_RESOURCE_NAME", name)
+            .WithEnvironment("LLM_TCK_OPENAI_COMPATIBILITY", "true");
     }
 }

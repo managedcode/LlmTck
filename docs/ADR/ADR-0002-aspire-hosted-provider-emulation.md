@@ -10,8 +10,8 @@ The library is intended for integration tests, not only unit tests. It must star
 
 ## Decision
 
-Ship an Aspire extension package that adds an LLM TCK project resource to an AppHost. The integration test builds the AppHost model directly in test code with `Aspire.Hosting.Testing`, adds the sample service through `ManagedCode.LlmTck.Aspire`, then calls the running service through `Microsoft.Extensions.AI`, Azure OpenAI, Microsoft Foundry, and HTTP endpoints.
+Ship an Aspire extension package that adds a package-owned LLM TCK resource to an AppHost with `builder.AddLlmTck()`. The consumer AppHost should not need a service project reference, generated `Projects.*` metadata type, or project path. The integration test builds the AppHost model directly in test code with `Aspire.Hosting.Testing`, adds the TCK through `ManagedCode.LlmTck.Aspire`, starts the versioned container image, then calls the running service through `Microsoft.Extensions.AI`, Azure OpenAI, Microsoft Foundry, and HTTP endpoints.
 
 ## Consequences
 
-The Aspire path is validated by a real start/wait/call flow. The package stays aligned with Aspire resource APIs instead of shelling out to CLI processes from tests.
+The Aspire path is validated by a real start/wait/call flow. The package stays aligned with Aspire resource APIs and keeps the hosted service artifact behind the Aspire integration package surface.

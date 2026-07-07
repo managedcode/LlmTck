@@ -1,5 +1,6 @@
 using System.ClientModel;
 using System.ClientModel.Primitives;
+using System.Diagnostics;
 using System.Net.Http.Json;
 using System.Text.Json;
 using Azure;
@@ -29,16 +30,19 @@ public sealed class AspireIntegrationTests
     private const string _audioModel = "llm-tck-audio";
 
     [Test]
-    [Timeout(120_000)]
+    [Timeout(360_000)]
     public async Task AddLlmTck_BuildsAppHostInTestAndSupportsConfiguredClientsAsync(
         CancellationToken cancellationToken
     )
     {
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        timeout.CancelAfter(TimeSpan.FromSeconds(90));
+        timeout.CancelAfter(TimeSpan.FromMinutes(5));
+        await EnsureLlmTckContainerImageAsync(timeout.Token);
+
         var builder = DistributedApplicationTestingBuilder.Create([]);
         builder
-            .AddLlmTck(_resourceName, GetSampleServiceProjectPath())
+            .AddLlmTck()
+            .WithImagePullPolicy(ImagePullPolicy.Never)
             .WithEndpoint("https://api.example.com/v1")
             .WithOpenAICompatibility()
             .WithAzureOpenAICompatibility()
@@ -214,7 +218,49 @@ public sealed class AspireIntegrationTests
         await Assert.That(assertions.Matched).IsGreaterThanOrEqualTo(8);
     }
 
-    private static string GetSampleServiceProjectPath()
+    private static async Task EnsureLlmTckContainerImageAsync(CancellationToken cancellationToken)
+    {
+        var imageReference = GetLlmTckImageReference();
+        var image = await RunProcessAsync(
+            "docker",
+            ["image", "inspect", imageReference],
+            workingDirectory: null,
+            throwOnError: false,
+            cancellationToken
+        );
+        if (image.ExitCode == 0)
+        {
+            return;
+        }
+
+        var repoRoot = FindRepositoryRoot();
+        await RunProcessAsync(
+            "docker",
+            [
+                "build",
+                "-f",
+                Path.Combine(
+                    repoRoot,
+                    "samples",
+                    "ManagedCode.LlmTck.Service",
+                    "Dockerfile"
+                ),
+                "-t",
+                imageReference,
+                repoRoot,
+            ],
+            repoRoot,
+            throwOnError: true,
+            cancellationToken
+        );
+    }
+
+    private static string GetLlmTckImageReference()
+    {
+        return $"{LlmTckContainerImageTags.Registry}/{LlmTckContainerImageTags.Image}:{LlmTckContainerImageTags.Tag}";
+    }
+
+    private static string FindRepositoryRoot()
     {
         var current = new DirectoryInfo(AppContext.BaseDirectory);
         while (current is not null)
@@ -222,12 +268,7 @@ public sealed class AspireIntegrationTests
             var solutionPath = Path.Combine(current.FullName, "ManagedCode.LlmTck.slnx");
             if (File.Exists(solutionPath))
             {
-                return Path.Combine(
-                    current.FullName,
-                    "samples",
-                    "ManagedCode.LlmTck.Service",
-                    "ManagedCode.LlmTck.Service.csproj"
-                );
+                return current.FullName;
             }
 
             current = current.Parent;
@@ -235,4 +276,68 @@ public sealed class AspireIntegrationTests
 
         throw new InvalidOperationException("Could not locate the ManagedCode.LlmTck repository root.");
     }
+
+    private static async Task<ProcessResult> RunProcessAsync(
+        string fileName,
+        IReadOnlyList<string> arguments,
+        string? workingDirectory,
+        bool throwOnError,
+        CancellationToken cancellationToken
+    )
+    {
+        using var process = new Process();
+        process.StartInfo = new ProcessStartInfo(fileName)
+        {
+            RedirectStandardError = true,
+            RedirectStandardOutput = true,
+            WorkingDirectory = workingDirectory ?? Environment.CurrentDirectory,
+        };
+
+        foreach (var argument in arguments)
+        {
+            process.StartInfo.ArgumentList.Add(argument);
+        }
+
+        if (!process.Start())
+        {
+            throw new InvalidOperationException($"Could not start '{fileName}'.");
+        }
+
+        try
+        {
+            var standardOutput = process.StandardOutput.ReadToEndAsync(cancellationToken);
+            var standardError = process.StandardError.ReadToEndAsync(cancellationToken);
+            await process.WaitForExitAsync(cancellationToken);
+            var result = new ProcessResult(
+                process.ExitCode,
+                await standardOutput,
+                await standardError
+            );
+
+            if (throwOnError && result.ExitCode != 0)
+            {
+                throw new InvalidOperationException(
+                    $"{fileName} {string.Join(' ', arguments)} failed with exit code {result.ExitCode}."
+                        + $"{Environment.NewLine}{result.StandardOutput}{Environment.NewLine}{result.StandardError}"
+                );
+            }
+
+            return result;
+        }
+        catch
+        {
+            if (!process.HasExited)
+            {
+                process.Kill(entireProcessTree: true);
+            }
+
+            throw;
+        }
+    }
+
+    private sealed record ProcessResult(
+        int ExitCode,
+        string StandardOutput,
+        string StandardError
+    );
 }

@@ -207,7 +207,13 @@ app.Run();
 
 ## Aspire AppHost
 
-In Aspire, add the LLM TCK service as a project resource and pass the API key as configuration:
+Install the Aspire integration package in the AppHost:
+
+```bash
+dotnet add package ManagedCode.LlmTck.Aspire --version 0.0.4
+```
+
+Then add the package-owned TCK resource directly:
 
 ```csharp
 using ManagedCode.LlmTck.Aspire;
@@ -215,7 +221,7 @@ using ManagedCode.LlmTck.Aspire;
 var builder = DistributedApplication.CreateBuilder(args);
 
 builder
-    .AddLlmTck("openai-compatible", "../ManagedCode.LlmTck.Service/ManagedCode.LlmTck.Service.csproj")
+    .AddLlmTck()
     .WithEndpoint("https://api.example.com/v1")
     .WithOpenAICompatibility()
     .WithApiKey("test-key");
@@ -223,25 +229,25 @@ builder
 builder.Build().Run();
 ```
 
-The sample service reads `LlmTck:Endpoint` and `LlmTck:RequiredBearerToken`, so `.WithEndpoint(...)` records the target provider base URL and `.WithApiKey("test-key")` protects both `/v1/*` provider endpoints and `/__llm-tck/*` control endpoints.
+`AddLlmTck()` creates a `LlmTckResource` backed by the versioned container image `ghcr.io/managedcode/llm-tck:0.0.4` and exposes its `http` endpoint. `.WithEndpoint(...)` records the target provider base URL as `LlmTck:Endpoint`, and `.WithApiKey("test-key")` sets `LlmTck:RequiredBearerToken` so both `/v1/*` provider endpoints and `/__llm-tck/*` control endpoints require the same bearer token.
 
 Provider compatibility flags are explicit:
 
 ```csharp
 builder
-    .AddLlmTck("azure-openai", "../ManagedCode.LlmTck.Service/ManagedCode.LlmTck.Service.csproj")
+    .AddLlmTck("azure-openai")
     .WithEndpoint("https://contoso.openai.azure.com")
     .WithAzureOpenAICompatibility()
     .WithApiKey(apiKey);
 
 builder
-    .AddLlmTck("anthropic", "../ManagedCode.LlmTck.Service/ManagedCode.LlmTck.Service.csproj")
+    .AddLlmTck("anthropic")
     .WithEndpoint("https://api.anthropic.com")
     .WithAnthropicCompatibility()
     .WithApiKey(apiKey);
 
 builder
-    .AddLlmTck("gemini", "../ManagedCode.LlmTck.Service/ManagedCode.LlmTck.Service.csproj")
+    .AddLlmTck("gemini")
     .WithEndpoint("https://generativelanguage.googleapis.com")
     .WithGeminiCompatibility()
     .WithApiKey(apiKey);
