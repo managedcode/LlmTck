@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>LLM TCK</title>
+    <meta name="description" content="Deterministic Aspire-hosted LLM API compatibility testing for .NET.">
+    <link rel="stylesheet" href="styles.css">
+  </head>
+  <body>
+    <header class="topbar">
+      <a class="brand" href="#top">LLM TCK</a>
+      <nav aria-label="Primary navigation">
+        <a href="#coverage">Coverage</a>
+        <a href="#packages">Packages</a>
+        <a href="#start">Start</a>
+      </nav>
+    </header>
+
+    <main id="top">
+      <section class="hero">
+        <div class="hero-copy">
+          <p class="eyebrow">ManagedCode.LlmTck</p>
+          <h1>Deterministic LLM compatibility tests for .NET.</h1>
+          <p class="lede">
+            Host a local provider-compatible server with Aspire, script exact model behavior, and call it through HTTP or Microsoft.Extensions.AI.
+          </p>
+          <div class="actions">
+            <a class="primary" href="#start">Get started</a>
+            <a class="secondary" href="https://github.com/managedcode/llm-tck">GitHub</a>
+          </div>
+        </div>
+        <img class="hero-art" src="assets/llm-tck-hero.png" alt="LLM TCK compatibility test bench showing model modality nodes connected to a deterministic server.">
+      </section>
+
+      <section id="coverage" class="band">
+        <div class="section-heading">
+          <p class="eyebrow">Coverage</p>
+          <h2>Provider behavior you can pin down.</h2>
+        </div>
+        <div class="grid">
+          <article><span>01</span><h3>Chat</h3><p>Script exact responses, failures, and queued replies.</p></article>
+          <article><span>02</span><h3>Streaming</h3><p>Emit known SSE chunks and a deterministic done marker.</p></article>
+          <article><span>03</span><h3>Models</h3><p>Expose a local catalog for chat, embeddings, image, and audio.</p></article>
+          <article><span>04</span><h3>Assertions</h3><p>Inspect matched, unmatched, auth, exhausted, and error events.</p></article>
+          <article><span>05</span><h3>Embeddings</h3><p>Return configured vectors for repeatable semantic tests.</p></article>
+          <article><span>06</span><h3>Media</h3><p>Serve fixed image and audio fixtures without external calls.</p></article>
+        </div>
+      </section>
+
+      <section id="packages" class="split">
+        <div>
+          <p class="eyebrow">Packages</p>
+          <h2>Small surfaces, clear ownership.</h2>
+          <p>
+            Core runtime, OpenAI wire mapping, ASP.NET Core endpoints, Microsoft.Extensions.AI clients, and Aspire AppHost extensions ship as separate packages.
+          </p>
+        </div>
+        <ul class="package-list">
+          <li><strong>ManagedCode.LlmTck</strong><span>Scenarios and assertions</span></li>
+          <li><strong>ManagedCode.LlmTck.Hosting</strong><span>Provider and control endpoints</span></li>
+          <li><strong>ManagedCode.LlmTck.Client</strong><span>Control and AI clients</span></li>
+          <li><strong>ManagedCode.LlmTck.Aspire</strong><span>AppHost integration</span></li>
+        </ul>
+      </section>
+
+      <section id="start" class="start">
+        <p class="eyebrow">Start</p>
+        <h2>Add the Aspire resource and call the local endpoint.</h2>
+        <pre><code>builder
+    .AddLlmTck("llm-tck", "../ManagedCode.LlmTck.Service/ManagedCode.LlmTck.Service.csproj")
+    .WithOpenAICompatibility()
+    .WithApiKey("test-key");</code></pre>
+      </section>
+    </main>
+  </body>
+</html>

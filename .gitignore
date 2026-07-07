@@ -1,0 +1,17 @@
+bin/
+obj/
+artifacts/
+TestResults/
+*.trx
+coverage/
+coverage.cobertura.xml
+
+*.brainstorm.md
+*.acceptance.md
+*.plan.md
+
+.DS_Store
+*.user
+*.suo
+*.swp
+*.tmp

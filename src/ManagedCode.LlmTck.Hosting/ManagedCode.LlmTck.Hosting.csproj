@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <PackageId>ManagedCode.LlmTck.Hosting</PackageId>
+    <Description>ASP.NET Core endpoint mapping for ManagedCode.LlmTck provider emulation and control APIs.</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\ManagedCode.LlmTck\ManagedCode.LlmTck.csproj" />
+    <ProjectReference Include="..\ManagedCode.LlmTck.OpenAI\ManagedCode.LlmTck.OpenAI.csproj" />
+  </ItemGroup>
+</Project>

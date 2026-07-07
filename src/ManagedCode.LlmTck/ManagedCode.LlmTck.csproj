@@ -1,0 +1,6 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <PackageId>ManagedCode.LlmTck</PackageId>
+    <Description>Deterministic scenario runtime for LLM API compatibility tests.</Description>
+  </PropertyGroup>
+</Project>

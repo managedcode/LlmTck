@@ -1,0 +1,60 @@
+using System.Net.Http.Json;
+using System.Text.Json;
+using ManagedCode.LlmTck.OpenAI;
+using Microsoft.Extensions.AI;
+
+namespace ManagedCode.LlmTck.Client;
+
+public sealed class LlmTckImageGenerator(HttpClient httpClient, string defaultModelId = "llm-tck-image")
+    : IImageGenerator
+{
+    private static readonly JsonSerializerOptions _jsonOptions = new(JsonSerializerDefaults.Web);
+
+    public async Task<ImageGenerationResponse> GenerateAsync(
+        ImageGenerationRequest request,
+        ImageGenerationOptions? options = null,
+        CancellationToken cancellationToken = default
+    )
+    {
+        ArgumentNullException.ThrowIfNull(request);
+
+        var httpRequest = new OpenAiImageGenerationRequest
+        {
+            Model = options?.ModelId ?? defaultModelId,
+            Prompt = request.Prompt ?? string.Empty,
+        };
+
+        using var response = await httpClient
+            .PostAsJsonAsync("/v1/images/generations", httpRequest, _jsonOptions, cancellationToken)
+            .ConfigureAwait(false);
+        response.EnsureSuccessStatusCode();
+
+        var payload = await response
+            .Content
+            .ReadFromJsonAsync<OpenAiImageGenerationResponse>(_jsonOptions, cancellationToken)
+            .ConfigureAwait(false);
+
+        var image = payload?.Data.FirstOrDefault();
+        var contents = new List<AIContent>();
+
+        if (!string.IsNullOrEmpty(image?.Base64Json))
+        {
+            contents.Add(new DataContent($"data:image/png;base64,{image.Base64Json}"));
+        }
+        else if (!string.IsNullOrEmpty(image?.Url))
+        {
+            contents.Add(new UriContent(image.Url, "image/png"));
+        }
+
+        return new ImageGenerationResponse(contents);
+    }
+
+    public object? GetService(Type serviceType, object? serviceKey = null)
+    {
+        return serviceType.IsInstanceOfType(this) ? this : null;
+    }
+
+    public void Dispose()
+    {
+    }
+}

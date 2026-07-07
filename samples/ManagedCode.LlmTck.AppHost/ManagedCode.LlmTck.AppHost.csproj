@@ -1,0 +1,13 @@
+<Project Sdk="Aspire.AppHost.Sdk/13.4.6">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <IsPackable>false</IsPackable>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <UserSecretsId>aa103cc0-b1fb-4a0e-aa81-dced7c4ea4ed</UserSecretsId>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\ManagedCode.LlmTck.Aspire\ManagedCode.LlmTck.Aspire.csproj" IsAspireProjectResource="false" />
+    <ProjectReference Include="..\ManagedCode.LlmTck.Service\ManagedCode.LlmTck.Service.csproj" />
+  </ItemGroup>
+</Project>

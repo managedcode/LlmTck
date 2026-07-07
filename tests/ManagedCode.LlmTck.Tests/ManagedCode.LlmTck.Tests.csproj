@@ -1,0 +1,34 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <IsPackable>false</IsPackable>
+    <TestingPlatformDotnetTestSupport>true</TestingPlatformDotnetTestSupport>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <TUnitImplicitUsings>true</TUnitImplicitUsings>
+    <TUnitAssertionsImplicitUsings>true</TUnitAssertionsImplicitUsings>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    <PackageReference Include="Aspire.Hosting.Testing" />
+    <PackageReference Include="Microsoft.AspNetCore.TestHost" />
+    <PackageReference Include="Microsoft.Extensions.AI" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="TUnit" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\ManagedCode.LlmTck\ManagedCode.LlmTck.csproj" />
+    <ProjectReference Include="..\..\src\ManagedCode.LlmTck.OpenAI\ManagedCode.LlmTck.OpenAI.csproj" />
+    <ProjectReference Include="..\..\src\ManagedCode.LlmTck.Hosting\ManagedCode.LlmTck.Hosting.csproj" />
+    <ProjectReference Include="..\..\src\ManagedCode.LlmTck.Client\ManagedCode.LlmTck.Client.csproj" />
+    <ProjectReference Include="..\..\src\ManagedCode.LlmTck.Aspire\ManagedCode.LlmTck.Aspire.csproj" />
+    <ProjectReference Include="..\..\samples\ManagedCode.LlmTck.AppHost\ManagedCode.LlmTck.AppHost.csproj" IsAspireProjectResource="false" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="TUnit.Assertions" />
+    <Using Include="TUnit.Assertions.Extensions" />
+    <Using Include="TUnit.Core" />
+  </ItemGroup>
+</Project>
