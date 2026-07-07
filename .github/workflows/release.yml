@@ -6,7 +6,7 @@ on:
       - "v*"
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   pack:
@@ -37,6 +37,17 @@ jobs:
 
       - name: Pack
         run: for project in src/*/*.csproj; do dotnet pack "$project" --configuration Release --no-build --output artifacts/packages; done
+
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG_NAME: ${{ github.ref_name }}
+        run: |
+          if gh release view "$TAG_NAME" > /dev/null 2>&1; then
+            gh release upload "$TAG_NAME" artifacts/packages/*.nupkg --clobber
+          else
+            gh release create "$TAG_NAME" artifacts/packages/*.nupkg --title "$TAG_NAME" --generate-notes --verify-tag
+          fi
 
       - name: Publish packages
         if: ${{ env.NUGET_API_KEY != '' }}

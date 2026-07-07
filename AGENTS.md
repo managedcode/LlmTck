@@ -64,6 +64,7 @@ Rule format:
 - Build: `dotnet build ManagedCode.LlmTck.slnx --configuration Release --no-restore`
 - Test: `dotnet test tests/ManagedCode.LlmTck.Tests/ManagedCode.LlmTck.Tests.csproj --configuration Release --no-build --verbosity normal`
 - Pack: `for project in src/*/*.csproj; do dotnet pack "$project" --configuration Release --no-build --output artifacts/packages; done`
+- Release: push a `vX.Y.Z` tag only after `Directory.Build.props` has the matching package version; the release workflow must create the GitHub Release and attach package artifacts, because a passing `main` CI run is not a release.
 - Format check: `dotnet format ManagedCode.LlmTck.slnx --verify-no-changes`
 - Tool restore: `dotnet tool restore`
 - Coverage gate: production code line coverage must stay at or above 90%; measure with coverlet/reportgenerator when coverage expectations change.
