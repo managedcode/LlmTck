@@ -51,7 +51,13 @@ public sealed class LlmTckRuntimeTests
         var summary = runtime.GetAssertionSummary();
         await Assert.That(summary.Matched).IsEqualTo(1);
         await Assert.That(summary.Unmatched).IsEqualTo(0);
+        await Assert.That(summary.InputTokens).IsEqualTo(5);
+        await Assert.That(summary.OutputTokens).IsEqualTo(2);
+        await Assert.That(summary.TotalTokens).IsEqualTo(7);
         await Assert.That(summary.Events[0].ScenarioId).IsEqualTo("blue-whale");
+        await Assert.That(summary.Events[0].Usage?.InputTokens).IsEqualTo(5);
+        await Assert.That(summary.Events[0].Usage?.OutputTokens).IsEqualTo(2);
+        await Assert.That(summary.Events[0].Usage?.TotalTokens).IsEqualTo(7);
     }
 
     [Test]

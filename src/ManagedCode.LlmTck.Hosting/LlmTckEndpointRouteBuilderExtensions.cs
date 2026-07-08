@@ -121,6 +121,10 @@ public static class LlmTckEndpointRouteBuilderExtensions
         ArgumentNullException.ThrowIfNull(endpoints);
 
         endpoints.MapGet(
+            "/__llm-tck",
+            () => Results.Content(LlmTckAdminPage.Html, LlmTckAdminPage.ContentType)
+        );
+        endpoints.MapGet(
             "/__llm-tck/models",
             (HttpContext context, ILlmTckRuntime runtime) =>
                 AuthorizeControlRequest(context, runtime) ?? Results.Json(runtime.GetModels())

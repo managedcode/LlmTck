@@ -79,7 +79,13 @@ public sealed class AspireIntegrationTests
         using var embeddingGenerator = controlClient.CreateEmbeddingGenerator(_embeddingModel);
         using var imageGenerator = controlClient.CreateImageGenerator(_imageModel);
 
+        var root = await httpClient.GetFromJsonAsync<JsonElement>("/", timeout.Token);
+        var adminPage = await httpClient.GetStringAsync("/__llm-tck", timeout.Token);
         var models = await httpClient.GetFromJsonAsync<JsonElement>("/v1/models", timeout.Token);
+        var adminModels = await httpClient.GetFromJsonAsync<JsonElement>(
+            "/__llm-tck/models",
+            timeout.Token
+        );
         var chat = await chatClient.GetResponseAsync(
             [new ExtensionsChatMessage(ExtensionsChatRole.User, "hello from aspire sdk")],
             cancellationToken: timeout.Token
@@ -161,9 +167,19 @@ public sealed class AspireIntegrationTests
             timeout.Token
         );
         var assertions = await controlClient.GetAssertionsAsync(timeout.Token);
+        var adminAssertions = await httpClient.GetFromJsonAsync<JsonElement>(
+            "/__llm-tck/assertions",
+            timeout.Token
+        );
 
         await Assert.That(llmTckEndpointExpression).IsNotEmpty();
+        await Assert.That(root.GetProperty("admin").GetString()).IsEqualTo("/__llm-tck");
+        await Assert.That(adminPage).Contains("LLM&nbsp;TCK");
+        await Assert.That(adminPage).Contains("/__llm-tck/models");
+        await Assert.That(adminPage).Contains("/__llm-tck/assertions");
+        await Assert.That(adminPage).Contains("Total tokens");
         await Assert.That(models.GetProperty("data").GetArrayLength()).IsGreaterThanOrEqualTo(4);
+        await Assert.That(adminModels.GetArrayLength()).IsGreaterThanOrEqualTo(4);
         await Assert.That(chat.Text).IsEqualTo("aspire blue whale");
         await Assert.That(string.Concat(streamChunks)).IsEqualTo("aspire blue whale");
         await Assert.That(embeddings).Count().IsEqualTo(2);
@@ -177,23 +193,13 @@ public sealed class AspireIntegrationTests
         await Assert.That(audio.Bytes).Count().IsGreaterThan(0);
         await Assert.That(audio.MediaType).IsEqualTo("audio/wav");
         await Assert.That(assertions.Matched).IsGreaterThanOrEqualTo(8);
+        await Assert.That(adminAssertions.GetProperty("matched").GetInt32()).IsGreaterThanOrEqualTo(8);
+        await Assert.That(adminAssertions.GetProperty("totalTokens").GetInt32()).IsGreaterThan(0);
     }
 
     private static async Task EnsureLlmTckContainerImageAsync(CancellationToken cancellationToken)
     {
         var imageReference = GetLlmTckImageReference();
-        var image = await RunProcessAsync(
-            "docker",
-            ["image", "inspect", imageReference],
-            workingDirectory: null,
-            throwOnError: false,
-            cancellationToken
-        );
-        if (image.ExitCode == 0)
-        {
-            return;
-        }
-
         var repoRoot = FindRepositoryRoot();
         await RunProcessAsync(
             "docker",

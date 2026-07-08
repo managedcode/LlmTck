@@ -215,7 +215,7 @@ app.Run();
 Install the Aspire integration package in the AppHost:
 
 ```bash
-dotnet add package ManagedCode.LlmTck.Aspire --version 0.0.5
+dotnet add package ManagedCode.LlmTck.Aspire --version 0.0.6
 ```
 
 Then add the package-owned TCK resource directly:
@@ -238,7 +238,17 @@ builder
 builder.Build().Run();
 ```
 
-`AddLlmTck()` creates a `LlmTckResource` backed by the versioned container image `ghcr.io/managedcode/llm-tck:0.0.5` and exposes its `http` endpoint. Consumer resources should reference the TCK resource, wait for it, and use `llmTck.GetHttpEndpoint()` when they need the provider-compatible base URL. `.WithApiKey("test-key")` sets `LlmTck:RequiredBearerToken` so both provider endpoints and `/__llm-tck/*` control endpoints require the same bearer token.
+`AddLlmTck()` creates a `LlmTckResource` backed by the matching versioned container image, for example `ghcr.io/managedcode/llm-tck:0.0.6`, and exposes its `http` endpoint. Consumer resources should reference the TCK resource, wait for it, and use `llmTck.GetHttpEndpoint()` when they need the provider-compatible base URL. `.WithApiKey("test-key")` sets `LlmTck:RequiredBearerToken` so both provider endpoints and `/__llm-tck/*` control endpoints require the same bearer token.
+
+## Control Panel And Token Usage
+
+Open the TCK resource endpoint from the Aspire dashboard and add `/__llm-tck` to inspect the running configuration. If the resource was configured with `.WithApiKey("test-key")` or `RequireBearerToken("test-key")`, enter the same token in the control panel before refreshing.
+
+The panel reads `/__llm-tck/models` and `/__llm-tck/assertions`. It shows advertised models, assertion counters, request and response previews, and deterministic token usage. Token usage is reported both as summary totals and per runtime event with `inputTokens`, `outputTokens`, and `totalTokens`.
+
+![LLM TCK control panel showing token usage totals and a matched runtime event](docs/images/llm-tck-control-panel-token-usage.png)
+
+![LLM TCK control panel token usage on a mobile viewport](docs/images/llm-tck-control-panel-token-usage-mobile.png)
 
 ## Chat Scenarios
 

@@ -77,6 +77,9 @@ Rule format:
 
 ### Likes
 
+- When token usage is requested, count response tokens with `tiktoken` and include the measured usage in replies; if `tiktoken` is unavailable, report that blocker instead of guessing token counts.
+- Token usage workflow changes need executable code and tests, not only contributor-guide documentation, so callers can verify usage accounting behavior directly.
+
 ### Dislikes
 
 - Do not introduce real-LLM toggles, external project environment variable names, or WA.Storied-specific constants into this repository; LlmTck tests and samples must remain deterministic, repo-owned, and free of cross-project naming leaks.

@@ -36,6 +36,7 @@ app.MapGet(
             {
                 name = "LLM TCK",
                 status = "ready",
+                admin = "/__llm-tck",
             }
         )
 );

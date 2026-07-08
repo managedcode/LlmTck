@@ -78,7 +78,9 @@ public sealed class LlmTckRuntime : ILlmTckRuntime
                     LlmTckEventKind.AuthFailed,
                     null,
                     request.ModelId,
-                    "Global bearer token requirement failed."
+                    "Global bearer token requirement failed.",
+                    FormatChatRequest(request),
+                    usage: CreateChatUsage(request)
                 );
                 return LlmTckChatResult.Failure(
                     request.ModelId,
@@ -90,7 +92,12 @@ public sealed class LlmTckRuntime : ILlmTckRuntime
 
             if (!IsConfiguredModel(request.ModelId, LlmTckModelKind.Chat))
             {
-                AddModelNotFoundEvent(request.ModelId, LlmTckModelKind.Chat);
+                AddModelNotFoundEvent(
+                    request.ModelId,
+                    LlmTckModelKind.Chat,
+                    FormatChatRequest(request),
+                    CreateChatUsage(request)
+                );
                 return UnknownModel(request.ModelId, LlmTckModelKind.Chat);
             }
 
@@ -103,7 +110,9 @@ public sealed class LlmTckRuntime : ILlmTckRuntime
                     LlmTckEventKind.Unmatched,
                     null,
                     request.ModelId,
-                    "No configured scenario matched the request."
+                    "No configured scenario matched the request.",
+                    FormatChatRequest(request),
+                    usage: CreateChatUsage(request)
                 );
                 return LlmTckChatResult.Failure(
                     request.ModelId,
@@ -119,7 +128,9 @@ public sealed class LlmTckRuntime : ILlmTckRuntime
                     LlmTckEventKind.AuthFailed,
                     scenario.Id,
                     request.ModelId,
-                    "Scenario bearer token requirement failed."
+                    "Scenario bearer token requirement failed.",
+                    FormatChatRequest(request),
+                    usage: CreateChatUsage(request)
                 );
                 return LlmTckChatResult.Failure(
                     request.ModelId,
@@ -137,7 +148,9 @@ public sealed class LlmTckRuntime : ILlmTckRuntime
                     LlmTckEventKind.ScenarioExhausted,
                     scenario.Id,
                     request.ModelId,
-                    "Scenario response queue is exhausted."
+                    "Scenario response queue is exhausted.",
+                    FormatChatRequest(request),
+                    usage: CreateChatUsage(request)
                 );
                 return LlmTckChatResult.Failure(
                     request.ModelId,
@@ -167,11 +180,15 @@ public sealed class LlmTckRuntime : ILlmTckRuntime
 
         lock (_gate)
         {
+            var responseText = response.Error?.Message ?? response.Content;
             AddEvent(
                 response.Error is null ? LlmTckEventKind.Matched : LlmTckEventKind.ErrorReturned,
                 scenario.Id,
                 request.ModelId,
-                response.Error?.Message ?? "Scenario matched."
+                response.Error?.Message ?? "Scenario matched.",
+                FormatChatRequest(request),
+                responseText,
+                CreateChatUsage(request, responseText)
             );
         }
 
@@ -518,6 +535,9 @@ public sealed class LlmTckRuntime : ILlmTckRuntime
                 AuthFailed = _events.Count(item => item.Kind == LlmTckEventKind.AuthFailed),
                 ScenarioExhausted = _events.Count(item => item.Kind == LlmTckEventKind.ScenarioExhausted),
                 ErrorsReturned = _events.Count(item => item.Kind == LlmTckEventKind.ErrorReturned),
+                InputTokens = _events.Sum(item => item.Usage?.InputTokens ?? 0),
+                OutputTokens = _events.Sum(item => item.Usage?.OutputTokens ?? 0),
+                TotalTokens = _events.Sum(item => item.Usage?.TotalTokens ?? 0),
                 Events = [.. _events],
             };
         }
@@ -617,13 +637,20 @@ public sealed class LlmTckRuntime : ILlmTckRuntime
         return $"Model '{modelId}' is not configured for {kind.ToString().ToLowerInvariant()} requests.";
     }
 
-    private void AddModelNotFoundEvent(string modelId, LlmTckModelKind kind)
+    private void AddModelNotFoundEvent(
+        string modelId,
+        LlmTckModelKind kind,
+        string? request = null,
+        LlmTckTokenUsage? usage = null
+    )
     {
         AddEvent(
             LlmTckEventKind.ModelNotFound,
             null,
             modelId,
-            CreateUnknownModelMessage(modelId, kind)
+            CreateUnknownModelMessage(modelId, kind),
+            request,
+            usage: usage
         );
     }
 
@@ -702,7 +729,10 @@ public sealed class LlmTckRuntime : ILlmTckRuntime
         LlmTckEventKind kind,
         string? scenarioId,
         string modelId,
-        string message
+        string message,
+        string? request = null,
+        string? response = null,
+        LlmTckTokenUsage? usage = null
     )
     {
         _events.Add(
@@ -713,7 +743,51 @@ public sealed class LlmTckRuntime : ILlmTckRuntime
                 ScenarioId = scenarioId,
                 ModelId = modelId,
                 Message = message,
+                Request = request,
+                Response = response,
+                Usage = usage,
             }
         );
+    }
+
+    private static LlmTckTokenUsage CreateChatUsage(
+        LlmTckChatRequest request,
+        string? response = null
+    )
+    {
+        var inputTokens = request.Messages.Sum(message => CountTokens(message.Content));
+        var outputTokens = CountTokens(response ?? string.Empty);
+        return new LlmTckTokenUsage
+        {
+            InputTokens = inputTokens,
+            OutputTokens = outputTokens,
+            TotalTokens = inputTokens + outputTokens,
+        };
+    }
+
+    private static string FormatChatRequest(LlmTckChatRequest request)
+    {
+        if (request.Messages.Count == 0)
+        {
+            return "(no messages)";
+        }
+
+        return string.Join(
+            "\n",
+            request.Messages.Select(message => $"{message.Role}: {Truncate(message.Content, 800)}")
+        );
+    }
+
+    private static string Truncate(string value, int maxLength)
+    {
+        var trimmed = (value ?? string.Empty).Trim();
+        return trimmed.Length <= maxLength ? trimmed : trimmed[..maxLength] + "…";
+    }
+
+    private static int CountTokens(string value)
+    {
+        return string.IsNullOrWhiteSpace(value)
+            ? 0
+            : value.Split(' ', StringSplitOptions.RemoveEmptyEntries).Length;
     }
 }
