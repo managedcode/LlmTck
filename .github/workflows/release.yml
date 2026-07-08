@@ -13,6 +13,7 @@ on:
 
 permissions:
   contents: write
+  packages: write
 
 jobs:
   pack:
@@ -68,6 +69,18 @@ jobs:
       - name: Pack
         if: ${{ steps.release.outputs.should_release == 'true' }}
         run: for project in src/*/*.csproj; do dotnet pack "$project" --configuration Release --no-build --output artifacts/packages; done
+
+      - name: Publish container image
+        if: ${{ steps.release.outputs.should_release == 'true' }}
+        env:
+          IMAGE_TAG: ${{ steps.release.outputs.version }}
+        run: |
+          echo "${{ github.token }}" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+          docker build \
+            -f samples/ManagedCode.LlmTck.Service/Dockerfile \
+            -t "ghcr.io/managedcode/llm-tck:$IMAGE_TAG" \
+            .
+          docker push "ghcr.io/managedcode/llm-tck:$IMAGE_TAG"
 
       - name: Create GitHub release
         if: ${{ steps.release.outputs.should_release == 'true' }}
