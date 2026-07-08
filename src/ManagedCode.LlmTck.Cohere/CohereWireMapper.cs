@@ -24,7 +24,7 @@ public static class CohereWireMapper
 
     public static CohereChatResponse ToChatResponse(LlmTckChatResult result)
     {
-        var outputTokens = CountTokens(result.Content);
+        var outputTokens = LlmTckTokenCounter.CountTextTokens(result.Content);
         return new()
         {
             Id = CreateResponseId(),
@@ -98,7 +98,7 @@ public static class CohereWireMapper
             delta = new
             {
                 finish_reason = "COMPLETE",
-                usage = CreateUsage(CountTokens(result.Content)),
+                usage = CreateUsage(LlmTckTokenCounter.CountTextTokens(result.Content)),
             },
         };
     }
@@ -148,10 +148,4 @@ public static class CohereWireMapper
         return Guid.NewGuid().ToString();
     }
 
-    private static int CountTokens(string value)
-    {
-        return string.IsNullOrWhiteSpace(value)
-            ? 0
-            : value.Split(' ', StringSplitOptions.RemoveEmptyEntries).Length;
-    }
 }

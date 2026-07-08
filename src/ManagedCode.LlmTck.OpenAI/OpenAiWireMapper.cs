@@ -99,7 +99,7 @@ public static class OpenAiWireMapper
         long created
     )
     {
-        var outputTokens = CountTokens(result.Content);
+        var outputTokens = LlmTckTokenCounter.CountTextTokens(result.Content);
         return new()
         {
             Id = responseId,
@@ -449,7 +449,7 @@ public static class OpenAiWireMapper
 
     private static OpenAiUsage CreateUsage(int promptTokens, string completion)
     {
-        var completionTokens = CountTokens(completion);
+        var completionTokens = LlmTckTokenCounter.CountTextTokens(completion);
         return new()
         {
             PromptTokens = promptTokens,
@@ -572,10 +572,4 @@ public static class OpenAiWireMapper
         };
     }
 
-    private static int CountTokens(string value)
-    {
-        return string.IsNullOrWhiteSpace(value)
-            ? 0
-            : value.Split(' ', StringSplitOptions.RemoveEmptyEntries).Length;
-    }
 }

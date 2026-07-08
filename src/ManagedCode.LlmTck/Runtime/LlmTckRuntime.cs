@@ -755,8 +755,10 @@ public sealed class LlmTckRuntime : ILlmTckRuntime
         string? response = null
     )
     {
-        var inputTokens = request.Messages.Sum(message => CountTokens(message.Content));
-        var outputTokens = CountTokens(response ?? string.Empty);
+        var inputTokens = request.Messages.Sum(message =>
+            LlmTckTokenCounter.CountTextTokens(message.Content)
+        );
+        var outputTokens = LlmTckTokenCounter.CountTextTokens(response);
         return new LlmTckTokenUsage
         {
             InputTokens = inputTokens,
@@ -784,10 +786,4 @@ public sealed class LlmTckRuntime : ILlmTckRuntime
         return trimmed.Length <= maxLength ? trimmed : trimmed[..maxLength] + "…";
     }
 
-    private static int CountTokens(string value)
-    {
-        return string.IsNullOrWhiteSpace(value)
-            ? 0
-            : value.Split(' ', StringSplitOptions.RemoveEmptyEntries).Length;
-    }
 }

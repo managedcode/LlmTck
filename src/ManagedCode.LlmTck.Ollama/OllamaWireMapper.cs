@@ -30,7 +30,7 @@ public static class OllamaWireMapper
             Message = new OllamaChatMessageResponse { Content = result.Content },
             Done = true,
             DoneReason = "stop",
-            EvalCount = CountTokens(result.Content),
+            EvalCount = LlmTckTokenCounter.CountTextTokens(result.Content),
         };
     }
 
@@ -46,7 +46,7 @@ public static class OllamaWireMapper
             Message = new OllamaChatMessageResponse { Content = content },
             Done = done,
             DoneReason = done ? "stop" : null,
-            EvalCount = done ? CountTokens(result.Content) : 0,
+            EvalCount = done ? LlmTckTokenCounter.CountTextTokens(result.Content) : 0,
         };
     }
 
@@ -79,10 +79,4 @@ public static class OllamaWireMapper
             : [request.Input.ValueKind == System.Text.Json.JsonValueKind.String ? request.Input.GetString() ?? string.Empty : request.Input.ToString()];
     }
 
-    private static int CountTokens(string value)
-    {
-        return string.IsNullOrWhiteSpace(value)
-            ? 0
-            : value.Split(' ', StringSplitOptions.RemoveEmptyEntries).Length;
-    }
 }

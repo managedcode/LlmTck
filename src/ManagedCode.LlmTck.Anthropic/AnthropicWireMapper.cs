@@ -41,7 +41,7 @@ public static class AnthropicWireMapper
             Usage = new AnthropicUsage
             {
                 InputTokens = 0,
-                OutputTokens = CountTokens(result.Content),
+                OutputTokens = LlmTckTokenCounter.CountTextTokens(result.Content),
             },
         };
     }
@@ -120,7 +120,7 @@ public static class AnthropicWireMapper
             },
             usage = new AnthropicUsage
             {
-                OutputTokens = CountTokens(result.Content),
+                OutputTokens = LlmTckTokenCounter.CountTextTokens(result.Content),
             },
         };
     }
@@ -143,10 +143,4 @@ public static class AnthropicWireMapper
         return $"req_llmtck_{Guid.NewGuid():N}";
     }
 
-    private static int CountTokens(string value)
-    {
-        return string.IsNullOrWhiteSpace(value)
-            ? 0
-            : value.Split(' ', StringSplitOptions.RemoveEmptyEntries).Length;
-    }
 }

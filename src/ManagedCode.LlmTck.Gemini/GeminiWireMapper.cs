@@ -47,7 +47,7 @@ public static class GeminiWireMapper
         string? finishReason = "STOP"
     )
     {
-        var outputTokens = CountTokens(content);
+        var outputTokens = LlmTckTokenCounter.CountTextTokens(content);
         return new()
         {
             Candidates =
@@ -218,10 +218,4 @@ public static class GeminiWireMapper
         return $"gemini-{Guid.NewGuid():N}";
     }
 
-    private static int CountTokens(string value)
-    {
-        return string.IsNullOrWhiteSpace(value)
-            ? 0
-            : value.Split(' ', StringSplitOptions.RemoveEmptyEntries).Length;
-    }
 }

@@ -16,6 +16,11 @@ public sealed class LlmTckRuntimeTests
     [Test]
     public async Task CompleteChatAsync_MatchesScenarioAndRecordsAssertionAsync()
     {
+        const string userMessage = "What is the largest animal?";
+        const string assistantMessage = "blue whale";
+        var inputTokens = LlmTckTokenCounter.CountTextTokens(userMessage);
+        var outputTokens = LlmTckTokenCounter.CountTextTokens(assistantMessage);
+
         var runtime = new LlmTckRuntime();
         await runtime.ConfigureAsync(
             new LlmTckConfigurationBuilder()
@@ -24,7 +29,7 @@ public sealed class LlmTckRuntimeTests
                     scenario => scenario
                         .ForModel("llm-tck-chat")
                         .WhenUserContains("largest animal")
-                        .Responds("blue whale", "blue ", "whale")
+                        .Responds(assistantMessage, "blue ", "whale")
                 )
                 .Build()
         );
@@ -38,7 +43,7 @@ public sealed class LlmTckRuntimeTests
                     new LlmTckMessage
                     {
                         Role = "user",
-                        Content = "What is the largest animal?",
+                        Content = userMessage,
                     },
                 ],
             }
@@ -51,13 +56,15 @@ public sealed class LlmTckRuntimeTests
         var summary = runtime.GetAssertionSummary();
         await Assert.That(summary.Matched).IsEqualTo(1);
         await Assert.That(summary.Unmatched).IsEqualTo(0);
-        await Assert.That(summary.InputTokens).IsEqualTo(5);
-        await Assert.That(summary.OutputTokens).IsEqualTo(2);
-        await Assert.That(summary.TotalTokens).IsEqualTo(7);
+        await Assert.That(summary.InputTokens).IsEqualTo(inputTokens);
+        await Assert.That(summary.OutputTokens).IsEqualTo(outputTokens);
+        await Assert.That(summary.TotalTokens).IsEqualTo(inputTokens + outputTokens);
         await Assert.That(summary.Events[0].ScenarioId).IsEqualTo("blue-whale");
-        await Assert.That(summary.Events[0].Usage?.InputTokens).IsEqualTo(5);
-        await Assert.That(summary.Events[0].Usage?.OutputTokens).IsEqualTo(2);
-        await Assert.That(summary.Events[0].Usage?.TotalTokens).IsEqualTo(7);
+        await Assert.That(summary.Events[0].Usage?.InputTokens).IsEqualTo(inputTokens);
+        await Assert.That(summary.Events[0].Usage?.OutputTokens).IsEqualTo(outputTokens);
+        await Assert.That(summary.Events[0].Usage?.TotalTokens).IsEqualTo(
+            inputTokens + outputTokens
+        );
     }
 
     [Test]

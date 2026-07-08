@@ -59,7 +59,7 @@ public static class BedrockWireMapper
 
     public static BedrockConverseResponse ToConverseResponse(LlmTckChatResult result)
     {
-        var outputTokens = CountTokens(result.Content);
+        var outputTokens = LlmTckTokenCounter.CountTextTokens(result.Content);
         return new()
         {
             Output = new BedrockConverseOutput
@@ -85,12 +85,12 @@ public static class BedrockWireMapper
     {
         return new()
         {
-            InputTextTokenCount = CountTokens(inputText),
+            InputTextTokenCount = LlmTckTokenCounter.CountTextTokens(inputText),
             Results =
             [
                 new BedrockTitanTextResult
                 {
-                    TokenCount = CountTokens(result.Content),
+                    TokenCount = LlmTckTokenCounter.CountTextTokens(result.Content),
                     OutputText = result.Content,
                 },
             ],
@@ -105,7 +105,7 @@ public static class BedrockWireMapper
         return new()
         {
             Embedding = vector,
-            InputTextTokenCount = CountTokens(inputText),
+            InputTextTokenCount = LlmTckTokenCounter.CountTextTokens(inputText),
             EmbeddingsByType = new Dictionary<string, IReadOnlyList<float>>(StringComparer.Ordinal)
             {
                 ["float"] = vector,
@@ -159,7 +159,7 @@ public static class BedrockWireMapper
 
     public static object ToConverseMetadataEvent(LlmTckChatResult result)
     {
-        var outputTokens = CountTokens(result.Content);
+        var outputTokens = LlmTckTokenCounter.CountTextTokens(result.Content);
         return new
         {
             metadata = new
@@ -258,10 +258,4 @@ public static class BedrockWireMapper
         return commaIndex < 0 ? dataUri : dataUri[(commaIndex + 1)..];
     }
 
-    private static int CountTokens(string value)
-    {
-        return string.IsNullOrWhiteSpace(value)
-            ? 0
-            : value.Split(' ', StringSplitOptions.RemoveEmptyEntries).Length;
-    }
 }
