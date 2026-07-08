@@ -15,6 +15,7 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.DependencyInjection;
+using ProviderRoutes = ManagedCode.LlmTck.Providers.LlmTckProviderRouteNamespaces;
 
 namespace ManagedCode.LlmTck.Hosting;
 
@@ -152,127 +153,130 @@ public static class LlmTckEndpointRouteBuilderExtensions
         endpoints.MapPost(LlmTckControlRoutes.Configure, ConfigureAsync);
 
         endpoints.MapGet(
-            "/v1/models",
+            ProviderRoutes.ForProvider(ProviderRoutes.OpenAI, "/v1/models"),
             (ILlmTckRuntime runtime) => Results.Json(OpenAiWireMapper.ToModelsResponse(runtime.GetModels()))
         );
         endpoints.MapGet(
-            "/models",
+            ProviderRoutes.ForProvider(ProviderRoutes.Groq, "/openai/v1/models"),
             (ILlmTckRuntime runtime) => Results.Json(OpenAiWireMapper.ToModelsResponse(runtime.GetModels()))
         );
         endpoints.MapGet(
-            "/openai/v1/models",
+            ProviderRoutes.ForProvider(ProviderRoutes.OpenRouter, "/api/v1/models"),
             (ILlmTckRuntime runtime) => Results.Json(OpenAiWireMapper.ToModelsResponse(runtime.GetModels()))
         );
         endpoints.MapGet(
-            "/api/v1/models",
+            ProviderRoutes.ForProvider(ProviderRoutes.DeepSeek, "/models"),
             (ILlmTckRuntime runtime) => Results.Json(OpenAiWireMapper.ToModelsResponse(runtime.GetModels()))
         );
-        endpoints.MapPost("/v1/chat/completions", CompleteChatAsync);
-        endpoints.MapPost("/v1/messages", CompleteAnthropicMessageAsync);
-        endpoints.MapPost("/v1/sonar", CompleteChatAsync);
-        endpoints.MapPost("/v1/responses", CreateResponseAsync);
-        endpoints.MapPost("/openai/v1/chat/completions", CompleteChatAsync);
-        endpoints.MapPost("/openai/v1/responses", CreateResponseAsync);
-        endpoints.MapPost("/openai/v1/audio/speech", GenerateGroqAudioAsync);
-        endpoints.MapPost("/openai/v1/audio/transcriptions", TranscribeGroqAudioAsync);
-        endpoints.MapPost("/openai/v1/audio/translations", TranslateGroqAudioAsync);
-        endpoints.MapPost("/api/v1/chat/completions", CompleteChatAsync);
-        endpoints.MapPost("/api/v1/responses", CreateResponseAsync);
-        endpoints.MapPost("/v1/embeddings", CreateEmbeddingAsync);
-        endpoints.MapPost("/v1/images/generations", GenerateImageAsync);
-        endpoints.MapPost("/v1/images/edits", EditImageAsync);
-        endpoints.MapPost("/v1/images/variations", CreateImageVariationAsync);
-        endpoints.MapPost("/v1/audio/speech", GenerateAudioAsync);
-        endpoints.MapPost("/v1/audio/transcriptions", TranscribeOpenAiAudioAsync);
-        endpoints.MapPost("/v1/audio/translations", TranslateOpenAiAudioAsync);
-        endpoints.MapPost("/v1/videos", CreateOpenAiVideoAsync);
-        endpoints.MapGet("/v1/videos", ListOpenAiVideosAsync);
-        endpoints.MapPost("/v1/videos/characters", CreateOpenAiVideoCharacterAsync);
-        endpoints.MapGet("/v1/videos/characters/{characterId}", GetOpenAiVideoCharacterAsync);
-        endpoints.MapPost("/v1/videos/edits", EditOpenAiVideoAsync);
-        endpoints.MapPost("/v1/videos/extensions", ExtendOpenAiVideoAsync);
-        endpoints.MapGet("/v1/videos/{videoId}", GetOpenAiVideoAsync);
-        endpoints.MapDelete("/v1/videos/{videoId}", DeleteOpenAiVideoAsync);
-        endpoints.MapGet("/v1/videos/{videoId}/content", GetOpenAiVideoContentAsync);
-        endpoints.MapPost("/v1/videos/{videoId}/remix", RemixOpenAiVideoAsync);
-        endpoints.MapPost("/api/chat", CompleteOllamaChatAsync);
-        endpoints.MapPost("/api/embed", CreateOllamaEmbeddingAsync);
-        endpoints.MapPost("/v2/chat", CompleteCohereChatAsync);
-        endpoints.MapPost("/v2/embed", CreateCohereEmbeddingAsync);
-        endpoints.MapPost("/v1beta/models/{model}:generateContent", CompleteGeminiContentAsync);
+        endpoints.MapPost(ProviderRoutes.ForProvider(ProviderRoutes.OpenAI, "/v1/chat/completions"), CompleteChatAsync);
+        endpoints.MapPost(ProviderRoutes.ForProvider(ProviderRoutes.Anthropic, "/v1/messages"), CompleteAnthropicMessageAsync);
+        endpoints.MapPost(ProviderRoutes.ForProvider(ProviderRoutes.Perplexity, "/v1/sonar"), CompleteChatAsync);
+        endpoints.MapPost(ProviderRoutes.ForProvider(ProviderRoutes.OpenAI, "/v1/responses"), CreateResponseAsync);
+        endpoints.MapPost(ProviderRoutes.ForProvider(ProviderRoutes.Groq, "/openai/v1/chat/completions"), CompleteChatAsync);
+        endpoints.MapPost(ProviderRoutes.ForProvider(ProviderRoutes.Groq, "/openai/v1/responses"), CreateResponseAsync);
+        endpoints.MapPost(ProviderRoutes.ForProvider(ProviderRoutes.Groq, "/openai/v1/audio/speech"), GenerateGroqAudioAsync);
+        endpoints.MapPost(ProviderRoutes.ForProvider(ProviderRoutes.Groq, "/openai/v1/audio/transcriptions"), TranscribeGroqAudioAsync);
+        endpoints.MapPost(ProviderRoutes.ForProvider(ProviderRoutes.Groq, "/openai/v1/audio/translations"), TranslateGroqAudioAsync);
+        endpoints.MapPost(ProviderRoutes.ForProvider(ProviderRoutes.OpenRouter, "/api/v1/chat/completions"), CompleteChatAsync);
+        endpoints.MapPost(ProviderRoutes.ForProvider(ProviderRoutes.OpenRouter, "/api/v1/responses"), CreateResponseAsync);
+        endpoints.MapPost(ProviderRoutes.ForProvider(ProviderRoutes.Mistral, "/v1/chat/completions"), CompleteChatAsync);
+        endpoints.MapPost(ProviderRoutes.ForProvider(ProviderRoutes.Mistral, "/v1/embeddings"), CreateEmbeddingAsync);
+        endpoints.MapPost(ProviderRoutes.ForProvider(ProviderRoutes.DeepSeek, "/v1/chat/completions"), CompleteChatAsync);
+        endpoints.MapPost(ProviderRoutes.ForProvider(ProviderRoutes.OpenAI, "/v1/embeddings"), CreateEmbeddingAsync);
+        endpoints.MapPost(ProviderRoutes.ForProvider(ProviderRoutes.OpenAI, "/v1/images/generations"), GenerateImageAsync);
+        endpoints.MapPost(ProviderRoutes.ForProvider(ProviderRoutes.OpenAI, "/v1/images/edits"), EditImageAsync);
+        endpoints.MapPost(ProviderRoutes.ForProvider(ProviderRoutes.OpenAI, "/v1/images/variations"), CreateImageVariationAsync);
+        endpoints.MapPost(ProviderRoutes.ForProvider(ProviderRoutes.OpenAI, "/v1/audio/speech"), GenerateAudioAsync);
+        endpoints.MapPost(ProviderRoutes.ForProvider(ProviderRoutes.OpenAI, "/v1/audio/transcriptions"), TranscribeOpenAiAudioAsync);
+        endpoints.MapPost(ProviderRoutes.ForProvider(ProviderRoutes.OpenAI, "/v1/audio/translations"), TranslateOpenAiAudioAsync);
+        endpoints.MapPost(ProviderRoutes.ForProvider(ProviderRoutes.OpenAI, "/v1/videos"), CreateOpenAiVideoAsync);
+        endpoints.MapGet(ProviderRoutes.ForProvider(ProviderRoutes.OpenAI, "/v1/videos"), ListOpenAiVideosAsync);
+        endpoints.MapPost(ProviderRoutes.ForProvider(ProviderRoutes.OpenAI, "/v1/videos/characters"), CreateOpenAiVideoCharacterAsync);
+        endpoints.MapGet(ProviderRoutes.ForProvider(ProviderRoutes.OpenAI, "/v1/videos/characters/{characterId}"), GetOpenAiVideoCharacterAsync);
+        endpoints.MapPost(ProviderRoutes.ForProvider(ProviderRoutes.OpenAI, "/v1/videos/edits"), EditOpenAiVideoAsync);
+        endpoints.MapPost(ProviderRoutes.ForProvider(ProviderRoutes.OpenAI, "/v1/videos/extensions"), ExtendOpenAiVideoAsync);
+        endpoints.MapGet(ProviderRoutes.ForProvider(ProviderRoutes.OpenAI, "/v1/videos/{videoId}"), GetOpenAiVideoAsync);
+        endpoints.MapDelete(ProviderRoutes.ForProvider(ProviderRoutes.OpenAI, "/v1/videos/{videoId}"), DeleteOpenAiVideoAsync);
+        endpoints.MapGet(ProviderRoutes.ForProvider(ProviderRoutes.OpenAI, "/v1/videos/{videoId}/content"), GetOpenAiVideoContentAsync);
+        endpoints.MapPost(ProviderRoutes.ForProvider(ProviderRoutes.OpenAI, "/v1/videos/{videoId}/remix"), RemixOpenAiVideoAsync);
+        endpoints.MapPost(ProviderRoutes.ForProvider(ProviderRoutes.Ollama, "/api/chat"), CompleteOllamaChatAsync);
+        endpoints.MapPost(ProviderRoutes.ForProvider(ProviderRoutes.Ollama, "/api/embed"), CreateOllamaEmbeddingAsync);
+        endpoints.MapPost(ProviderRoutes.ForProvider(ProviderRoutes.Cohere, "/v2/chat"), CompleteCohereChatAsync);
+        endpoints.MapPost(ProviderRoutes.ForProvider(ProviderRoutes.Cohere, "/v2/embed"), CreateCohereEmbeddingAsync);
+        endpoints.MapPost(ProviderRoutes.ForProvider(ProviderRoutes.Gemini, "/v1beta/models/{model}:generateContent"), CompleteGeminiContentAsync);
         endpoints.MapPost(
-            "/v1beta/models/{model}:streamGenerateContent",
+            ProviderRoutes.ForProvider(ProviderRoutes.Gemini, "/v1beta/models/{model}:streamGenerateContent"),
             StreamGeminiContentAsync
         );
-        endpoints.MapPost("/v1beta/models/{model}:embedContent", CreateGeminiEmbeddingAsync);
+        endpoints.MapPost(ProviderRoutes.ForProvider(ProviderRoutes.Gemini, "/v1beta/models/{model}:embedContent"), CreateGeminiEmbeddingAsync);
         endpoints.MapPost(
-            "/v1beta/models/{model}:predictLongRunning",
+            ProviderRoutes.ForProvider(ProviderRoutes.Gemini, "/v1beta/models/{model}:predictLongRunning"),
             StartGeminiVideoOperationAsync
         );
         endpoints.MapGet(
-            "/v1beta/models/{model}/operations/{operationId}",
+            ProviderRoutes.ForProvider(ProviderRoutes.Gemini, "/v1beta/models/{model}/operations/{operationId}"),
             GetGeminiVideoOperationAsync
         );
-        endpoints.MapGet("/v1beta/files/{fileId}", GetGeminiFileAsync);
-        endpoints.MapPost("/model/{modelId}/converse", CompleteBedrockConverseAsync);
-        endpoints.MapPost("/model/{modelId}/converse-stream", CompleteBedrockConverseStreamAsync);
-        endpoints.MapPost("/model/{modelId}/invoke", InvokeBedrockModelAsync);
+        endpoints.MapGet(ProviderRoutes.ForProvider(ProviderRoutes.Gemini, "/v1beta/files/{fileId}"), GetGeminiFileAsync);
+        endpoints.MapPost(ProviderRoutes.ForProvider(ProviderRoutes.Bedrock, "/model/{modelId}/converse"), CompleteBedrockConverseAsync);
+        endpoints.MapPost(ProviderRoutes.ForProvider(ProviderRoutes.Bedrock, "/model/{modelId}/converse-stream"), CompleteBedrockConverseStreamAsync);
+        endpoints.MapPost(ProviderRoutes.ForProvider(ProviderRoutes.Bedrock, "/model/{modelId}/invoke"), InvokeBedrockModelAsync);
         endpoints.MapPost(
-            "/model/{modelId}/invoke-with-response-stream",
+            ProviderRoutes.ForProvider(ProviderRoutes.Bedrock, "/model/{modelId}/invoke-with-response-stream"),
             InvokeBedrockModelWithResponseStreamAsync
         );
-        endpoints.MapPost("/chat/completions", CompleteChatAsync);
-        endpoints.MapPost("/embeddings", CreateEmbeddingAsync);
-        endpoints.MapPost("/models/chat/completions", CompleteChatAsync);
-        endpoints.MapPost("/models/embeddings", CreateEmbeddingAsync);
+        endpoints.MapPost(ProviderRoutes.ForProvider(ProviderRoutes.MicrosoftFoundry, "/chat/completions"), CompleteChatAsync);
+        endpoints.MapPost(ProviderRoutes.ForProvider(ProviderRoutes.MicrosoftFoundry, "/embeddings"), CreateEmbeddingAsync);
+        endpoints.MapPost(ProviderRoutes.ForProvider(ProviderRoutes.MicrosoftFoundry, "/models/chat/completions"), CompleteChatAsync);
+        endpoints.MapPost(ProviderRoutes.ForProvider(ProviderRoutes.MicrosoftFoundry, "/models/embeddings"), CreateEmbeddingAsync);
         endpoints.MapPost(
-            "/openai/deployments/{deployment}/chat/completions",
+            ProviderRoutes.ForProvider(ProviderRoutes.AzureOpenAI, "/openai/deployments/{deployment}/chat/completions"),
             CompleteAzureOpenAiChatAsync
         );
         endpoints.MapPost(
-            "/openai/deployments/{deployment}/embeddings",
+            ProviderRoutes.ForProvider(ProviderRoutes.AzureOpenAI, "/openai/deployments/{deployment}/embeddings"),
             CreateAzureOpenAiEmbeddingAsync
         );
         endpoints.MapPost(
-            "/openai/deployments/{deployment}/images/generations",
+            ProviderRoutes.ForProvider(ProviderRoutes.AzureOpenAI, "/openai/deployments/{deployment}/images/generations"),
             GenerateAzureOpenAiImageAsync
         );
         endpoints.MapPost(
-            "/openai/deployments/{deployment}/audio/speech",
+            ProviderRoutes.ForProvider(ProviderRoutes.AzureOpenAI, "/openai/deployments/{deployment}/audio/speech"),
             GenerateAzureOpenAiAudioAsync
         );
         endpoints.MapPost(
-            "/openai/deployments/{deployment}/audio/transcriptions",
+            ProviderRoutes.ForProvider(ProviderRoutes.AzureOpenAI, "/openai/deployments/{deployment}/audio/transcriptions"),
             TranscribeAzureOpenAiAudioAsync
         );
         endpoints.MapPost(
-            "/openai/deployments/{deployment}/audio/translations",
+            ProviderRoutes.ForProvider(ProviderRoutes.AzureOpenAI, "/openai/deployments/{deployment}/audio/translations"),
             TranslateAzureOpenAiAudioAsync
         );
-        endpoints.MapPost("/openai/v1/video/generations/jobs", CreateAzureOpenAiVideoJobAsync);
-        endpoints.MapGet("/openai/v1/video/generations/jobs", ListAzureOpenAiVideoJobsAsync);
+        endpoints.MapPost(ProviderRoutes.ForProvider(ProviderRoutes.AzureOpenAI, "/openai/v1/video/generations/jobs"), CreateAzureOpenAiVideoJobAsync);
+        endpoints.MapGet(ProviderRoutes.ForProvider(ProviderRoutes.AzureOpenAI, "/openai/v1/video/generations/jobs"), ListAzureOpenAiVideoJobsAsync);
         endpoints.MapGet(
-            "/openai/v1/video/generations/jobs/{jobId}",
+            ProviderRoutes.ForProvider(ProviderRoutes.AzureOpenAI, "/openai/v1/video/generations/jobs/{jobId}"),
             GetAzureOpenAiVideoJobAsync
         );
         endpoints.MapDelete(
-            "/openai/v1/video/generations/jobs/{jobId}",
+            ProviderRoutes.ForProvider(ProviderRoutes.AzureOpenAI, "/openai/v1/video/generations/jobs/{jobId}"),
             DeleteAzureOpenAiVideoJobAsync
         );
         endpoints.MapGet(
-            "/openai/v1/video/generations/{generationId}",
+            ProviderRoutes.ForProvider(ProviderRoutes.AzureOpenAI, "/openai/v1/video/generations/{generationId}"),
             GetAzureOpenAiVideoGenerationAsync
         );
         endpoints.MapGet(
-            "/openai/v1/video/generations/{generationId}/content/thumbnail",
+            ProviderRoutes.ForProvider(ProviderRoutes.AzureOpenAI, "/openai/v1/video/generations/{generationId}/content/thumbnail"),
             GetAzureOpenAiVideoThumbnailAsync
         );
         endpoints.MapGet(
-            "/openai/v1/video/generations/{generationId}/content/video",
+            ProviderRoutes.ForProvider(ProviderRoutes.AzureOpenAI, "/openai/v1/video/generations/{generationId}/content/video"),
             GetAzureOpenAiVideoContentAsync
         );
         endpoints.MapMethods(
-            "/openai/v1/video/generations/{generationId}/content/video",
+            ProviderRoutes.ForProvider(ProviderRoutes.AzureOpenAI, "/openai/v1/video/generations/{generationId}/content/video"),
             ["HEAD"],
             HeadAzureOpenAiVideoContentAsync
         );
@@ -3557,7 +3561,10 @@ public static class LlmTckEndpointRouteBuilderExtensions
 
     private static string CreateGeminiFileUri(HttpContext context, string fileId, bool media)
     {
-        var path = $"/v1beta/files/{Uri.EscapeDataString(fileId)}";
+        var path = ProviderRoutes.ForProvider(
+            ProviderRoutes.Gemini,
+            $"/v1beta/files/{Uri.EscapeDataString(fileId)}"
+        );
         var query = media ? "?alt=media" : string.Empty;
 
         return context.Request.Host.HasValue

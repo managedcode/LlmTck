@@ -5,7 +5,6 @@ using System.Text;
 using System.Text.Json;
 using ManagedCode.LlmTck.Models;
 using ManagedCode.LlmTck.Tests.TestSupport;
-using Microsoft.AspNetCore.TestHost;
 
 namespace ManagedCode.LlmTck.Tests.Providers;
 
@@ -14,10 +13,12 @@ public sealed class OpenAiCompatibleProviderRouteTests
     private static readonly JsonSerializerOptions _jsonOptions = new(JsonSerializerDefaults.Web);
 
     [Test]
-    [Arguments("/v1/chat/completions")]
     [Arguments("/openai/v1/chat/completions")]
-    [Arguments("/api/v1/chat/completions")]
-    [Arguments("/v1/sonar")]
+    [Arguments("/groq/openai/v1/chat/completions")]
+    [Arguments("/openrouter/api/v1/chat/completions")]
+    [Arguments("/mistral/v1/chat/completions")]
+    [Arguments("/deepseek/v1/chat/completions")]
+    [Arguments("/perplexity/v1/sonar")]
     public async Task OpenAiCompatibleChatRoutes_ReturnChatCompletionShapeAsync(string path)
     {
         using var host = await LlmTckTestHost.StartAsync(options => options
@@ -62,10 +63,10 @@ public sealed class OpenAiCompatibleProviderRouteTests
     }
 
     [Test]
-    [Arguments("/v1/models")]
-    [Arguments("/models")]
     [Arguments("/openai/v1/models")]
-    [Arguments("/api/v1/models")]
+    [Arguments("/groq/openai/v1/models")]
+    [Arguments("/openrouter/api/v1/models")]
+    [Arguments("/deepseek/models")]
     public async Task OpenAiCompatibleModelRoutes_ReturnModelListShapeAsync(string path)
     {
         using var host = await LlmTckTestHost.StartAsync(options =>
@@ -80,9 +81,35 @@ public sealed class OpenAiCompatibleProviderRouteTests
     }
 
     [Test]
-    [Arguments("/v1/responses")]
+    [Arguments("GET", "/models")]
+    [Arguments("GET", "/v1/models")]
+    [Arguments("POST", "/v1/chat/completions")]
+    [Arguments("POST", "/v1/messages")]
+    [Arguments("POST", "/api/chat")]
+    [Arguments("POST", "/api/embed")]
+    [Arguments("POST", "/api/v1/chat/completions")]
+    [Arguments("POST", "/v2/chat")]
+    [Arguments("POST", "/v2/embed")]
+    [Arguments("POST", "/model/compat-chat/converse")]
+    [Arguments("POST", "/model/compat-chat/invoke")]
+    [Arguments("POST", "/openai/deployments/compat-chat/chat/completions")]
+    public async Task GenericRootProviderRoutes_AreNotMappedAsync(string method, string path)
+    {
+        using var host = await LlmTckTestHost.StartAsync(options =>
+            options.AddModel("compat-chat", LlmTckModelKind.Chat)
+        );
+        using var client = host.GetTestClient();
+        using var request = new HttpRequestMessage(new HttpMethod(method), path);
+
+        var response = await client.SendAsync(request);
+
+        await Assert.That(response.StatusCode).IsEqualTo(HttpStatusCode.NotFound);
+    }
+
+    [Test]
     [Arguments("/openai/v1/responses")]
-    [Arguments("/api/v1/responses")]
+    [Arguments("/groq/openai/v1/responses")]
+    [Arguments("/openrouter/api/v1/responses")]
     public async Task OpenAiCompatibleResponsesRoutes_ReturnResponseShapeAsync(string path)
     {
         using var host = await LlmTckTestHost.StartAsync(options => options
@@ -159,7 +186,7 @@ public sealed class OpenAiCompatibleProviderRouteTests
         using var client = host.GetTestClient();
 
         var response = await client.PostAsJsonAsync(
-            "/api/v1/responses",
+            "/openrouter/api/v1/responses",
             new
             {
                 model = "compat-responses",
@@ -195,7 +222,7 @@ public sealed class OpenAiCompatibleProviderRouteTests
         using var client = host.GetTestClient();
 
         var response = await client.PostAsJsonAsync(
-            "/v1/embeddings",
+            "/mistral/v1/embeddings",
             new { model = "mistral-embedding", input = new[] { "alpha", "beta" } },
             _jsonOptions
         );
@@ -216,7 +243,7 @@ public sealed class OpenAiCompatibleProviderRouteTests
         using var client = host.GetTestClient();
 
         var response = await client.PostAsJsonAsync(
-            "/openai/v1/audio/speech",
+            "/groq/openai/v1/audio/speech",
             new
             {
                 model = "playai-tts",
@@ -227,12 +254,12 @@ public sealed class OpenAiCompatibleProviderRouteTests
             _jsonOptions
         );
         var missingVoice = await client.PostAsJsonAsync(
-            "/openai/v1/audio/speech",
+            "/groq/openai/v1/audio/speech",
             new { model = "playai-tts", input = "fixture audio", response_format = "wav" },
             _jsonOptions
         );
         var unsupportedFormat = await client.PostAsJsonAsync(
-            "/openai/v1/audio/speech",
+            "/groq/openai/v1/audio/speech",
             new
             {
                 model = "playai-tts",
@@ -269,7 +296,7 @@ public sealed class OpenAiCompatibleProviderRouteTests
         using var client = host.GetTestClient();
         using var content = CreateTranscriptionContent("whisper-large-v3");
 
-        var response = await client.PostAsync("/openai/v1/audio/transcriptions", content);
+        var response = await client.PostAsync("/groq/openai/v1/audio/transcriptions", content);
 
         response.EnsureSuccessStatusCode();
         var payload = await response.Content.ReadFromJsonAsync<JsonElement>(_jsonOptions);
@@ -288,7 +315,7 @@ public sealed class OpenAiCompatibleProviderRouteTests
         using var client = host.GetTestClient();
         using var content = CreateTranscriptionContent("whisper-large-v3");
 
-        var response = await client.PostAsync("/openai/v1/audio/translations", content);
+        var response = await client.PostAsync("/groq/openai/v1/audio/translations", content);
 
         response.EnsureSuccessStatusCode();
         var payload = await response.Content.ReadFromJsonAsync<JsonElement>(_jsonOptions);
@@ -313,7 +340,7 @@ public sealed class OpenAiCompatibleProviderRouteTests
         );
 
         var response = await client.PostAsync(
-            "/openai/deployments/whisper-deployment/audio/transcriptions?api-version=2024-10-21",
+            "/azure-openai/openai/deployments/whisper-deployment/audio/transcriptions?api-version=2024-10-21",
             content
         );
 
@@ -340,7 +367,7 @@ public sealed class OpenAiCompatibleProviderRouteTests
         );
 
         var response = await client.PostAsync(
-            "/openai/deployments/whisper-deployment/audio/translations?api-version=2024-10-21",
+            "/azure-openai/openai/deployments/whisper-deployment/audio/translations?api-version=2024-10-21",
             content
         );
 
@@ -362,7 +389,7 @@ public sealed class OpenAiCompatibleProviderRouteTests
         client.DefaultRequestHeaders.Add("api-key", "azure-key");
 
         var create = await client.PostAsJsonAsync(
-            "/openai/v1/video/generations/jobs?api-version=preview",
+            "/azure-openai/openai/v1/video/generations/jobs?api-version=preview",
             new
             {
                 model = "sora-deployment",
@@ -381,30 +408,30 @@ public sealed class OpenAiCompatibleProviderRouteTests
         var generationId = createPayload.GetProperty("generations")[0].GetProperty("id").GetString();
 
         var list = await client.GetAsync(
-            "/openai/v1/video/generations/jobs?api-version=preview&limit=1"
+            "/azure-openai/openai/v1/video/generations/jobs?api-version=preview&limit=1"
         );
         var job = await client.GetAsync(
-            $"/openai/v1/video/generations/jobs/{jobId}?api-version=preview"
+            $"/azure-openai/openai/v1/video/generations/jobs/{jobId}?api-version=preview"
         );
         var generation = await client.GetAsync(
-            $"/openai/v1/video/generations/{generationId}?api-version=preview"
+            $"/azure-openai/openai/v1/video/generations/{generationId}?api-version=preview"
         );
         var thumbnail = await client.GetAsync(
-            $"/openai/v1/video/generations/{generationId}/content/thumbnail?api-version=preview"
+            $"/azure-openai/openai/v1/video/generations/{generationId}/content/thumbnail?api-version=preview"
         );
         var video = await client.GetAsync(
-            $"/openai/v1/video/generations/{generationId}/content/video?api-version=preview"
+            $"/azure-openai/openai/v1/video/generations/{generationId}/content/video?api-version=preview"
         );
         using var headRequest = new HttpRequestMessage(
             HttpMethod.Head,
-            $"/openai/v1/video/generations/{generationId}/content/video?api-version=preview"
+            $"/azure-openai/openai/v1/video/generations/{generationId}/content/video?api-version=preview"
         );
         var head = await client.SendAsync(headRequest);
         var delete = await client.DeleteAsync(
-            $"/openai/v1/video/generations/jobs/{jobId}?api-version=preview"
+            $"/azure-openai/openai/v1/video/generations/jobs/{jobId}?api-version=preview"
         );
         var invalid = await client.PostAsJsonAsync(
-            "/openai/v1/video/generations/jobs?api-version=preview",
+            "/azure-openai/openai/v1/video/generations/jobs?api-version=preview",
             new
             {
                 model = "sora-deployment",
@@ -449,8 +476,8 @@ public sealed class OpenAiCompatibleProviderRouteTests
     }
 
     [Test]
-    [Arguments("/openai/v1/audio/transcriptions", "transcription")]
-    [Arguments("/openai/v1/audio/translations", "translation")]
+    [Arguments("/groq/openai/v1/audio/transcriptions", "transcription")]
+    [Arguments("/groq/openai/v1/audio/translations", "translation")]
     public async Task GroqAudioRoutes_RejectOpenAiOnlyResponseFormatsAsync(
         string path,
         string operationName

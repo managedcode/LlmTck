@@ -3,7 +3,6 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using ManagedCode.LlmTck.Models;
 using ManagedCode.LlmTck.Tests.TestSupport;
-using Microsoft.AspNetCore.TestHost;
 
 namespace ManagedCode.LlmTck.Tests.Anthropic;
 
@@ -29,7 +28,7 @@ public sealed class AnthropicEndpointTests
         client.DefaultRequestHeaders.Add("anthropic-version", "2023-06-01");
 
         var response = await client.PostAsJsonAsync(
-            "/v1/messages",
+            "/anthropic/v1/messages",
             new
             {
                 model = "claude-test",
@@ -72,7 +71,7 @@ public sealed class AnthropicEndpointTests
         client.DefaultRequestHeaders.Add("anthropic-version", "2023-06-01");
 
         var response = await client.PostAsJsonAsync(
-            "/v1/messages",
+            "/anthropic/v1/messages",
             new
             {
                 model = "claude-test",
@@ -116,7 +115,7 @@ public sealed class AnthropicEndpointTests
         using var client = host.GetTestClient();
 
         var response = await client.PostAsJsonAsync(
-            "/v1/messages",
+            "/anthropic/v1/messages",
             new
             {
                 model = "llm-tck-chat",
@@ -150,7 +149,7 @@ public sealed class AnthropicEndpointTests
         client.DefaultRequestHeaders.Add("anthropic-version", "2023-06-01");
 
         var response = await client.PostAsJsonAsync(
-            "/v1/messages",
+            "/anthropic/v1/messages",
             new
             {
                 model = "llm-tck-chat",

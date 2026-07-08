@@ -4,18 +4,18 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using Azure;
 using Azure.AI.Inference;
-using Azure.AI.OpenAI;
 using Azure.Core.Pipeline;
 using global::Aspire.Hosting.Testing;
 using ManagedCode.LlmTck.Aspire;
 using ManagedCode.LlmTck.Client;
 using ManagedCode.LlmTck.Control;
 using Microsoft.Extensions.AI;
-using OpenAI.Chat;
 using ExtensionsChatMessage = Microsoft.Extensions.AI.ChatMessage;
 using ExtensionsChatRole = Microsoft.Extensions.AI.ChatRole;
 using FoundryChatClient = Azure.AI.Inference.ChatCompletionsClient;
 using FoundryEmbeddingClient = Azure.AI.Inference.EmbeddingsClient;
+using OpenAiUserChatMessage = OpenAI.Chat.UserChatMessage;
+using ProviderRoutes = ManagedCode.LlmTck.Providers.LlmTckProviderRouteNamespaces;
 
 namespace ManagedCode.LlmTck.Tests.AspireIntegration;
 
@@ -89,7 +89,7 @@ public sealed class AspireIntegrationTests
 
         var root = await httpClient.GetFromJsonAsync<JsonElement>("/", timeout.Token);
         var adminPage = await httpClient.GetStringAsync(LlmTckControlRoutes.Admin, timeout.Token);
-        var models = await httpClient.GetFromJsonAsync<JsonElement>("/v1/models", timeout.Token);
+        var models = await httpClient.GetFromJsonAsync<JsonElement>("/openai/v1/models", timeout.Token);
         var adminModels = await httpClient.GetFromJsonAsync<JsonElement>(
             LlmTckControlRoutes.Models,
             timeout.Token
@@ -115,7 +115,7 @@ public sealed class AspireIntegrationTests
             cancellationToken: timeout.Token
         );
         var azureClient = new AzureOpenAIClient(
-            httpClient.BaseAddress!,
+            ProviderEndpoint(httpClient, ProviderRoutes.AzureOpenAI, includeTrailingSlash: true),
             new ApiKeyCredential(_apiKey),
             new AzureOpenAIClientOptions
             {
@@ -125,7 +125,7 @@ public sealed class AspireIntegrationTests
         var azureChatClient = azureClient.GetChatClient(_chatModel);
         var azureEmbeddingClient = azureClient.GetEmbeddingClient(_embeddingModel);
         var azureChat = await azureChatClient.CompleteChatAsync(
-            [new UserChatMessage("hello from azure aspire sdk")],
+            [new OpenAiUserChatMessage("hello from azure aspire sdk")],
             cancellationToken: timeout.Token
         );
         var azureEmbedding = await azureEmbeddingClient.GenerateEmbeddingAsync(
@@ -139,13 +139,18 @@ public sealed class AspireIntegrationTests
             Transport = new HttpClientTransport(httpClient),
         };
         var foundryCredential = new AzureKeyCredential(_apiKey);
+        var foundryEndpoint = ProviderEndpoint(
+            httpClient,
+            ProviderRoutes.MicrosoftFoundry,
+            includeTrailingSlash: false
+        );
         var foundryChatClient = new FoundryChatClient(
-            httpClient.BaseAddress!,
+            foundryEndpoint,
             foundryCredential,
             foundryOptions
         );
         var foundryEmbeddingClient = new FoundryEmbeddingClient(
-            httpClient.BaseAddress!,
+            foundryEndpoint,
             foundryCredential,
             foundryOptions
         );
@@ -203,5 +208,20 @@ public sealed class AspireIntegrationTests
         await Assert.That(assertions.Matched).IsGreaterThanOrEqualTo(8);
         await Assert.That(adminAssertions.GetProperty("matched").GetInt32()).IsGreaterThanOrEqualTo(8);
         await Assert.That(adminAssertions.GetProperty("totalTokens").GetInt32()).IsGreaterThan(0);
+    }
+
+    private static Uri ProviderEndpoint(
+        HttpClient httpClient,
+        string providerNamespace,
+        bool includeTrailingSlash
+    )
+    {
+        var path = providerNamespace.TrimStart('/');
+        if (includeTrailingSlash)
+        {
+            path += "/";
+        }
+
+        return new Uri(httpClient.BaseAddress!, path);
     }
 }

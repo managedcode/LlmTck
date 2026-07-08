@@ -2,7 +2,6 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using ManagedCode.LlmTck.Models;
 using ManagedCode.LlmTck.Tests.TestSupport;
-using Microsoft.AspNetCore.TestHost;
 
 namespace ManagedCode.LlmTck.Tests.Cohere;
 
@@ -25,7 +24,7 @@ public sealed class CohereEndpointTests
         using var client = host.GetTestClient();
 
         var response = await client.PostAsJsonAsync(
-            "/v2/chat",
+            "/cohere/v2/chat",
             new
             {
                 model = "command-test",
@@ -81,7 +80,7 @@ public sealed class CohereEndpointTests
         using var client = host.GetTestClient();
 
         var response = await client.PostAsJsonAsync(
-            "/v2/chat",
+            "/cohere/v2/chat",
             new
             {
                 model = "command-test",
@@ -123,7 +122,7 @@ public sealed class CohereEndpointTests
         using var client = host.GetTestClient();
 
         var response = await client.PostAsJsonAsync(
-            "/v2/embed",
+            "/cohere/v2/embed",
             new
             {
                 model = "embed-v4.0",
@@ -152,7 +151,7 @@ public sealed class CohereEndpointTests
         using var client = host.GetTestClient();
 
         var response = await client.PostAsJsonAsync(
-            "/v2/embed",
+            "/cohere/v2/embed",
             new
             {
                 model = "embed-v4.0",

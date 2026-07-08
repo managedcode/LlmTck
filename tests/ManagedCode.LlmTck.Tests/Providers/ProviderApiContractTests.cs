@@ -144,6 +144,22 @@ public sealed class ProviderApiContractTests
         await Assert.That(routes).IsEquivalentTo(implementedOperations);
     }
 
+    [Test]
+    public async Task ProviderApiContracts_UseExplicitProviderNamespacesAsync()
+    {
+        foreach (var profile in GetProfiles())
+        {
+            var expectedNamespace = GetExpectedProviderNamespace(profile.Id);
+
+            await Assert.That(profile.DefaultEndpointPath).StartsWith(expectedNamespace);
+
+            foreach (var operation in profile.ApiContract.Operations)
+            {
+                await Assert.That(operation.Path).StartsWith(expectedNamespace);
+            }
+        }
+    }
+
     private static bool IsFreshDocumentationReview(DateOnly retrievedOn)
     {
         var today = DateOnly.FromDateTime(DateTimeOffset.UtcNow.UtcDateTime);
@@ -163,6 +179,27 @@ public sealed class ProviderApiContractTests
     private static bool IsSupportedHttpMethod(string method)
     {
         return method is "DELETE" or "GET" or "HEAD" or "POST";
+    }
+
+    private static string GetExpectedProviderNamespace(string providerId)
+    {
+        return providerId switch
+        {
+            LlmTckCompatibilityTags.OpenAI => LlmTckProviderRouteNamespaces.OpenAI,
+            LlmTckCompatibilityTags.AzureOpenAI => LlmTckProviderRouteNamespaces.AzureOpenAI,
+            LlmTckCompatibilityTags.MicrosoftFoundry => LlmTckProviderRouteNamespaces.MicrosoftFoundry,
+            LlmTckCompatibilityTags.Anthropic => LlmTckProviderRouteNamespaces.Anthropic,
+            LlmTckCompatibilityTags.Gemini => LlmTckProviderRouteNamespaces.Gemini,
+            LlmTckCompatibilityTags.Groq => LlmTckProviderRouteNamespaces.Groq,
+            LlmTckCompatibilityTags.Mistral => LlmTckProviderRouteNamespaces.Mistral,
+            LlmTckCompatibilityTags.Ollama => LlmTckProviderRouteNamespaces.Ollama,
+            LlmTckCompatibilityTags.Cohere => LlmTckProviderRouteNamespaces.Cohere,
+            LlmTckCompatibilityTags.Bedrock => LlmTckProviderRouteNamespaces.Bedrock,
+            LlmTckCompatibilityTags.OpenRouter => LlmTckProviderRouteNamespaces.OpenRouter,
+            LlmTckCompatibilityTags.DeepSeek => LlmTckProviderRouteNamespaces.DeepSeek,
+            LlmTckCompatibilityTags.Perplexity => LlmTckProviderRouteNamespaces.Perplexity,
+            _ => throw new InvalidOperationException($"Unknown provider '{providerId}'."),
+        };
     }
 
     private static LlmTckProviderProfile[] GetProfiles()

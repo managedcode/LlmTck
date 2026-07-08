@@ -2,7 +2,6 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using ManagedCode.LlmTck.Models;
 using ManagedCode.LlmTck.Tests.TestSupport;
-using Microsoft.AspNetCore.TestHost;
 
 namespace ManagedCode.LlmTck.Tests.Gemini;
 
@@ -25,7 +24,7 @@ public sealed class GeminiEndpointTests
         using var client = host.GetTestClient();
 
         var response = await client.PostAsJsonAsync(
-            "/v1beta/models/gemini-test:generateContent?key=test-key",
+            "/gemini/v1beta/models/gemini-test:generateContent?key=test-key",
             new
             {
                 contents = new object[]
@@ -93,7 +92,7 @@ public sealed class GeminiEndpointTests
         client.DefaultRequestHeaders.Add("x-goog-api-key", "test-key");
 
         var response = await client.PostAsJsonAsync(
-            "/v1beta/models/gemini-test:streamGenerateContent?alt=sse",
+            "/gemini/v1beta/models/gemini-test:streamGenerateContent?alt=sse",
             new
             {
                 contents = new[]
@@ -132,7 +131,7 @@ public sealed class GeminiEndpointTests
         using var client = host.GetTestClient();
 
         var response = await client.PostAsJsonAsync(
-            "/v1beta/models/gemini-embedding-001:embedContent",
+            "/gemini/v1beta/models/gemini-embedding-001:embedContent",
             new
             {
                 model = "models/gemini-embedding-001",
@@ -170,7 +169,7 @@ public sealed class GeminiEndpointTests
         client.DefaultRequestHeaders.Add("x-goog-api-key", "test-key");
 
         var startResponse = await client.PostAsJsonAsync(
-            "/v1beta/models/veo-3.1-generate-preview:predictLongRunning",
+            "/gemini/v1beta/models/veo-3.1-generate-preview:predictLongRunning",
             new
             {
                 instances = new[]
@@ -198,7 +197,7 @@ public sealed class GeminiEndpointTests
         await Assert.That(startPayload.GetProperty("done").GetBoolean()).IsFalse();
         await Assert.That(hasStartResponse).IsFalse();
 
-        var pollResponse = await client.GetAsync($"/v1beta/{operationName}?key=test-key");
+        var pollResponse = await client.GetAsync($"/gemini/v1beta/{operationName}?key=test-key");
 
         pollResponse.EnsureSuccessStatusCode();
         var pollPayload = await pollResponse.Content.ReadFromJsonAsync<JsonElement>(_jsonOptions);

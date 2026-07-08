@@ -105,6 +105,7 @@ Rule format:
 - Compatibility tag values in C# code must come from named constants everywhere they are assigned or asserted, so `CompatibilityTags` cannot drift through inline string literals.
 - The client package must expose a universal pre-test configuration API so tests can spawn a client, reset or configure the hosted TCK, load models, auth, datasets, scenarios, scripted errors, embeddings, images, and audio fixtures without hand-authoring raw DTOs.
 - Control APIs and the browser admin panel must live under the explicit `/admin/llm-tck` namespace; do not add `__llm-tck`-style hidden root routes for reset, configure, models, assertions, or operator UI.
+- Provider APIs must be explicitly namespaced by provider, such as `/openai`, `/anthropic`, `/gemini`, or `/azure-openai`; do not expose generic root `/v1/*` provider routes that make the TCK look like only the OpenAI API.
 - Aspire examples must show endpoint retrieval from the Aspire resource (`GetEndpoint("http")` or `CreateHttpClient(...)`) and API key wiring so users see the complete integration path.
 - Aspire integration must expose a package-owned `builder.AddLlmTck()` entry point so consumers can install the Aspire NuGet package and add the TCK without caller-supplied project paths or `Projects.*` metadata types.
 - `builder.AddLlmTck()` must be .NET/Aspire-first and must not require Docker or a container runtime by default; container-backed hosting may exist only as an explicit opt-in API.

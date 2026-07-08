@@ -1,6 +1,5 @@
 using ManagedCode.LlmTck.Client;
 using ManagedCode.LlmTck.Tests.TestSupport;
-using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.AI;
 
 namespace ManagedCode.LlmTck.Tests.MicrosoftExtensionsAI;

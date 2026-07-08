@@ -6,6 +6,7 @@ using ManagedCode.LlmTck.Control;
 using ManagedCode.LlmTck.OpenAI;
 using ManagedCode.LlmTck.Runtime;
 using Microsoft.Extensions.AI;
+using ProviderRoutes = ManagedCode.LlmTck.Providers.LlmTckProviderRouteNamespaces;
 
 namespace ManagedCode.LlmTck.Client;
 
@@ -124,7 +125,7 @@ public sealed class LlmTckClient(HttpClient httpClient, string? bearerToken = nu
 
         using var request = CreateJsonRequest(
             HttpMethod.Post,
-            "/v1/audio/speech",
+            ProviderRoutes.ForProvider(ProviderRoutes.OpenAI, "/v1/audio/speech"),
             new { model = modelId, input, voice }
         );
         using var response = await httpClient.SendAsync(request, cancellationToken).ConfigureAwait(false);
@@ -145,7 +146,10 @@ public sealed class LlmTckClient(HttpClient httpClient, string? bearerToken = nu
         ArgumentException.ThrowIfNullOrWhiteSpace(modelId);
         ArgumentNullException.ThrowIfNull(prompt);
 
-        using var request = CreateRequest(HttpMethod.Post, "/v1/videos");
+        using var request = CreateRequest(
+            HttpMethod.Post,
+            ProviderRoutes.ForProvider(ProviderRoutes.OpenAI, "/v1/videos")
+        );
         using var form = new MultipartFormDataContent();
         form.Add(new StringContent(modelId), "model");
         form.Add(new StringContent(prompt), "prompt");
@@ -174,7 +178,10 @@ public sealed class LlmTckClient(HttpClient httpClient, string? bearerToken = nu
         ArgumentException.ThrowIfNullOrWhiteSpace(fileName);
         ArgumentException.ThrowIfNullOrWhiteSpace(mediaType);
 
-        using var request = CreateRequest(HttpMethod.Post, "/v1/audio/transcriptions");
+        using var request = CreateRequest(
+            HttpMethod.Post,
+            ProviderRoutes.ForProvider(ProviderRoutes.OpenAI, "/v1/audio/transcriptions")
+        );
         using var form = new MultipartFormDataContent();
         using var audio = new ByteArrayContent(bytes);
         audio.Headers.ContentType = new MediaTypeHeaderValue(mediaType);
@@ -205,7 +212,10 @@ public sealed class LlmTckClient(HttpClient httpClient, string? bearerToken = nu
         ArgumentException.ThrowIfNullOrWhiteSpace(fileName);
         ArgumentException.ThrowIfNullOrWhiteSpace(mediaType);
 
-        using var request = CreateRequest(HttpMethod.Post, "/v1/audio/translations");
+        using var request = CreateRequest(
+            HttpMethod.Post,
+            ProviderRoutes.ForProvider(ProviderRoutes.OpenAI, "/v1/audio/translations")
+        );
         using var form = new MultipartFormDataContent();
         using var audio = new ByteArrayContent(bytes);
         audio.Headers.ContentType = new MediaTypeHeaderValue(mediaType);

@@ -12,7 +12,7 @@ public static class AzureOpenAiCompatibility
             Id = ProviderId,
             DisplayName = "Azure OpenAI",
             Protocol = LlmTckProtocolFamily.AzureOpenAI,
-            DefaultEndpointPath = "/openai/deployments/{deployment}/chat/completions",
+            DefaultEndpointPath = "/azure-openai/openai/deployments/{deployment}/chat/completions",
             Capabilities =
             [
                 LlmTckProviderCapability.Chat,
@@ -41,7 +41,7 @@ public static class AzureOpenAiCompatibility
                     {
                         Id = "chat.completions.create",
                         Method = "POST",
-                        Path = "/openai/deployments/{deployment}/chat/completions",
+                        Path = "/azure-openai/openai/deployments/{deployment}/chat/completions",
                         DocumentationUrl =
                             "https://learn.microsoft.com/en-us/rest/api/microsoft-foundry/azureopenai/chat/create-chat-completion",
                         ApiVersion = "2024-10-21",
@@ -59,7 +59,7 @@ public static class AzureOpenAiCompatibility
                     {
                         Id = "embeddings.create",
                         Method = "POST",
-                        Path = "/openai/deployments/{deployment}/embeddings",
+                        Path = "/azure-openai/openai/deployments/{deployment}/embeddings",
                         DocumentationUrl =
                             "https://learn.microsoft.com/en-us/rest/api/microsoft-foundry/azureopenai/embeddings/create",
                         ApiVersion = "2024-10-21",
@@ -70,7 +70,7 @@ public static class AzureOpenAiCompatibility
                     {
                         Id = "images.create",
                         Method = "POST",
-                        Path = "/openai/deployments/{deployment}/images/generations",
+                        Path = "/azure-openai/openai/deployments/{deployment}/images/generations",
                         DocumentationUrl = "https://learn.microsoft.com/en-us/azure/foundry/openai/reference",
                         ApiVersion = "2024-10-21",
                         ImplementedByHosting = true,
@@ -80,7 +80,7 @@ public static class AzureOpenAiCompatibility
                     {
                         Id = "audio.speech.create",
                         Method = "POST",
-                        Path = "/openai/deployments/{deployment}/audio/speech",
+                        Path = "/azure-openai/openai/deployments/{deployment}/audio/speech",
                         DocumentationUrl = "https://learn.microsoft.com/en-us/azure/foundry/openai/reference",
                         ApiVersion = "2024-10-21",
                         ImplementedByHosting = true,
@@ -90,7 +90,7 @@ public static class AzureOpenAiCompatibility
                     {
                         Id = "audio.transcriptions.create",
                         Method = "POST",
-                        Path = "/openai/deployments/{deployment}/audio/transcriptions",
+                        Path = "/azure-openai/openai/deployments/{deployment}/audio/transcriptions",
                         DocumentationUrl = "https://learn.microsoft.com/en-us/azure/foundry/openai/reference",
                         ApiVersion = "2024-10-21",
                         RequiredHeader = "api-key",
@@ -101,7 +101,7 @@ public static class AzureOpenAiCompatibility
                     {
                         Id = "audio.translations.create",
                         Method = "POST",
-                        Path = "/openai/deployments/{deployment}/audio/translations",
+                        Path = "/azure-openai/openai/deployments/{deployment}/audio/translations",
                         DocumentationUrl = "https://learn.microsoft.com/en-us/azure/foundry/openai/reference",
                         ApiVersion = "2024-10-21",
                         RequiredHeader = "api-key",
@@ -112,7 +112,7 @@ public static class AzureOpenAiCompatibility
                     {
                         Id = "video.generation.jobs.create",
                         Method = "POST",
-                        Path = "/openai/v1/video/generations/jobs",
+                        Path = "/azure-openai/openai/v1/video/generations/jobs",
                         DocumentationUrl =
                             "https://learn.microsoft.com/en-us/azure/foundry/openai/reference-preview-latest",
                         ApiVersion = "v1 preview",
@@ -124,7 +124,7 @@ public static class AzureOpenAiCompatibility
                     {
                         Id = "video.generation.jobs.list",
                         Method = "GET",
-                        Path = "/openai/v1/video/generations/jobs",
+                        Path = "/azure-openai/openai/v1/video/generations/jobs",
                         DocumentationUrl =
                             "https://learn.microsoft.com/en-us/azure/foundry/openai/reference-preview-latest",
                         ApiVersion = "v1 preview",
@@ -136,7 +136,7 @@ public static class AzureOpenAiCompatibility
                     {
                         Id = "video.generation.jobs.retrieve",
                         Method = "GET",
-                        Path = "/openai/v1/video/generations/jobs/{jobId}",
+                        Path = "/azure-openai/openai/v1/video/generations/jobs/{jobId}",
                         DocumentationUrl =
                             "https://learn.microsoft.com/en-us/azure/foundry/openai/reference-preview-latest",
                         ApiVersion = "v1 preview",
@@ -148,7 +148,7 @@ public static class AzureOpenAiCompatibility
                     {
                         Id = "video.generation.jobs.delete",
                         Method = "DELETE",
-                        Path = "/openai/v1/video/generations/jobs/{jobId}",
+                        Path = "/azure-openai/openai/v1/video/generations/jobs/{jobId}",
                         DocumentationUrl =
                             "https://learn.microsoft.com/en-us/azure/foundry/openai/reference-preview-latest",
                         ApiVersion = "v1 preview",
@@ -160,7 +160,7 @@ public static class AzureOpenAiCompatibility
                     {
                         Id = "video.generations.retrieve",
                         Method = "GET",
-                        Path = "/openai/v1/video/generations/{generationId}",
+                        Path = "/azure-openai/openai/v1/video/generations/{generationId}",
                         DocumentationUrl =
                             "https://learn.microsoft.com/en-us/azure/foundry/openai/reference-preview-latest",
                         ApiVersion = "v1 preview",
@@ -172,7 +172,7 @@ public static class AzureOpenAiCompatibility
                     {
                         Id = "video.generations.thumbnail.retrieve",
                         Method = "GET",
-                        Path = "/openai/v1/video/generations/{generationId}/content/thumbnail",
+                        Path = "/azure-openai/openai/v1/video/generations/{generationId}/content/thumbnail",
                         DocumentationUrl =
                             "https://learn.microsoft.com/en-us/azure/foundry/openai/reference-preview-latest",
                         ApiVersion = "v1 preview",
@@ -184,7 +184,7 @@ public static class AzureOpenAiCompatibility
                     {
                         Id = "video.generations.content.retrieve",
                         Method = "GET",
-                        Path = "/openai/v1/video/generations/{generationId}/content/video",
+                        Path = "/azure-openai/openai/v1/video/generations/{generationId}/content/video",
                         DocumentationUrl =
                             "https://learn.microsoft.com/en-us/azure/foundry/openai/reference-preview-latest",
                         ApiVersion = "v1 preview",
@@ -196,7 +196,7 @@ public static class AzureOpenAiCompatibility
                     {
                         Id = "video.generations.content.head",
                         Method = "HEAD",
-                        Path = "/openai/v1/video/generations/{generationId}/content/video",
+                        Path = "/azure-openai/openai/v1/video/generations/{generationId}/content/video",
                         DocumentationUrl =
                             "https://learn.microsoft.com/en-us/azure/foundry/openai/reference-preview-latest",
                         ApiVersion = "v1 preview",

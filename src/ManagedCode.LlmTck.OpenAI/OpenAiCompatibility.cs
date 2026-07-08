@@ -12,7 +12,7 @@ public static class OpenAiCompatibility
             Id = ProviderId,
             DisplayName = "OpenAI",
             Protocol = LlmTckProtocolFamily.OpenAI,
-            DefaultEndpointPath = "/v1",
+            DefaultEndpointPath = "/openai/v1",
             Capabilities =
             [
                 LlmTckProviderCapability.Models,
@@ -39,7 +39,7 @@ public static class OpenAiCompatibility
                     {
                         Id = "models.list",
                         Method = "GET",
-                        Path = "/v1/models",
+                        Path = "/openai/v1/models",
                         DocumentationUrl =
                             "https://developers.openai.com/api/reference/resources/models/methods/list/",
                         ImplementedByHosting = true,
@@ -49,7 +49,7 @@ public static class OpenAiCompatibility
                     {
                         Id = "chat.completions.create",
                         Method = "POST",
-                        Path = "/v1/chat/completions",
+                        Path = "/openai/v1/chat/completions",
                         DocumentationUrl =
                             "https://developers.openai.com/api/reference/resources/chat/subresources/completions/methods/create/",
                         SupportsStreaming = true,
@@ -66,7 +66,7 @@ public static class OpenAiCompatibility
                     {
                         Id = "responses.create",
                         Method = "POST",
-                        Path = "/v1/responses",
+                        Path = "/openai/v1/responses",
                         DocumentationUrl =
                             "https://developers.openai.com/api/reference/resources/responses/methods/create/",
                         SupportsStreaming = true,
@@ -84,7 +84,7 @@ public static class OpenAiCompatibility
                     {
                         Id = "embeddings.create",
                         Method = "POST",
-                        Path = "/v1/embeddings",
+                        Path = "/openai/v1/embeddings",
                         DocumentationUrl =
                             "https://developers.openai.com/api/reference/resources/embeddings/methods/create/",
                         ImplementedByHosting = true,
@@ -94,7 +94,7 @@ public static class OpenAiCompatibility
                     {
                         Id = "images.create",
                         Method = "POST",
-                        Path = "/v1/images/generations",
+                        Path = "/openai/v1/images/generations",
                         DocumentationUrl =
                             "https://developers.openai.com/api/reference/resources/images/methods/generate/",
                         SupportsStreaming = true,
@@ -109,7 +109,7 @@ public static class OpenAiCompatibility
                     {
                         Id = "images.edits.create",
                         Method = "POST",
-                        Path = "/v1/images/edits",
+                        Path = "/openai/v1/images/edits",
                         DocumentationUrl =
                             "https://developers.openai.com/api/reference/resources/images/methods/edit/",
                         SupportsStreaming = true,
@@ -124,7 +124,7 @@ public static class OpenAiCompatibility
                     {
                         Id = "images.variations.create",
                         Method = "POST",
-                        Path = "/v1/images/variations",
+                        Path = "/openai/v1/images/variations",
                         DocumentationUrl =
                             "https://developers.openai.com/api/reference/resources/images/methods/create_variation/",
                         ImplementedByHosting = true,
@@ -134,7 +134,7 @@ public static class OpenAiCompatibility
                     {
                         Id = "audio.speech.create",
                         Method = "POST",
-                        Path = "/v1/audio/speech",
+                        Path = "/openai/v1/audio/speech",
                         DocumentationUrl =
                             "https://developers.openai.com/api/reference/resources/audio/subresources/speech/methods/create/",
                         ImplementedByHosting = true,
@@ -144,7 +144,7 @@ public static class OpenAiCompatibility
                     {
                         Id = "audio.transcriptions.create",
                         Method = "POST",
-                        Path = "/v1/audio/transcriptions",
+                        Path = "/openai/v1/audio/transcriptions",
                         DocumentationUrl =
                             "https://developers.openai.com/api/reference/resources/audio/subresources/transcriptions/methods/create/",
                         SupportsStreaming = true,
@@ -159,7 +159,7 @@ public static class OpenAiCompatibility
                     {
                         Id = "audio.translations.create",
                         Method = "POST",
-                        Path = "/v1/audio/translations",
+                        Path = "/openai/v1/audio/translations",
                         DocumentationUrl =
                             "https://developers.openai.com/api/reference/resources/audio/subresources/translations/methods/create/",
                         ImplementedByHosting = true,
@@ -169,7 +169,7 @@ public static class OpenAiCompatibility
                     {
                         Id = "videos.create",
                         Method = "POST",
-                        Path = "/v1/videos",
+                        Path = "/openai/v1/videos",
                         DocumentationUrl =
                             "https://developers.openai.com/api/reference/resources/videos/methods/create/",
                         ImplementedByHosting = true,
@@ -179,7 +179,7 @@ public static class OpenAiCompatibility
                     {
                         Id = "videos.list",
                         Method = "GET",
-                        Path = "/v1/videos",
+                        Path = "/openai/v1/videos",
                         DocumentationUrl =
                             "https://developers.openai.com/api/reference/resources/videos/methods/list/",
                         ImplementedByHosting = true,
@@ -189,7 +189,7 @@ public static class OpenAiCompatibility
                     {
                         Id = "videos.retrieve",
                         Method = "GET",
-                        Path = "/v1/videos/{videoId}",
+                        Path = "/openai/v1/videos/{videoId}",
                         DocumentationUrl =
                             "https://developers.openai.com/api/reference/resources/videos/methods/retrieve/",
                         ImplementedByHosting = true,
@@ -199,7 +199,7 @@ public static class OpenAiCompatibility
                     {
                         Id = "videos.delete",
                         Method = "DELETE",
-                        Path = "/v1/videos/{videoId}",
+                        Path = "/openai/v1/videos/{videoId}",
                         DocumentationUrl =
                             "https://developers.openai.com/api/reference/resources/videos/methods/delete/",
                         ImplementedByHosting = true,
@@ -209,7 +209,7 @@ public static class OpenAiCompatibility
                     {
                         Id = "videos.content.retrieve",
                         Method = "GET",
-                        Path = "/v1/videos/{videoId}/content",
+                        Path = "/openai/v1/videos/{videoId}/content",
                         DocumentationUrl =
                             "https://developers.openai.com/api/reference/resources/videos/methods/download_content/",
                         ImplementedByHosting = true,
@@ -219,7 +219,7 @@ public static class OpenAiCompatibility
                     {
                         Id = "videos.edits.create",
                         Method = "POST",
-                        Path = "/v1/videos/edits",
+                        Path = "/openai/v1/videos/edits",
                         DocumentationUrl =
                             "https://developers.openai.com/api/reference/resources/videos/methods/edit/",
                         ImplementedByHosting = true,
@@ -229,7 +229,7 @@ public static class OpenAiCompatibility
                     {
                         Id = "videos.extensions.create",
                         Method = "POST",
-                        Path = "/v1/videos/extensions",
+                        Path = "/openai/v1/videos/extensions",
                         DocumentationUrl =
                             "https://developers.openai.com/api/reference/resources/videos/methods/extend/",
                         ImplementedByHosting = true,
@@ -239,7 +239,7 @@ public static class OpenAiCompatibility
                     {
                         Id = "videos.remix",
                         Method = "POST",
-                        Path = "/v1/videos/{videoId}/remix",
+                        Path = "/openai/v1/videos/{videoId}/remix",
                         DocumentationUrl =
                             "https://developers.openai.com/api/reference/resources/videos/methods/remix/",
                         ImplementedByHosting = true,
@@ -249,7 +249,7 @@ public static class OpenAiCompatibility
                     {
                         Id = "videos.characters.create",
                         Method = "POST",
-                        Path = "/v1/videos/characters",
+                        Path = "/openai/v1/videos/characters",
                         DocumentationUrl =
                             "https://developers.openai.com/api/reference/resources/videos/methods/create_character/",
                         ImplementedByHosting = true,
@@ -259,7 +259,7 @@ public static class OpenAiCompatibility
                     {
                         Id = "videos.characters.retrieve",
                         Method = "GET",
-                        Path = "/v1/videos/characters/{characterId}",
+                        Path = "/openai/v1/videos/characters/{characterId}",
                         DocumentationUrl =
                             "https://developers.openai.com/api/reference/resources/videos/methods/get_character/",
                         ImplementedByHosting = true,

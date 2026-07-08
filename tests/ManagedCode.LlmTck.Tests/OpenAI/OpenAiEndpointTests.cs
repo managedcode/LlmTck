@@ -8,7 +8,6 @@ using ManagedCode.LlmTck.Configuration;
 using ManagedCode.LlmTck.Control;
 using ManagedCode.LlmTck.Models;
 using ManagedCode.LlmTck.Tests.TestSupport;
-using Microsoft.AspNetCore.TestHost;
 
 namespace ManagedCode.LlmTck.Tests.OpenAI;
 
@@ -38,9 +37,9 @@ public sealed class OpenAiEndpointTests
         using var client = host.GetTestClient();
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", "test-key");
 
-        var models = await client.GetFromJsonAsync<JsonElement>("/v1/models", _jsonOptions);
+        var models = await client.GetFromJsonAsync<JsonElement>("/openai/v1/models", _jsonOptions);
         var chat = await client.PostAsJsonAsync(
-            "/v1/chat/completions",
+            "/openai/v1/chat/completions",
             new
             {
                 model = "chat-model",
@@ -49,30 +48,30 @@ public sealed class OpenAiEndpointTests
             _jsonOptions
         );
         var embedding = await client.PostAsJsonAsync(
-            "/v1/embeddings",
+            "/openai/v1/embeddings",
             new { model = "embedding-model", input = new[] { "alpha", "beta" } },
             _jsonOptions
         );
         var image = await client.PostAsJsonAsync(
-            "/v1/images/generations",
+            "/openai/v1/images/generations",
             new { model = "image-model", prompt = "draw a blue compatibility marker" },
             _jsonOptions
         );
         var audio = await client.PostAsJsonAsync(
-            "/v1/audio/speech",
+            "/openai/v1/audio/speech",
             new { model = "audio-model", input = "speak this fixture", voice = "alloy" },
             _jsonOptions
         );
         using var transcriptionContent = CreateTranscriptionContent("audio-model");
         var transcription = await client.PostAsync(
-            "/v1/audio/transcriptions",
+            "/openai/v1/audio/transcriptions",
             transcriptionContent
         );
         using var videoContent = CreateVideoContent(
             "video-model",
             "generate a blue compatibility marker"
         );
-        var video = await client.PostAsync("/v1/videos", videoContent);
+        var video = await client.PostAsync("/openai/v1/videos", videoContent);
 
         chat.EnsureSuccessStatusCode();
         embedding.EnsureSuccessStatusCode();
@@ -137,7 +136,7 @@ public sealed class OpenAiEndpointTests
         using var client = host.GetTestClient();
 
         var response = await client.PostAsJsonAsync(
-            "/v1/chat/completions",
+            "/openai/v1/chat/completions",
             new
             {
                 model = "llm-tck-chat",
@@ -171,7 +170,7 @@ public sealed class OpenAiEndpointTests
         using var client = host.GetTestClient();
 
         var response = await client.PostAsJsonAsync(
-            "/v1/embeddings",
+            "/openai/v1/embeddings",
             new { model = "llm-tck-embedding", input = "hello" },
             _jsonOptions
         );
@@ -213,7 +212,7 @@ public sealed class OpenAiEndpointTests
         using var client = host.GetTestClient();
 
         var response = await client.PostAsJsonAsync(
-            "/v1/embeddings",
+            "/openai/v1/embeddings",
             new { model = "missing-embedding-model", input = "hello" },
             _jsonOptions
         );
@@ -231,11 +230,11 @@ public sealed class OpenAiEndpointTests
         using var client = host.GetTestClient();
 
         var malformed = await client.PostAsync(
-            "/v1/chat/completions",
+            "/openai/v1/chat/completions",
             new StringContent("{", Encoding.UTF8, "application/json")
         );
         var missingMessages = await client.PostAsJsonAsync(
-            "/v1/chat/completions",
+            "/openai/v1/chat/completions",
             new { model = "llm-tck-chat", messages = (object?)null },
             _jsonOptions
         );
@@ -294,7 +293,7 @@ public sealed class OpenAiEndpointTests
         configure.EnsureSuccessStatusCode();
 
         var chat = await client.PostAsJsonAsync(
-            "/v1/chat/completions",
+            "/openai/v1/chat/completions",
             new
             {
                 model = "docs-chat",
@@ -334,7 +333,7 @@ public sealed class OpenAiEndpointTests
                 .Build()
         );
         var chat = await client.PostAsJsonAsync(
-            "/v1/chat/completions",
+            "/openai/v1/chat/completions",
             new
             {
                 model = "llm-tck-chat",
@@ -361,37 +360,37 @@ public sealed class OpenAiEndpointTests
         using var client = host.GetTestClient();
 
         var missingEmbeddingModel = await client.PostAsJsonAsync(
-            "/v1/embeddings",
+            "/openai/v1/embeddings",
             new { model = "", input = "hello" },
             _jsonOptions
         );
         var missingEmbeddingInput = await client.PostAsJsonAsync(
-            "/v1/embeddings",
+            "/openai/v1/embeddings",
             new { model = "llm-tck-embedding", input = (object?)null },
             _jsonOptions
         );
         var missingImageModel = await client.PostAsJsonAsync(
-            "/v1/images/generations",
+            "/openai/v1/images/generations",
             new { model = "", prompt = "draw this" },
             _jsonOptions
         );
         var missingImagePrompt = await client.PostAsJsonAsync(
-            "/v1/images/generations",
+            "/openai/v1/images/generations",
             new { model = "llm-tck-image", prompt = "" },
             _jsonOptions
         );
         var missingAudioModel = await client.PostAsJsonAsync(
-            "/v1/audio/speech",
+            "/openai/v1/audio/speech",
             new { model = "", input = "speak this", voice = "alloy" },
             _jsonOptions
         );
         var missingAudioInput = await client.PostAsJsonAsync(
-            "/v1/audio/speech",
+            "/openai/v1/audio/speech",
             new { model = "llm-tck-audio", input = "", voice = "alloy" },
             _jsonOptions
         );
         var missingAudioVoice = await client.PostAsJsonAsync(
-            "/v1/audio/speech",
+            "/openai/v1/audio/speech",
             new { model = "llm-tck-audio", input = "speak this", voice = "" },
             _jsonOptions
         );
@@ -414,7 +413,7 @@ public sealed class OpenAiEndpointTests
         using var client = host.GetTestClient();
 
         var response = await client.PostAsJsonAsync(
-            "/v1/audio/speech",
+            "/openai/v1/audio/speech",
             new { model = "llm-tck-audio", input = "audio fixture", voice = "alloy" },
             _jsonOptions
         );
@@ -436,7 +435,7 @@ public sealed class OpenAiEndpointTests
         using var client = host.GetTestClient();
 
         var stream = await client.PostAsJsonAsync(
-            "/v1/images/generations",
+            "/openai/v1/images/generations",
             new
             {
                 model = "gpt-image-1.5",
@@ -454,18 +453,18 @@ public sealed class OpenAiEndpointTests
             "gpt-image-1.5",
             "edit a fixture image"
         );
-        var edit = await client.PostAsync("/v1/images/edits", editContent);
+        var edit = await client.PostAsync("/openai/v1/images/edits", editContent);
         using var editStreamContent = CreateImageEditContent(
             "gpt-image-1.5",
             "stream an edited fixture image",
             stream: true
         );
-        var editStream = await client.PostAsync("/v1/images/edits", editStreamContent);
+        var editStream = await client.PostAsync("/openai/v1/images/edits", editStreamContent);
         using var variationContent = CreateImageVariationContent("dall-e-2");
-        var variation = await client.PostAsync("/v1/images/variations", variationContent);
+        var variation = await client.PostAsync("/openai/v1/images/variations", variationContent);
 
         var invalidGeneration = await client.PostAsJsonAsync(
-            "/v1/images/generations",
+            "/openai/v1/images/generations",
             new
             {
                 model = "gpt-image-1.5",
@@ -476,7 +475,7 @@ public sealed class OpenAiEndpointTests
             _jsonOptions
         );
         var invalidEdit = await client.PostAsJsonAsync(
-            "/v1/images/edits",
+            "/openai/v1/images/edits",
             new { model = "gpt-image-1.5", prompt = "missing image" },
             _jsonOptions
         );
@@ -485,7 +484,7 @@ public sealed class OpenAiEndpointTests
             { new StringContent("dall-e-2"), "model" },
         };
         var invalidVariation = await client.PostAsync(
-            "/v1/images/variations",
+            "/openai/v1/images/variations",
             invalidVariationContent
         );
 
@@ -528,17 +527,17 @@ public sealed class OpenAiEndpointTests
         using var client = host.GetTestClient();
 
         using var jsonContent = CreateTranscriptionContent("llm-tck-audio");
-        var json = await client.PostAsync("/v1/audio/transcriptions", jsonContent);
+        var json = await client.PostAsync("/openai/v1/audio/transcriptions", jsonContent);
         using var textContent = CreateTranscriptionContent(
             "llm-tck-audio",
             responseFormat: "text"
         );
-        var text = await client.PostAsync("/v1/audio/transcriptions", textContent);
+        var text = await client.PostAsync("/openai/v1/audio/transcriptions", textContent);
         using var streamContent = CreateTranscriptionContent(
             "llm-tck-audio",
             stream: true
         );
-        var stream = await client.PostAsync("/v1/audio/transcriptions", streamContent);
+        var stream = await client.PostAsync("/openai/v1/audio/transcriptions", streamContent);
 
         json.EnsureSuccessStatusCode();
         text.EnsureSuccessStatusCode();
@@ -568,22 +567,22 @@ public sealed class OpenAiEndpointTests
         using var client = host.GetTestClient();
 
         using var jsonContent = CreateTranscriptionContent("llm-tck-audio");
-        var json = await client.PostAsync("/v1/audio/translations", jsonContent);
+        var json = await client.PostAsync("/openai/v1/audio/translations", jsonContent);
         using var textContent = CreateTranscriptionContent(
             "llm-tck-audio",
             responseFormat: "text"
         );
-        var text = await client.PostAsync("/v1/audio/translations", textContent);
+        var text = await client.PostAsync("/openai/v1/audio/translations", textContent);
         using var streamContent = CreateTranscriptionContent(
             "llm-tck-audio",
             stream: true
         );
-        var stream = await client.PostAsync("/v1/audio/translations", streamContent);
+        var stream = await client.PostAsync("/openai/v1/audio/translations", streamContent);
         using var diarizedContent = CreateTranscriptionContent(
             "llm-tck-audio",
             responseFormat: "diarized_json"
         );
-        var diarized = await client.PostAsync("/v1/audio/translations", diarizedContent);
+        var diarized = await client.PostAsync("/openai/v1/audio/translations", diarizedContent);
 
         json.EnsureSuccessStatusCode();
         text.EnsureSuccessStatusCode();
@@ -618,44 +617,44 @@ public sealed class OpenAiEndpointTests
             seconds: "8",
             size: "1280x720"
         );
-        var create = await client.PostAsync("/v1/videos", createContent);
-        var list = await client.GetAsync("/v1/videos?limit=1&order=desc");
-        var retrieve = await client.GetAsync("/v1/videos/video_custom");
-        var content = await client.GetAsync("/v1/videos/video_custom/content");
-        var thumbnail = await client.GetAsync("/v1/videos/video_custom/content?variant=thumbnail");
+        var create = await client.PostAsync("/openai/v1/videos", createContent);
+        var list = await client.GetAsync("/openai/v1/videos?limit=1&order=desc");
+        var retrieve = await client.GetAsync("/openai/v1/videos/video_custom");
+        var content = await client.GetAsync("/openai/v1/videos/video_custom/content");
+        var thumbnail = await client.GetAsync("/openai/v1/videos/video_custom/content?variant=thumbnail");
         var edit = await client.PostAsJsonAsync(
-            "/v1/videos/edits",
+            "/openai/v1/videos/edits",
             new { prompt = "edit the clip", video = new { id = "video_custom" } },
             _jsonOptions
         );
         var extension = await client.PostAsJsonAsync(
-            "/v1/videos/extensions",
+            "/openai/v1/videos/extensions",
             new { prompt = "extend the clip", seconds = "12", video = new { id = "video_custom" } },
             _jsonOptions
         );
         var remix = await client.PostAsJsonAsync(
-            "/v1/videos/video_custom/remix",
+            "/openai/v1/videos/video_custom/remix",
             new { prompt = "remix the clip" },
             _jsonOptions
         );
         using var characterContent = CreateVideoCharacterContent();
-        var character = await client.PostAsync("/v1/videos/characters", characterContent);
-        var getCharacter = await client.GetAsync("/v1/videos/characters/char_custom");
-        var delete = await client.DeleteAsync("/v1/videos/video_custom");
+        var character = await client.PostAsync("/openai/v1/videos/characters", characterContent);
+        var getCharacter = await client.GetAsync("/openai/v1/videos/characters/char_custom");
+        var delete = await client.DeleteAsync("/openai/v1/videos/video_custom");
 
         using var invalidSecondsContent = CreateVideoContent(
             "sora-2",
             "generate a deterministic clip",
             seconds: "16"
         );
-        var invalidSeconds = await client.PostAsync("/v1/videos", invalidSecondsContent);
+        var invalidSeconds = await client.PostAsync("/openai/v1/videos", invalidSecondsContent);
         using var invalidSizeContent = CreateVideoContent(
             "sora-2",
             "generate a deterministic clip",
             size: "640x480"
         );
-        var invalidSize = await client.PostAsync("/v1/videos", invalidSizeContent);
-        var invalidList = await client.GetAsync("/v1/videos?limit=101");
+        var invalidSize = await client.PostAsync("/openai/v1/videos", invalidSizeContent);
+        var invalidList = await client.GetAsync("/openai/v1/videos?limit=101");
 
         create.EnsureSuccessStatusCode();
         list.EnsureSuccessStatusCode();

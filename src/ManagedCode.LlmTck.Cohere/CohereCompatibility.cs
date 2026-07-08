@@ -12,7 +12,7 @@ public static class CohereCompatibility
             Id = ProviderId,
             DisplayName = "Cohere",
             Protocol = LlmTckProtocolFamily.Cohere,
-            DefaultEndpointPath = "/v2/chat",
+            DefaultEndpointPath = "/cohere/v2/chat",
             Capabilities =
             [
                 LlmTckProviderCapability.Chat,
@@ -33,7 +33,7 @@ public static class CohereCompatibility
                     {
                         Id = "chat.create",
                         Method = "POST",
-                        Path = "/v2/chat",
+                        Path = "/cohere/v2/chat",
                         DocumentationUrl = "https://docs.cohere.com/reference/chat",
                         SupportsStreaming = true,
                         ImplementedByHosting = true,
@@ -49,7 +49,7 @@ public static class CohereCompatibility
                     {
                         Id = "embed.create",
                         Method = "POST",
-                        Path = "/v2/embed",
+                        Path = "/cohere/v2/embed",
                         DocumentationUrl = "https://docs.cohere.com/reference/embed",
                         ImplementedByHosting = true,
                         Capabilities = [LlmTckProviderCapability.Embeddings],

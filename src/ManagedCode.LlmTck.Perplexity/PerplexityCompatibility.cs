@@ -12,7 +12,7 @@ public static class PerplexityCompatibility
             Id = ProviderId,
             DisplayName = "Perplexity",
             Protocol = LlmTckProtocolFamily.Perplexity,
-            DefaultEndpointPath = "/v1/sonar",
+            DefaultEndpointPath = "/perplexity/v1/sonar",
             Capabilities =
             [
                 LlmTckProviderCapability.Chat,
@@ -31,7 +31,7 @@ public static class PerplexityCompatibility
                     {
                         Id = "sonar.create",
                         Method = "POST",
-                        Path = "/v1/sonar",
+                        Path = "/perplexity/v1/sonar",
                         DocumentationUrl = "https://docs.perplexity.ai/api-reference/sonar-post",
                         SupportsStreaming = true,
                         ImplementedByHosting = true,

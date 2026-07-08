@@ -4,14 +4,13 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using Azure;
 using Azure.AI.Inference;
-using Azure.AI.OpenAI;
 using Azure.Core.Pipeline;
 using ManagedCode.LlmTck.Models;
 using ManagedCode.LlmTck.Tests.TestSupport;
-using Microsoft.AspNetCore.TestHost;
-using OpenAI.Chat;
 using FoundryChatClient = Azure.AI.Inference.ChatCompletionsClient;
 using FoundryEmbeddingClient = Azure.AI.Inference.EmbeddingsClient;
+using OpenAiUserChatMessage = OpenAI.Chat.UserChatMessage;
+using ProviderRoutes = ManagedCode.LlmTck.Providers.LlmTckProviderRouteNamespaces;
 
 namespace ManagedCode.LlmTck.Tests.Azure;
 
@@ -36,7 +35,7 @@ public sealed class AzureSdkCompatibilityTests
                 ));
         using var httpClient = host.GetTestClient();
         var azureClient = new AzureOpenAIClient(
-            httpClient.BaseAddress!,
+            ProviderEndpoint(httpClient, ProviderRoutes.AzureOpenAI, includeTrailingSlash: true),
             new ApiKeyCredential("test-key"),
             new AzureOpenAIClientOptions
             {
@@ -48,7 +47,7 @@ public sealed class AzureSdkCompatibilityTests
         var embeddingClient = azureClient.GetEmbeddingClient("azure-embedding");
 
         var chat = await chatClient.CompleteChatAsync(
-            [new UserChatMessage("hello from azure sdk")],
+            [new OpenAiUserChatMessage("hello from azure sdk")],
             cancellationToken: CancellationToken.None
         );
         var embedding = await embeddingClient.GenerateEmbeddingAsync(
@@ -82,8 +81,13 @@ public sealed class AzureSdkCompatibilityTests
             Transport = new HttpClientTransport(httpClient),
         };
         var credential = new AzureKeyCredential("test-key");
-        var chatClient = new FoundryChatClient(httpClient.BaseAddress!, credential, options);
-        var embeddingClient = new FoundryEmbeddingClient(httpClient.BaseAddress!, credential, options);
+        var foundryEndpoint = ProviderEndpoint(
+            httpClient,
+            ProviderRoutes.MicrosoftFoundry,
+            includeTrailingSlash: false
+        );
+        var chatClient = new FoundryChatClient(foundryEndpoint, credential, options);
+        var embeddingClient = new FoundryEmbeddingClient(foundryEndpoint, credential, options);
 
         var chat = await chatClient.CompleteAsync(
             new ChatCompletionsOptions([new ChatRequestUserMessage("hello from foundry sdk")])
@@ -119,17 +123,17 @@ public sealed class AzureSdkCompatibilityTests
         httpClient.DefaultRequestHeaders.Add("api-key", "test-key");
 
         var embedding = await httpClient.PostAsJsonAsync(
-            "/openai/deployments/azure-embedding/embeddings?api-version=2024-10-21",
+            "/azure-openai/openai/deployments/azure-embedding/embeddings?api-version=2024-10-21",
             new { input = "invoice", encoding_format = "base64" },
             _jsonOptions
         );
         var image = await httpClient.PostAsJsonAsync(
-            "/openai/deployments/azure-image/images/generations?api-version=2024-10-21",
+            "/azure-openai/openai/deployments/azure-image/images/generations?api-version=2024-10-21",
             new { prompt = "fixture image" },
             _jsonOptions
         );
         var audio = await httpClient.PostAsJsonAsync(
-            "/openai/deployments/azure-audio/audio/speech?api-version=2024-10-21",
+            "/azure-openai/openai/deployments/azure-audio/audio/speech?api-version=2024-10-21",
             new { input = "fixture audio", voice = "alloy" },
             _jsonOptions
         );
@@ -155,5 +159,20 @@ public sealed class AzureSdkCompatibilityTests
             .IsNotEmpty();
         await Assert.That(audio.Content.Headers.ContentType?.MediaType).IsEqualTo("audio/wav");
         await Assert.That(audioBytes.Length).IsGreaterThan(0);
+    }
+
+    private static Uri ProviderEndpoint(
+        HttpClient httpClient,
+        string providerNamespace,
+        bool includeTrailingSlash
+    )
+    {
+        var path = providerNamespace.TrimStart('/');
+        if (includeTrailingSlash)
+        {
+            path += "/";
+        }
+
+        return new Uri(httpClient.BaseAddress!, path);
     }
 }

@@ -3,7 +3,6 @@ using System.Text;
 using System.Text.Json;
 using ManagedCode.LlmTck.Models;
 using ManagedCode.LlmTck.Tests.TestSupport;
-using Microsoft.AspNetCore.TestHost;
 
 namespace ManagedCode.LlmTck.Tests.Bedrock;
 
@@ -26,7 +25,7 @@ public sealed class BedrockEndpointTests
         using var client = host.GetTestClient();
 
         var response = await client.PostAsJsonAsync(
-            "/model/amazon.nova-lite-v1:0/converse",
+            "/bedrock/model/amazon.nova-lite-v1:0/converse",
             new
             {
                 system = new[] { new { text = "Answer briefly." } },
@@ -90,7 +89,7 @@ public sealed class BedrockEndpointTests
         using var client = host.GetTestClient();
 
         var response = await client.PostAsJsonAsync(
-            "/model/amazon.nova-lite-v1:0/converse-stream",
+            "/bedrock/model/amazon.nova-lite-v1:0/converse-stream",
             new
             {
                 messages = new[]
@@ -158,7 +157,7 @@ public sealed class BedrockEndpointTests
         using var client = host.GetTestClient();
 
         var response = await client.PostAsJsonAsync(
-            "/model/amazon.titan-text-premier-v1:0/invoke",
+            "/bedrock/model/amazon.titan-text-premier-v1:0/invoke",
             new
             {
                 inputText = "Describe hello world",
@@ -193,7 +192,7 @@ public sealed class BedrockEndpointTests
         using var client = host.GetTestClient();
 
         var response = await client.PostAsJsonAsync(
-            "/model/amazon.titan-text-premier-v1:0/invoke-with-response-stream",
+            "/bedrock/model/amazon.titan-text-premier-v1:0/invoke-with-response-stream",
             new
             {
                 inputText = "stream hello",
@@ -223,7 +222,7 @@ public sealed class BedrockEndpointTests
         using var client = host.GetTestClient();
 
         var response = await client.PostAsJsonAsync(
-            "/model/amazon.titan-embed-text-v2:0/invoke",
+            "/bedrock/model/amazon.titan-embed-text-v2:0/invoke",
             new
             {
                 inputText = "embed this text",
@@ -252,7 +251,7 @@ public sealed class BedrockEndpointTests
         using var client = host.GetTestClient();
 
         var response = await client.PostAsJsonAsync(
-            "/model/stability.stable-image-ultra-v1:1/invoke",
+            "/bedrock/model/stability.stable-image-ultra-v1:1/invoke",
             new
             {
                 prompt = "A simple diagram",

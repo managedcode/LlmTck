@@ -2,7 +2,6 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using ManagedCode.LlmTck.Models;
 using ManagedCode.LlmTck.Tests.TestSupport;
-using Microsoft.AspNetCore.TestHost;
 
 namespace ManagedCode.LlmTck.Tests.Ollama;
 
@@ -25,7 +24,7 @@ public sealed class OllamaEndpointTests
         using var client = host.GetTestClient();
 
         var response = await client.PostAsJsonAsync(
-            "/api/chat",
+            "/ollama/api/chat",
             new
             {
                 model = "ollama-chat",
@@ -64,7 +63,7 @@ public sealed class OllamaEndpointTests
         using var client = host.GetTestClient();
 
         var response = await client.PostAsJsonAsync(
-            "/api/chat",
+            "/ollama/api/chat",
             new
             {
                 model = "ollama-chat",
@@ -110,7 +109,7 @@ public sealed class OllamaEndpointTests
         using var client = host.GetTestClient();
 
         var response = await client.PostAsJsonAsync(
-            "/api/embed",
+            "/ollama/api/embed",
             new { model = "ollama-embed", input = new[] { "alpha", "beta" } },
             _jsonOptions
         );

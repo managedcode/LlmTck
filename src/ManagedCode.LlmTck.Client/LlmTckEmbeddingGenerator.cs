@@ -3,6 +3,7 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using ManagedCode.LlmTck.OpenAI;
 using Microsoft.Extensions.AI;
+using ProviderRoutes = ManagedCode.LlmTck.Providers.LlmTckProviderRouteNamespaces;
 
 namespace ManagedCode.LlmTck.Client;
 
@@ -28,7 +29,10 @@ public sealed class LlmTckEmbeddingGenerator(
             input = values.ToArray(),
         };
 
-        using var httpRequest = new HttpRequestMessage(HttpMethod.Post, "/v1/embeddings")
+        using var httpRequest = new HttpRequestMessage(
+            HttpMethod.Post,
+            ProviderRoutes.ForProvider(ProviderRoutes.OpenAI, "/v1/embeddings")
+        )
         {
             Content = JsonContent.Create(request, options: _jsonOptions),
         };

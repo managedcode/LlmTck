@@ -12,7 +12,7 @@ public static class BedrockCompatibility
             Id = ProviderId,
             DisplayName = "Amazon Bedrock",
             Protocol = LlmTckProtocolFamily.Bedrock,
-            DefaultEndpointPath = "/model/{modelId}/converse",
+            DefaultEndpointPath = "/bedrock/model/{modelId}/converse",
             Capabilities =
             [
                 LlmTckProviderCapability.Chat,
@@ -40,7 +40,7 @@ public static class BedrockCompatibility
                     {
                         Id = "converse",
                         Method = "POST",
-                        Path = "/model/{modelId}/converse",
+                        Path = "/bedrock/model/{modelId}/converse",
                         DocumentationUrl =
                             "https://docs.aws.amazon.com/bedrock/latest/APIReference/API_runtime_Converse.html",
                         ImplementedByHosting = true,
@@ -55,7 +55,7 @@ public static class BedrockCompatibility
                     {
                         Id = "converseStream",
                         Method = "POST",
-                        Path = "/model/{modelId}/converse-stream",
+                        Path = "/bedrock/model/{modelId}/converse-stream",
                         DocumentationUrl =
                             "https://docs.aws.amazon.com/bedrock/latest/APIReference/API_runtime_ConverseStream.html",
                         SupportsStreaming = true,
@@ -66,7 +66,7 @@ public static class BedrockCompatibility
                     {
                         Id = "invokeModel",
                         Method = "POST",
-                        Path = "/model/{modelId}/invoke",
+                        Path = "/bedrock/model/{modelId}/invoke",
                         DocumentationUrl =
                             "https://docs.aws.amazon.com/bedrock/latest/APIReference/API_runtime_InvokeModel.html",
                         ImplementedByHosting = true,
@@ -80,7 +80,7 @@ public static class BedrockCompatibility
                     {
                         Id = "invokeModelWithResponseStream",
                         Method = "POST",
-                        Path = "/model/{modelId}/invoke-with-response-stream",
+                        Path = "/bedrock/model/{modelId}/invoke-with-response-stream",
                         DocumentationUrl =
                             "https://docs.aws.amazon.com/bedrock/latest/APIReference/API_runtime_InvokeModelWithResponseStream.html",
                         SupportsStreaming = true,

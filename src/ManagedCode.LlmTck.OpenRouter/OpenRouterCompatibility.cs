@@ -12,7 +12,7 @@ public static class OpenRouterCompatibility
             Id = ProviderId,
             DisplayName = "OpenRouter",
             Protocol = LlmTckProtocolFamily.OpenRouter,
-            DefaultEndpointPath = "/api/v1/chat/completions",
+            DefaultEndpointPath = "/openrouter/api/v1/chat/completions",
             Capabilities =
             [
                 LlmTckProviderCapability.Models,
@@ -33,7 +33,7 @@ public static class OpenRouterCompatibility
                     {
                         Id = "chat.completions.create",
                         Method = "POST",
-                        Path = "/api/v1/chat/completions",
+                        Path = "/openrouter/api/v1/chat/completions",
                         DocumentationUrl = "https://openrouter.ai/docs/api/reference/overview",
                         SupportsStreaming = true,
                         ImplementedByHosting = true,
@@ -49,7 +49,7 @@ public static class OpenRouterCompatibility
                     {
                         Id = "responses.create",
                         Method = "POST",
-                        Path = "/api/v1/responses",
+                        Path = "/openrouter/api/v1/responses",
                         DocumentationUrl =
                             "https://openrouter.ai/docs/api/reference/responses/overview",
                         SupportsStreaming = true,
@@ -64,7 +64,7 @@ public static class OpenRouterCompatibility
                     {
                         Id = "models.list",
                         Method = "GET",
-                        Path = "/api/v1/models",
+                        Path = "/openrouter/api/v1/models",
                         DocumentationUrl =
                             "https://openrouter.ai/docs/api/api-reference/models/list-all-models-and-their-properties",
                         ImplementedByHosting = true,

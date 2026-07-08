@@ -12,7 +12,7 @@ public static class MicrosoftFoundryCompatibility
             Id = ProviderId,
             DisplayName = "Microsoft Foundry",
             Protocol = LlmTckProtocolFamily.MicrosoftFoundry,
-            DefaultEndpointPath = "/models/chat/completions",
+            DefaultEndpointPath = "/microsoft-foundry/models/chat/completions",
             Capabilities =
             [
                 LlmTckProviderCapability.Chat,
@@ -39,7 +39,7 @@ public static class MicrosoftFoundryCompatibility
                     {
                         Id = "chat.completions.create",
                         Method = "POST",
-                        Path = "/chat/completions",
+                        Path = "/microsoft-foundry/chat/completions",
                         DocumentationUrl =
                             "https://learn.microsoft.com/en-us/rest/api/microsoft-foundry/modelinference/chat-completions",
                         SupportsStreaming = true,
@@ -56,7 +56,7 @@ public static class MicrosoftFoundryCompatibility
                     {
                         Id = "embeddings.create",
                         Method = "POST",
-                        Path = "/embeddings",
+                        Path = "/microsoft-foundry/embeddings",
                         DocumentationUrl =
                             "https://learn.microsoft.com/en-us/rest/api/microsoft-foundry/modelinference/text-embeddings",
                         ImplementedByHosting = true,
@@ -66,7 +66,7 @@ public static class MicrosoftFoundryCompatibility
                     {
                         Id = "models.chat.completions.create",
                         Method = "POST",
-                        Path = "/models/chat/completions",
+                        Path = "/microsoft-foundry/models/chat/completions",
                         DocumentationUrl =
                             "https://learn.microsoft.com/en-us/rest/api/microsoft-foundry/modelinference/chat-completions",
                         SupportsStreaming = true,
@@ -81,7 +81,7 @@ public static class MicrosoftFoundryCompatibility
                     {
                         Id = "models.embeddings.create",
                         Method = "POST",
-                        Path = "/models/embeddings",
+                        Path = "/microsoft-foundry/models/embeddings",
                         DocumentationUrl =
                             "https://learn.microsoft.com/en-us/rest/api/microsoft-foundry/modelinference/text-embeddings",
                         ImplementedByHosting = true,

@@ -12,7 +12,7 @@ public static class DeepSeekCompatibility
             Id = ProviderId,
             DisplayName = "DeepSeek",
             Protocol = LlmTckProtocolFamily.DeepSeek,
-            DefaultEndpointPath = "/v1/chat/completions",
+            DefaultEndpointPath = "/deepseek/v1/chat/completions",
             Capabilities =
             [
                 LlmTckProviderCapability.Models,
@@ -33,7 +33,7 @@ public static class DeepSeekCompatibility
                     {
                         Id = "chat.completions.create",
                         Method = "POST",
-                        Path = "/v1/chat/completions",
+                        Path = "/deepseek/v1/chat/completions",
                         DocumentationUrl =
                             "https://api-docs.deepseek.com/api/create-chat-completion",
                         SupportsStreaming = true,
@@ -50,7 +50,7 @@ public static class DeepSeekCompatibility
                     {
                         Id = "models.list",
                         Method = "GET",
-                        Path = "/models",
+                        Path = "/deepseek/models",
                         DocumentationUrl = "https://api-docs.deepseek.com/api/list-models",
                         ImplementedByHosting = true,
                         Capabilities = [LlmTckProviderCapability.Models],

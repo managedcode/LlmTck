@@ -12,7 +12,7 @@ public static class MistralCompatibility
             Id = ProviderId,
             DisplayName = "Mistral",
             Protocol = LlmTckProtocolFamily.Mistral,
-            DefaultEndpointPath = "/v1/chat/completions",
+            DefaultEndpointPath = "/mistral/v1/chat/completions",
             Capabilities =
             [
                 LlmTckProviderCapability.Chat,
@@ -33,7 +33,7 @@ public static class MistralCompatibility
                     {
                         Id = "chat.complete",
                         Method = "POST",
-                        Path = "/v1/chat/completions",
+                        Path = "/mistral/v1/chat/completions",
                         DocumentationUrl = "https://docs.mistral.ai/api/endpoint/chat",
                         SupportsStreaming = true,
                         ImplementedByHosting = true,
@@ -49,7 +49,7 @@ public static class MistralCompatibility
                     {
                         Id = "embeddings.create",
                         Method = "POST",
-                        Path = "/v1/embeddings",
+                        Path = "/mistral/v1/embeddings",
                         DocumentationUrl = "https://docs.mistral.ai/api/endpoint/embeddings",
                         ImplementedByHosting = true,
                         Capabilities = [LlmTckProviderCapability.Embeddings],

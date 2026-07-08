@@ -41,6 +41,8 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Using Include="Azure.AI.OpenAI" />
+    <Using Include="Microsoft.AspNetCore.TestHost" />
     <Using Include="TUnit.Assertions" />
     <Using Include="TUnit.Assertions.Extensions" />
     <Using Include="TUnit.Core" />

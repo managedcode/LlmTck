@@ -12,7 +12,7 @@ public static class OllamaCompatibility
             Id = ProviderId,
             DisplayName = "Ollama",
             Protocol = LlmTckProtocolFamily.Ollama,
-            DefaultEndpointPath = "/api/chat",
+            DefaultEndpointPath = "/ollama/api/chat",
             Capabilities =
             [
                 LlmTckProviderCapability.Chat,
@@ -37,7 +37,7 @@ public static class OllamaCompatibility
                     {
                         Id = "chat.create",
                         Method = "POST",
-                        Path = "/api/chat",
+                        Path = "/ollama/api/chat",
                         DocumentationUrl = "https://docs.ollama.com/api/chat",
                         SupportsStreaming = true,
                         ImplementedByHosting = true,
@@ -52,7 +52,7 @@ public static class OllamaCompatibility
                     {
                         Id = "embeddings.create",
                         Method = "POST",
-                        Path = "/api/embed",
+                        Path = "/ollama/api/embed",
                         DocumentationUrl = "https://docs.ollama.com/api/embed",
                         ImplementedByHosting = true,
                         Capabilities = [LlmTckProviderCapability.Embeddings],

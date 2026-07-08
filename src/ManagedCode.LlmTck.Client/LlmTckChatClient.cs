@@ -5,6 +5,7 @@ using System.Text;
 using System.Text.Json;
 using ManagedCode.LlmTck.OpenAI;
 using Microsoft.Extensions.AI;
+using ProviderRoutes = ManagedCode.LlmTck.Providers.LlmTckProviderRouteNamespaces;
 
 namespace ManagedCode.LlmTck.Client;
 
@@ -56,7 +57,10 @@ public sealed class LlmTckChatClient(
         ArgumentNullException.ThrowIfNull(messages);
 
         var request = CreateRequest(messages, options, stream: true);
-        using var httpRequest = new HttpRequestMessage(HttpMethod.Post, "/v1/chat/completions")
+        using var httpRequest = new HttpRequestMessage(
+            HttpMethod.Post,
+            ProviderRoutes.ForProvider(ProviderRoutes.OpenAI, "/v1/chat/completions")
+        )
         {
             Content = new StringContent(
                 JsonSerializer.Serialize(request, _jsonOptions),
@@ -142,7 +146,10 @@ public sealed class LlmTckChatClient(
 
     private HttpRequestMessage CreateJsonRequest(OpenAiChatCompletionRequest request)
     {
-        var httpRequest = new HttpRequestMessage(HttpMethod.Post, "/v1/chat/completions")
+        var httpRequest = new HttpRequestMessage(
+            HttpMethod.Post,
+            ProviderRoutes.ForProvider(ProviderRoutes.OpenAI, "/v1/chat/completions")
+        )
         {
             Content = JsonContent.Create(request, options: _jsonOptions),
         };

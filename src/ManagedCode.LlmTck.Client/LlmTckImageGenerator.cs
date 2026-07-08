@@ -3,6 +3,7 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using ManagedCode.LlmTck.OpenAI;
 using Microsoft.Extensions.AI;
+using ProviderRoutes = ManagedCode.LlmTck.Providers.LlmTckProviderRouteNamespaces;
 
 namespace ManagedCode.LlmTck.Client;
 
@@ -28,7 +29,10 @@ public sealed class LlmTckImageGenerator(
             Prompt = request.Prompt ?? string.Empty,
         };
 
-        using var requestMessage = new HttpRequestMessage(HttpMethod.Post, "/v1/images/generations")
+        using var requestMessage = new HttpRequestMessage(
+            HttpMethod.Post,
+            ProviderRoutes.ForProvider(ProviderRoutes.OpenAI, "/v1/images/generations")
+        )
         {
             Content = JsonContent.Create(httpRequest, options: _jsonOptions),
         };

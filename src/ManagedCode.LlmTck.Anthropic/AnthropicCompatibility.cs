@@ -12,7 +12,7 @@ public static class AnthropicCompatibility
             Id = ProviderId,
             DisplayName = "Anthropic",
             Protocol = LlmTckProtocolFamily.AnthropicMessages,
-            DefaultEndpointPath = "/v1/messages",
+            DefaultEndpointPath = "/anthropic/v1/messages",
             Capabilities =
             [
                 LlmTckProviderCapability.Chat,
@@ -37,7 +37,7 @@ public static class AnthropicCompatibility
                     {
                         Id = "messages.create",
                         Method = "POST",
-                        Path = "/v1/messages",
+                        Path = "/anthropic/v1/messages",
                         DocumentationUrl = "https://docs.anthropic.com/en/api/messages",
                         RequiredHeader = "anthropic-version",
                         ApiVersion = "2023-06-01",

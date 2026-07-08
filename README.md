@@ -3,7 +3,8 @@
 `ManagedCode.LlmTck` is a deterministic Technology Compatibility Kit for LLM APIs. It gives tests a local provider-compatible server that can be hosted by Aspire, scripted with explicit scenarios, and called through regular HTTP or `Microsoft.Extensions.AI`.
 
 The implemented OpenAI-compatible surface covers chat, streaming chat, models, embeddings, image generation, audio speech fixtures, bearer-token failures, scenario misses, and assertion summaries.
-The first implemented native non-OpenAI route is Anthropic Messages: `POST /v1/messages`, including the `anthropic-version` header, `x-api-key` auth, text message responses, and Anthropic-named streaming events.
+Provider routes are explicitly namespaced by provider. For example, OpenAI-compatible routes live under `/openai`, Anthropic Messages lives under `/anthropic`, and Azure OpenAI lives under `/azure-openai`.
+The first implemented native non-OpenAI route is Anthropic Messages: `POST /anthropic/v1/messages`, including the `anthropic-version` header, `x-api-key` auth, text message responses, and Anthropic-named streaming events.
 When a bearer token is configured, both provider endpoints and control endpoints require it.
 
 ## Packages
@@ -34,19 +35,19 @@ Provider packages keep vendor-specific protocol and compatibility metadata out o
 
 | Package | Provider ID | Protocol family | Default endpoint shape |
 | --- | --- | --- | --- |
-| `ManagedCode.LlmTck.OpenAI` | `openai` | OpenAI | `/v1` |
-| `ManagedCode.LlmTck.AzureOpenAI` | `azure-openai` | Azure OpenAI | `/openai/deployments/{deployment}/chat/completions` |
-| `ManagedCode.LlmTck.Foundry` | `microsoft-foundry` | Microsoft Foundry | `/models/chat/completions` |
-| `ManagedCode.LlmTck.Anthropic` | `anthropic` | Anthropic Messages | `/v1/messages` |
-| `ManagedCode.LlmTck.Gemini` | `gemini` | Gemini | `/v1beta/models/{model}:generateContent` |
-| `ManagedCode.LlmTck.Groq` | `groq` | Groq | `/openai/v1/chat/completions` |
-| `ManagedCode.LlmTck.Mistral` | `mistral` | Mistral | `/v1/chat/completions` |
-| `ManagedCode.LlmTck.Ollama` | `ollama` | Ollama | `/api/chat` |
-| `ManagedCode.LlmTck.Cohere` | `cohere` | Cohere | `/v2/chat` |
-| `ManagedCode.LlmTck.Bedrock` | `bedrock` | Amazon Bedrock | `/model/{modelId}/converse` |
-| `ManagedCode.LlmTck.OpenRouter` | `openrouter` | OpenRouter | `/api/v1/chat/completions` |
-| `ManagedCode.LlmTck.DeepSeek` | `deepseek` | DeepSeek | `/v1/chat/completions` |
-| `ManagedCode.LlmTck.Perplexity` | `perplexity` | Perplexity | `/v1/sonar` |
+| `ManagedCode.LlmTck.OpenAI` | `openai` | OpenAI | `/openai/v1` |
+| `ManagedCode.LlmTck.AzureOpenAI` | `azure-openai` | Azure OpenAI | `/azure-openai/openai/deployments/{deployment}/chat/completions` |
+| `ManagedCode.LlmTck.Foundry` | `microsoft-foundry` | Microsoft Foundry | `/microsoft-foundry/models/chat/completions` |
+| `ManagedCode.LlmTck.Anthropic` | `anthropic` | Anthropic Messages | `/anthropic/v1/messages` |
+| `ManagedCode.LlmTck.Gemini` | `gemini` | Gemini | `/gemini/v1beta/models/{model}:generateContent` |
+| `ManagedCode.LlmTck.Groq` | `groq` | Groq | `/groq/openai/v1/chat/completions` |
+| `ManagedCode.LlmTck.Mistral` | `mistral` | Mistral | `/mistral/v1/chat/completions` |
+| `ManagedCode.LlmTck.Ollama` | `ollama` | Ollama | `/ollama/api/chat` |
+| `ManagedCode.LlmTck.Cohere` | `cohere` | Cohere | `/cohere/v2/chat` |
+| `ManagedCode.LlmTck.Bedrock` | `bedrock` | Amazon Bedrock | `/bedrock/model/{modelId}/converse` |
+| `ManagedCode.LlmTck.OpenRouter` | `openrouter` | OpenRouter | `/openrouter/api/v1/chat/completions` |
+| `ManagedCode.LlmTck.DeepSeek` | `deepseek` | DeepSeek | `/deepseek/v1/chat/completions` |
+| `ManagedCode.LlmTck.Perplexity` | `perplexity` | Perplexity | `/perplexity/v1/sonar` |
 
 Each provider profile also carries a doc-backed `ApiContract` with official documentation links, retrieval date, API version or header requirements, documented operations, streaming support, and whether `ManagedCode.LlmTck.Hosting` currently maps the operation.
 
@@ -70,7 +71,7 @@ using OpenAI.Embeddings;
 using System.ClientModel;
 
 var azure = new AzureOpenAIClient(
-    new Uri("http://localhost:5000"),
+    new Uri("http://localhost:5000/azure-openai/"),
     new ApiKeyCredential("test-key"));
 
 ChatClient chat = azure.GetChatClient("gpt-4.1-mini");
@@ -84,13 +85,13 @@ var answer = await chat.CompleteChatAsync(
 var vector = await embeddings.GenerateEmbeddingAsync("invoice");
 ```
 
-Microsoft Foundry / Azure AI Inference clients call the root `/chat/completions` and `/embeddings` routes. Set `Model` to the model id configured in LLM TCK.
+Microsoft Foundry / Azure AI Inference clients call the `/microsoft-foundry/chat/completions` and `/microsoft-foundry/embeddings` routes. Set `Model` to the model id configured in LLM TCK.
 
 ```csharp
 using Azure;
 using Azure.AI.Inference;
 
-var endpoint = new Uri("http://localhost:5000");
+var endpoint = new Uri("http://localhost:5000/microsoft-foundry/");
 var credential = new AzureKeyCredential("test-key");
 
 var chat = new ChatCompletionsClient(endpoint, credential);
@@ -215,7 +216,7 @@ app.Run();
 Install the Aspire integration package in the AppHost:
 
 ```bash
-dotnet add package ManagedCode.LlmTck.Aspire --version 0.0.8
+dotnet add package ManagedCode.LlmTck.Aspire --version 0.0.9
 ```
 
 Then add the package-owned TCK resource directly:
@@ -240,7 +241,7 @@ builder.Build().Run();
 
 `AddLlmTck()` creates a `LlmTckResource` backed by the packaged .NET LLM TCK service executable and exposes its `http` endpoint. It does not require a consumer service project reference, generated `Projects.*` metadata type, project path, Docker, or a container runtime. Consumer resources should reference the TCK resource, wait for it, and use `llmTck.GetHttpEndpoint()` when they need the provider-compatible base URL. `.WithApiKey("test-key")` sets `LlmTck:RequiredBearerToken` so both provider endpoints and `/admin/llm-tck/*` control endpoints require the same bearer token.
 
-Use `AddLlmTckContainer()` only when you explicitly want a container-backed resource, for example for a deployment or container-runtime smoke test. The container mode uses the matching versioned image such as `ghcr.io/managedcode/llm-tck:0.0.8`; it is not the default local Aspire path.
+Use `AddLlmTckContainer()` only when you explicitly want a container-backed resource, for example for a deployment or container-runtime smoke test. The container mode uses the matching versioned image such as `ghcr.io/managedcode/llm-tck:0.0.9`; it is not the default local Aspire path.
 
 ## Control Panel And Token Usage
 
@@ -412,7 +413,7 @@ options.WithDefaultAudio(File.ReadAllBytes("fixtures/speech.wav"), "audio/wav");
 
 ```csharp
 var audio = await httpClient.PostAsJsonAsync(
-    "/v1/audio/speech",
+    "/openai/v1/audio/speech",
     new { model = "gpt-4o-mini-tts", input = "hello", voice = "alloy" });
 
 audio.EnsureSuccessStatusCode();
@@ -552,7 +553,7 @@ curl -X POST http://localhost:5000/admin/llm-tck/configure \
 Then call the configured model:
 
 ```bash
-curl -X POST http://localhost:5000/v1/chat/completions \
+curl -X POST http://localhost:5000/openai/v1/chat/completions \
   -H "content-type: application/json" \
   -H "authorization: Bearer test-key" \
   -d '{
@@ -631,11 +632,19 @@ await control.ResetAsync();
 
 ## Endpoints
 
-- `GET /v1/models`
-- `POST /v1/chat/completions`
-- `POST /v1/embeddings`
-- `POST /v1/images/generations`
-- `POST /v1/audio/speech`
+- `GET /openai/v1/models`
+- `POST /openai/v1/chat/completions`
+- `POST /openai/v1/embeddings`
+- `POST /openai/v1/images/generations`
+- `POST /openai/v1/audio/speech`
+- `POST /anthropic/v1/messages`
+- `POST /gemini/v1beta/models/{model}:generateContent`
+- `POST /mistral/v1/chat/completions`
+- `POST /ollama/api/chat`
+- `POST /cohere/v2/chat`
+- `POST /bedrock/model/{modelId}/converse`
+- `POST /azure-openai/openai/deployments/{deployment}/chat/completions`
+- `POST /microsoft-foundry/chat/completions`
 - `GET /admin/llm-tck/models`
 - `GET /admin/llm-tck/assertions`
 - `POST /admin/llm-tck/configure`

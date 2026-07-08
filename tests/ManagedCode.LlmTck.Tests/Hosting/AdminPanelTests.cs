@@ -3,7 +3,6 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using ManagedCode.LlmTck.Control;
 using ManagedCode.LlmTck.Tests.TestSupport;
-using Microsoft.AspNetCore.TestHost;
 
 namespace ManagedCode.LlmTck.Tests.Hosting;
 
@@ -75,7 +74,7 @@ public sealed class AdminPanelTests
         using var client = host.GetTestClient();
 
         var chat = await client.PostAsJsonAsync(
-            "/v1/chat/completions",
+            "/openai/v1/chat/completions",
             new
             {
                 model = "llm-tck-chat",
