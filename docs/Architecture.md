@@ -17,12 +17,12 @@ LLM TCK provides deterministic provider emulation for integration tests. Test su
 
 ## Runtime Flow
 
-1. Tests configure the runtime through `AddLlmTck(...)` at host startup, through `LlmTckClient.ConfigureAsync(config => ...)`, or through `POST /__llm-tck/configure`.
+1. Tests configure the runtime through `AddLlmTck(...)` at host startup, through `LlmTckClient.ConfigureAsync(config => ...)`, or through `POST /admin/llm-tck/configure`.
 2. Provider requests arrive through `/v1/*` endpoints.
 3. Hosting maps provider requests into provider-neutral runtime requests.
 4. The runtime checks bearer-token requirements, configured model IDs, model modality kind, and scenario match rules.
 5. The provider adapter maps success or failure to the expected wire shape.
-6. Tests call `/__llm-tck/assertions` to inspect matched, unmatched, unknown-model, auth-failed, exhausted, and error-returned events.
+6. Tests call `/admin/llm-tck/assertions` to inspect matched, unmatched, unknown-model, auth-failed, exhausted, and error-returned events.
 
 Control endpoints use the same bearer-token requirement when one is configured, so tests can expose the service without leaving runtime reset or reconfiguration open to unauthenticated callers.
 
@@ -40,4 +40,4 @@ The client builder wraps the provider-neutral configuration builder; it does not
 
 OpenAI compatibility is the first implemented provider endpoint surface. The hosted surface also maps Azure OpenAI deployment routes, Microsoft Foundry / Azure AI Inference chat and embedding routes, and the native Anthropic Messages route. The provider matrix is explicit: OpenAI, Azure OpenAI, Microsoft Foundry, Anthropic, Gemini, Groq, Mistral, Ollama, Cohere, Amazon Bedrock, OpenRouter, DeepSeek, and Perplexity each have a package-level compatibility profile. Each profile carries a doc-backed `ApiContract` so claimed routes, methods, streaming modes, modalities, and version requirements can be checked against official provider documentation. Provider-specific DTOs and mapping belong in the matching provider package; provider-neutral scenario behavior stays in the core runtime.
 
-Aspire integration adds the TCK through `builder.AddLlmTck()` without requiring consumer AppHosts to reference a service project or generated `Projects.*` metadata type. The package-owned resource uses the versioned `ghcr.io/managedcode/llm-tck` container image. Consumer resources reference the `LlmTckResource`, wait for it, and read its `http` endpoint through `GetHttpEndpoint()` or Aspire's `GetEndpoint("http")`.
+Aspire integration adds the TCK through `builder.AddLlmTck()` without requiring consumer AppHosts to reference a service project, generated `Projects.*` metadata type, project path, Docker, or a container runtime. The package-owned resource starts the packaged .NET LLM TCK service executable and exposes its `http` endpoint. Consumers that explicitly want container hosting can opt in with `builder.AddLlmTckContainer()`, which uses the versioned `ghcr.io/managedcode/llm-tck` image. Consumer resources reference the `LlmTckResource`, wait for it, and read its `http` endpoint through `GetHttpEndpoint()` or Aspire's `GetEndpoint("http")`.

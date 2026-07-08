@@ -1,7 +1,21 @@
+using ManagedCode.LlmTck.Control;
 using ManagedCode.LlmTck.Hosting;
 using ManagedCode.LlmTck.Models;
 
 var builder = WebApplication.CreateBuilder(args);
+
+var aspirePort = builder.Configuration["PORT"];
+if (!string.IsNullOrWhiteSpace(aspirePort)
+    && string.IsNullOrWhiteSpace(builder.Configuration["ASPNETCORE_URLS"])
+    && string.IsNullOrWhiteSpace(builder.Configuration["urls"]))
+{
+    if (!int.TryParse(aspirePort, out var port))
+    {
+        throw new InvalidOperationException("PORT must be a valid integer when supplied.");
+    }
+
+    builder.WebHost.ConfigureKestrel(options => options.ListenAnyIP(port));
+}
 
 var requiredBearerToken = builder.Configuration["LlmTck:RequiredBearerToken"];
 builder.Services.AddLlmTck(options =>
@@ -36,7 +50,7 @@ app.MapGet(
             {
                 name = "LLM TCK",
                 status = "ready",
-                admin = "/__llm-tck",
+                admin = LlmTckControlRoutes.Admin,
             }
         )
 );

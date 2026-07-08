@@ -104,8 +104,10 @@ Rule format:
 - Azure OpenAI and Microsoft Foundry compatibility must be proven with official Azure SDK clients, not only raw HTTP requests.
 - Compatibility tag values in C# code must come from named constants everywhere they are assigned or asserted, so `CompatibilityTags` cannot drift through inline string literals.
 - The client package must expose a universal pre-test configuration API so tests can spawn a client, reset or configure the hosted TCK, load models, auth, datasets, scenarios, scripted errors, embeddings, images, and audio fixtures without hand-authoring raw DTOs.
+- Control APIs and the browser admin panel must live under the explicit `/admin/llm-tck` namespace; do not add `__llm-tck`-style hidden root routes for reset, configure, models, assertions, or operator UI.
 - Aspire examples must show endpoint retrieval from the Aspire resource (`GetEndpoint("http")` or `CreateHttpClient(...)`) and API key wiring so users see the complete integration path.
 - Aspire integration must expose a package-owned `builder.AddLlmTck()` entry point so consumers can install the Aspire NuGet package and add the TCK without caller-supplied project paths or `Projects.*` metadata types.
+- `builder.AddLlmTck()` must be .NET/Aspire-first and must not require Docker or a container runtime by default; container-backed hosting may exist only as an explicit opt-in API.
 - Aspire integration must start an Aspire AppHost in tests before a change is considered covered, with the AppHost model built directly in test code or a test fixture.
 - Aspire test coverage should build the AppHost directly inside the test code or fixture; do not add a standalone `Obhost`/test AppHost file just to host Aspire for tests.
 - Aspire tests and samples must resolve service/provider URLs from the Aspire resource endpoint allocated by the AppHost; do not hard-code `127.0.0.1`, `localhost`, ports, or invented provider endpoints in configuration.

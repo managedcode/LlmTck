@@ -2,6 +2,7 @@ using ManagedCode.LlmTck.Anthropic;
 using ManagedCode.LlmTck.AzureOpenAI;
 using ManagedCode.LlmTck.Bedrock;
 using ManagedCode.LlmTck.Cohere;
+using ManagedCode.LlmTck.Control;
 using ManagedCode.LlmTck.DeepSeek;
 using ManagedCode.LlmTck.Foundry;
 using ManagedCode.LlmTck.Gemini;
@@ -126,7 +127,7 @@ public sealed class ProviderApiContractTests
                     endpoint.RoutePattern.RawText ?? string.Empty
                 ));
             })
-            .Where(route => !route.Path.StartsWith("/__llm-tck", StringComparison.Ordinal))
+            .Where(route => !route.Path.StartsWith(LlmTckControlRoutes.Admin, StringComparison.Ordinal))
             .OrderBy(route => route.Method, StringComparer.Ordinal)
             .ThenBy(route => route.Path, StringComparer.Ordinal)
             .ToArray();

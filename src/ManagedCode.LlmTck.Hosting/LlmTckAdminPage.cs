@@ -1,16 +1,19 @@
+using ManagedCode.LlmTck.Control;
+
 namespace ManagedCode.LlmTck.Hosting;
 
 /// <summary>
-/// Self-contained HTML for the LLM TCK mini admin panel served at <c>GET /__llm-tck</c>.
+/// Self-contained HTML for the LLM TCK mini admin panel served at
+/// <c>GET /admin/llm-tck</c>.
 /// The page is a static shell; all data is read from the JSON control endpoints
-/// (<c>/__llm-tck/models</c>, <c>/__llm-tck/assertions</c>) and mutated through
-/// <c>/__llm-tck/reset</c>, carrying the operator-supplied bearer token.
+/// (<c>/admin/llm-tck/models</c>, <c>/admin/llm-tck/assertions</c>) and mutated
+/// through <c>/admin/llm-tck/reset</c>, carrying the operator-supplied bearer token.
 /// </summary>
 internal static class LlmTckAdminPage
 {
     public const string ContentType = "text/html; charset=utf-8";
 
-    public const string Html = """
+    public static readonly string Html = $$"""
 <!doctype html>
 <html lang="en">
 <head>
@@ -198,7 +201,7 @@ internal static class LlmTckAdminPage
   </div>
 
   <footer>
-    Served by <code>MapLlmTck()</code> · data from <code>/__llm-tck/models</code> and <code>/__llm-tck/assertions</code>
+    Served by <code>MapLlmTck()</code> · data from <code>{{LlmTckControlRoutes.Models}}</code> and <code>{{LlmTckControlRoutes.Assertions}}</code>
   </footer>
 </div>
 
@@ -341,7 +344,7 @@ internal static class LlmTckAdminPage
   function refresh() {
     var gen = ++generation;
     setStatus("", "Loading…");
-    return Promise.all([api("/__llm-tck/models"), api("/__llm-tck/assertions")]).then(function (res) {
+    return Promise.all([api("{{LlmTckControlRoutes.Models}}"), api("{{LlmTckControlRoutes.Assertions}}")]).then(function (res) {
       if (gen !== generation) { return false; }
       var modelsRes = res[0], assertRes = res[1];
       if (modelsRes.status === 401 || assertRes.status === 401) {
@@ -381,7 +384,7 @@ internal static class LlmTckAdminPage
     var headers = {};
     var token = tokenInput.value.trim();
     if (token) { headers.Authorization = "Bearer " + token; }
-    fetch("/__llm-tck/reset", { method: "POST", headers: headers }).then(function (res) {
+    fetch("{{LlmTckControlRoutes.Reset}}", { method: "POST", headers: headers }).then(function (res) {
       if (res.status === 401) { banner("err", "Reset was rejected: the token is not accepted."); return; }
       if (!res.ok) { banner("err", "Reset failed with HTTP " + res.status + "."); return; }
       // Reload post-reset state; only confirm if that reload actually succeeded,

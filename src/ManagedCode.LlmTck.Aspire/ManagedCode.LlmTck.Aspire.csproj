@@ -7,4 +7,24 @@
   <ItemGroup>
     <PackageReference Include="Aspire.Hosting" />
   </ItemGroup>
+
+  <ItemGroup>
+    <None
+      Include="$(MSBuildThisFileDirectory)..\..\samples\ManagedCode.LlmTck.Service\bin\$(Configuration)\$(TargetFramework)\**\*"
+      Exclude="$(MSBuildThisFileDirectory)..\..\samples\ManagedCode.LlmTck.Service\bin\$(Configuration)\$(TargetFramework)\ManagedCode.LlmTck.Service"
+      Pack="true"
+      PackagePath="tools\llm-tck-service\%(RecursiveDir)%(Filename)%(Extension)"
+      Visible="false" />
+    <None
+      Include="buildTransitive\ManagedCode.LlmTck.Aspire.targets"
+      Pack="true"
+      PackagePath="buildTransitive\ManagedCode.LlmTck.Aspire.targets"
+      Visible="false" />
+  </ItemGroup>
+
+  <Target Name="ValidatePackagedLlmTckService" BeforeTargets="Pack">
+    <Error
+      Condition="!Exists('$(MSBuildThisFileDirectory)..\..\samples\ManagedCode.LlmTck.Service\bin\$(Configuration)\$(TargetFramework)\ManagedCode.LlmTck.Service.dll')"
+      Text="Build samples/ManagedCode.LlmTck.Service before packing ManagedCode.LlmTck.Aspire so the .NET executable resource can be packaged." />
+  </Target>
 </Project>

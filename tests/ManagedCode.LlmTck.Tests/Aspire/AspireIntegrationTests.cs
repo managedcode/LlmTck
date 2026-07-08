@@ -1,6 +1,5 @@
 using System.ClientModel;
 using System.ClientModel.Primitives;
-using System.Diagnostics;
 using System.Net.Http.Json;
 using System.Text.Json;
 using Azure;
@@ -10,6 +9,7 @@ using Azure.Core.Pipeline;
 using global::Aspire.Hosting.Testing;
 using ManagedCode.LlmTck.Aspire;
 using ManagedCode.LlmTck.Client;
+using ManagedCode.LlmTck.Control;
 using Microsoft.Extensions.AI;
 using OpenAI.Chat;
 using ExtensionsChatMessage = Microsoft.Extensions.AI.ChatMessage;
@@ -29,6 +29,16 @@ public sealed class AspireIntegrationTests
     private const string _audioModel = "llm-tck-audio";
 
     [Test]
+    public async Task AddLlmTckContainer_RemainsExplicitContainerOptInAsync()
+    {
+        var builder = DistributedApplicationTestingBuilder.Create([]);
+        var llmTck = builder.AddLlmTckContainer().WithApiKey(_apiKey);
+
+        await Assert.That(llmTck.Resource).IsTypeOf<LlmTckContainerResource>();
+        await Assert.That(llmTck.GetHttpEndpoint().ToString()).IsNotEmpty();
+    }
+
+    [Test]
     [Timeout(360_000)]
     public async Task AddLlmTck_BuildsAppHostInTestAndSupportsConfiguredClientsAsync(
         CancellationToken cancellationToken
@@ -36,12 +46,10 @@ public sealed class AspireIntegrationTests
     {
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         timeout.CancelAfter(TimeSpan.FromMinutes(5));
-        await EnsureLlmTckContainerImageAsync(timeout.Token);
 
         var builder = DistributedApplicationTestingBuilder.Create([]);
         var llmTck = builder
             .AddLlmTck()
-            .WithImagePullPolicy(ImagePullPolicy.Never)
             .WithApiKey(_apiKey);
         var llmTckEndpointExpression = llmTck.GetHttpEndpoint().ToString();
 
@@ -80,10 +88,10 @@ public sealed class AspireIntegrationTests
         using var imageGenerator = controlClient.CreateImageGenerator(_imageModel);
 
         var root = await httpClient.GetFromJsonAsync<JsonElement>("/", timeout.Token);
-        var adminPage = await httpClient.GetStringAsync("/__llm-tck", timeout.Token);
+        var adminPage = await httpClient.GetStringAsync(LlmTckControlRoutes.Admin, timeout.Token);
         var models = await httpClient.GetFromJsonAsync<JsonElement>("/v1/models", timeout.Token);
         var adminModels = await httpClient.GetFromJsonAsync<JsonElement>(
-            "/__llm-tck/models",
+            LlmTckControlRoutes.Models,
             timeout.Token
         );
         var chat = await chatClient.GetResponseAsync(
@@ -168,15 +176,15 @@ public sealed class AspireIntegrationTests
         );
         var assertions = await controlClient.GetAssertionsAsync(timeout.Token);
         var adminAssertions = await httpClient.GetFromJsonAsync<JsonElement>(
-            "/__llm-tck/assertions",
+            LlmTckControlRoutes.Assertions,
             timeout.Token
         );
 
         await Assert.That(llmTckEndpointExpression).IsNotEmpty();
-        await Assert.That(root.GetProperty("admin").GetString()).IsEqualTo("/__llm-tck");
+        await Assert.That(root.GetProperty("admin").GetString()).IsEqualTo(LlmTckControlRoutes.Admin);
         await Assert.That(adminPage).Contains("LLM&nbsp;TCK");
-        await Assert.That(adminPage).Contains("/__llm-tck/models");
-        await Assert.That(adminPage).Contains("/__llm-tck/assertions");
+        await Assert.That(adminPage).Contains(LlmTckControlRoutes.Models);
+        await Assert.That(adminPage).Contains(LlmTckControlRoutes.Assertions);
         await Assert.That(adminPage).Contains("Total tokens");
         await Assert.That(models.GetProperty("data").GetArrayLength()).IsGreaterThanOrEqualTo(4);
         await Assert.That(adminModels.GetArrayLength()).IsGreaterThanOrEqualTo(4);
@@ -196,115 +204,4 @@ public sealed class AspireIntegrationTests
         await Assert.That(adminAssertions.GetProperty("matched").GetInt32()).IsGreaterThanOrEqualTo(8);
         await Assert.That(adminAssertions.GetProperty("totalTokens").GetInt32()).IsGreaterThan(0);
     }
-
-    private static async Task EnsureLlmTckContainerImageAsync(CancellationToken cancellationToken)
-    {
-        var imageReference = GetLlmTckImageReference();
-        var repoRoot = FindRepositoryRoot();
-        await RunProcessAsync(
-            "docker",
-            [
-                "build",
-                "-f",
-                Path.Combine(
-                    repoRoot,
-                    "samples",
-                    "ManagedCode.LlmTck.Service",
-                    "Dockerfile"
-                ),
-                "-t",
-                imageReference,
-                repoRoot,
-            ],
-            repoRoot,
-            throwOnError: true,
-            cancellationToken
-        );
-    }
-
-    private static string GetLlmTckImageReference()
-    {
-        return $"{LlmTckContainerImageTags.Registry}/{LlmTckContainerImageTags.Image}:{LlmTckContainerImageTags.Tag}";
-    }
-
-    private static string FindRepositoryRoot()
-    {
-        var current = new DirectoryInfo(AppContext.BaseDirectory);
-        while (current is not null)
-        {
-            var solutionPath = Path.Combine(current.FullName, "ManagedCode.LlmTck.slnx");
-            if (File.Exists(solutionPath))
-            {
-                return current.FullName;
-            }
-
-            current = current.Parent;
-        }
-
-        throw new InvalidOperationException("Could not locate the ManagedCode.LlmTck repository root.");
-    }
-
-    private static async Task<ProcessResult> RunProcessAsync(
-        string fileName,
-        IReadOnlyList<string> arguments,
-        string? workingDirectory,
-        bool throwOnError,
-        CancellationToken cancellationToken
-    )
-    {
-        using var process = new Process();
-        process.StartInfo = new ProcessStartInfo(fileName)
-        {
-            RedirectStandardError = true,
-            RedirectStandardOutput = true,
-            WorkingDirectory = workingDirectory ?? Environment.CurrentDirectory,
-        };
-
-        foreach (var argument in arguments)
-        {
-            process.StartInfo.ArgumentList.Add(argument);
-        }
-
-        if (!process.Start())
-        {
-            throw new InvalidOperationException($"Could not start '{fileName}'.");
-        }
-
-        try
-        {
-            var standardOutput = process.StandardOutput.ReadToEndAsync(cancellationToken);
-            var standardError = process.StandardError.ReadToEndAsync(cancellationToken);
-            await process.WaitForExitAsync(cancellationToken);
-            var result = new ProcessResult(
-                process.ExitCode,
-                await standardOutput,
-                await standardError
-            );
-
-            if (throwOnError && result.ExitCode != 0)
-            {
-                throw new InvalidOperationException(
-                    $"{fileName} {string.Join(' ', arguments)} failed with exit code {result.ExitCode}."
-                        + $"{Environment.NewLine}{result.StandardOutput}{Environment.NewLine}{result.StandardError}"
-                );
-            }
-
-            return result;
-        }
-        catch
-        {
-            if (!process.HasExited)
-            {
-                process.Kill(entireProcessTree: true);
-            }
-
-            throw;
-        }
-    }
-
-    private sealed record ProcessResult(
-        int ExitCode,
-        string StandardOutput,
-        string StandardError
-    );
 }

@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
+using ManagedCode.LlmTck.Control;
 using ManagedCode.LlmTck.Tests.TestSupport;
 using Microsoft.AspNetCore.TestHost;
 
@@ -16,15 +17,15 @@ public sealed class AdminPanelTests
         using var host = await LlmTckTestHost.StartAsync();
         using var client = host.GetTestClient();
 
-        var response = await client.GetAsync("/__llm-tck");
+        var response = await client.GetAsync(LlmTckControlRoutes.Admin);
         var body = await response.Content.ReadAsStringAsync();
 
         response.EnsureSuccessStatusCode();
         await Assert.That(response.Content.Headers.ContentType?.MediaType).IsEqualTo("text/html");
         await Assert.That(body).Contains("<!doctype html>");
         await Assert.That(body).Contains("LLM&nbsp;TCK");
-        await Assert.That(body).Contains("/__llm-tck/models");
-        await Assert.That(body).Contains("/__llm-tck/assertions");
+        await Assert.That(body).Contains(LlmTckControlRoutes.Models);
+        await Assert.That(body).Contains(LlmTckControlRoutes.Assertions);
         await Assert.That(body).Contains("Total tokens");
         await Assert.That(body).Contains("tokens:");
     }
@@ -35,13 +36,30 @@ public sealed class AdminPanelTests
         using var host = await LlmTckTestHost.StartAsync(options => options.RequireBearerToken("test-key"));
         using var client = host.GetTestClient();
 
-        var page = await client.GetAsync("/__llm-tck");
-        var protectedModels = await client.GetAsync("/__llm-tck/models");
+        var page = await client.GetAsync(LlmTckControlRoutes.Admin);
+        var protectedModels = await client.GetAsync(LlmTckControlRoutes.Models);
 
         // The shell renders without a token so operators can enter one; the data
         // endpoints it calls remain protected.
         page.EnsureSuccessStatusCode();
         await Assert.That(protectedModels.StatusCode).IsEqualTo(HttpStatusCode.Unauthorized);
+    }
+
+    [Test]
+    public async Task LegacyDoubleUnderscoreControlRoutes_AreNotMappedAsync()
+    {
+        using var host = await LlmTckTestHost.StartAsync();
+        using var client = host.GetTestClient();
+
+        var adminPage = await client.GetAsync("/__llm-tck");
+        var models = await client.GetAsync("/__llm-tck/models");
+        var assertions = await client.GetAsync("/__llm-tck/assertions");
+        var reset = await client.PostAsync("/__llm-tck/reset", content: null);
+
+        await Assert.That(adminPage.StatusCode).IsEqualTo(HttpStatusCode.NotFound);
+        await Assert.That(models.StatusCode).IsEqualTo(HttpStatusCode.NotFound);
+        await Assert.That(assertions.StatusCode).IsEqualTo(HttpStatusCode.NotFound);
+        await Assert.That(reset.StatusCode).IsEqualTo(HttpStatusCode.NotFound);
     }
 
     [Test]
@@ -67,7 +85,10 @@ public sealed class AdminPanelTests
         );
         chat.EnsureSuccessStatusCode();
 
-        var summary = await client.GetFromJsonAsync<JsonElement>("/__llm-tck/assertions", _jsonOptions);
+        var summary = await client.GetFromJsonAsync<JsonElement>(
+            LlmTckControlRoutes.Assertions,
+            _jsonOptions
+        );
         var events = summary.GetProperty("events");
         var lastEvent = events[events.GetArrayLength() - 1];
 

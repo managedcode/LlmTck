@@ -2,6 +2,7 @@ using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
 using ManagedCode.LlmTck.Configuration;
+using ManagedCode.LlmTck.Control;
 using ManagedCode.LlmTck.OpenAI;
 using ManagedCode.LlmTck.Runtime;
 using Microsoft.Extensions.AI;
@@ -57,14 +58,14 @@ public sealed class LlmTckClient(HttpClient httpClient, string? bearerToken = nu
     {
         ArgumentNullException.ThrowIfNull(configuration);
 
-        using var request = CreateJsonRequest(HttpMethod.Post, "/__llm-tck/configure", configuration);
+        using var request = CreateJsonRequest(HttpMethod.Post, LlmTckControlRoutes.Configure, configuration);
         using var response = await httpClient.SendAsync(request, cancellationToken).ConfigureAwait(false);
         response.EnsureSuccessStatusCode();
     }
 
     public async Task ResetAsync(CancellationToken cancellationToken = default)
     {
-        using var request = CreateRequest(HttpMethod.Post, "/__llm-tck/reset");
+        using var request = CreateRequest(HttpMethod.Post, LlmTckControlRoutes.Reset);
         using var response = await httpClient.SendAsync(request, cancellationToken).ConfigureAwait(false);
         response.EnsureSuccessStatusCode();
     }
@@ -73,7 +74,7 @@ public sealed class LlmTckClient(HttpClient httpClient, string? bearerToken = nu
         CancellationToken cancellationToken = default
     )
     {
-        using var request = CreateRequest(HttpMethod.Get, "/__llm-tck/assertions");
+        using var request = CreateRequest(HttpMethod.Get, LlmTckControlRoutes.Assertions);
         using var response = await httpClient.SendAsync(request, cancellationToken).ConfigureAwait(false);
         response.EnsureSuccessStatusCode();
 

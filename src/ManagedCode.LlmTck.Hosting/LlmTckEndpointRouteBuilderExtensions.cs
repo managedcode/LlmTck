@@ -4,6 +4,7 @@ using ManagedCode.LlmTck.Anthropic;
 using ManagedCode.LlmTck.Bedrock;
 using ManagedCode.LlmTck.Cohere;
 using ManagedCode.LlmTck.Configuration;
+using ManagedCode.LlmTck.Control;
 using ManagedCode.LlmTck.Gemini;
 using ManagedCode.LlmTck.Models;
 using ManagedCode.LlmTck.Ollama;
@@ -121,21 +122,21 @@ public static class LlmTckEndpointRouteBuilderExtensions
         ArgumentNullException.ThrowIfNull(endpoints);
 
         endpoints.MapGet(
-            "/__llm-tck",
+            LlmTckControlRoutes.Admin,
             () => Results.Content(LlmTckAdminPage.Html, LlmTckAdminPage.ContentType)
         );
         endpoints.MapGet(
-            "/__llm-tck/models",
+            LlmTckControlRoutes.Models,
             (HttpContext context, ILlmTckRuntime runtime) =>
                 AuthorizeControlRequest(context, runtime) ?? Results.Json(runtime.GetModels())
         );
         endpoints.MapGet(
-            "/__llm-tck/assertions",
+            LlmTckControlRoutes.Assertions,
             (HttpContext context, ILlmTckRuntime runtime) =>
                 AuthorizeControlRequest(context, runtime) ?? Results.Json(runtime.GetAssertionSummary())
         );
         endpoints.MapPost(
-            "/__llm-tck/reset",
+            LlmTckControlRoutes.Reset,
             async (HttpContext context, ILlmTckRuntime runtime, CancellationToken cancellationToken) =>
             {
                 var unauthorized = AuthorizeControlRequest(context, runtime);
@@ -148,7 +149,7 @@ public static class LlmTckEndpointRouteBuilderExtensions
                 return Results.Ok(new { status = "reset" });
             }
         );
-        endpoints.MapPost("/__llm-tck/configure", ConfigureAsync);
+        endpoints.MapPost(LlmTckControlRoutes.Configure, ConfigureAsync);
 
         endpoints.MapGet(
             "/v1/models",

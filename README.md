@@ -119,7 +119,7 @@ LLM TCK is configured with one `LlmTckConfiguration`.
 You can apply that configuration in two places:
 
 - at host startup through `builder.Services.AddLlmTck(options => ...)`
-- at test runtime through `LlmTckClient.ConfigureAsync(...)` or `POST /__llm-tck/configure`
+- at test runtime through `LlmTckClient.ConfigureAsync(...)` or `POST /admin/llm-tck/configure`
 
 Runtime configuration is a replacement, not a merge. Applying a new configuration resets scenario positions and assertion events. The runtime snapshots the configuration, so later mutations to your builder/list objects do not change the running provider.
 
@@ -215,7 +215,7 @@ app.Run();
 Install the Aspire integration package in the AppHost:
 
 ```bash
-dotnet add package ManagedCode.LlmTck.Aspire --version 0.0.7
+dotnet add package ManagedCode.LlmTck.Aspire --version 0.0.8
 ```
 
 Then add the package-owned TCK resource directly:
@@ -238,13 +238,15 @@ builder
 builder.Build().Run();
 ```
 
-`AddLlmTck()` creates a `LlmTckResource` backed by the matching versioned container image, for example `ghcr.io/managedcode/llm-tck:0.0.7`, and exposes its `http` endpoint. Consumer resources should reference the TCK resource, wait for it, and use `llmTck.GetHttpEndpoint()` when they need the provider-compatible base URL. `.WithApiKey("test-key")` sets `LlmTck:RequiredBearerToken` so both provider endpoints and `/__llm-tck/*` control endpoints require the same bearer token.
+`AddLlmTck()` creates a `LlmTckResource` backed by the packaged .NET LLM TCK service executable and exposes its `http` endpoint. It does not require a consumer service project reference, generated `Projects.*` metadata type, project path, Docker, or a container runtime. Consumer resources should reference the TCK resource, wait for it, and use `llmTck.GetHttpEndpoint()` when they need the provider-compatible base URL. `.WithApiKey("test-key")` sets `LlmTck:RequiredBearerToken` so both provider endpoints and `/admin/llm-tck/*` control endpoints require the same bearer token.
+
+Use `AddLlmTckContainer()` only when you explicitly want a container-backed resource, for example for a deployment or container-runtime smoke test. The container mode uses the matching versioned image such as `ghcr.io/managedcode/llm-tck:0.0.8`; it is not the default local Aspire path.
 
 ## Control Panel And Token Usage
 
-Open the TCK resource endpoint from the Aspire dashboard and add `/__llm-tck` to inspect the running configuration. If the resource was configured with `.WithApiKey("test-key")` or `RequireBearerToken("test-key")`, enter the same token in the control panel before refreshing.
+Open the TCK resource endpoint from the Aspire dashboard and add `/admin/llm-tck` to inspect the running configuration. If the resource was configured with `.WithApiKey("test-key")` or `RequireBearerToken("test-key")`, enter the same token in the control panel before refreshing.
 
-The panel reads `/__llm-tck/models` and `/__llm-tck/assertions`. It shows advertised models, assertion counters, request and response previews, and deterministic token usage. Token usage is counted with the repo-owned tiktoken-compatible counter and reported both as summary totals and per runtime event with `inputTokens`, `outputTokens`, and `totalTokens`. Provider response envelopes also receive the same deterministic usage values: OpenAI-compatible chat and Responses usage, Anthropic sync messages and streaming `message_start`/`message_delta`, Gemini `usageMetadata` including long-running video operation results, Cohere chat usage, Ollama prompt/eval counts, and Bedrock Converse usage.
+The panel reads `/admin/llm-tck/models` and `/admin/llm-tck/assertions`. It shows advertised models, assertion counters, request and response previews, and deterministic token usage. Token usage is counted with the repo-owned tiktoken-compatible counter and reported both as summary totals and per runtime event with `inputTokens`, `outputTokens`, and `totalTokens`. Provider response envelopes also receive the same deterministic usage values: OpenAI-compatible chat and Responses usage, Anthropic sync messages and streaming `message_start`/`message_delta`, Gemini `usageMetadata` including long-running video operation results, Cohere chat usage, Ollama prompt/eval counts, and Bedrock Converse usage.
 
 ![LLM TCK control panel showing token usage totals and a matched runtime event](docs/images/llm-tck-control-panel-token-usage.png)
 
@@ -510,10 +512,10 @@ If the current runtime already has a bearer token, the configure request must us
 
 ### Configure With Raw JSON
 
-`POST /__llm-tck/configure` accepts readable enum values such as `"chat"` and `"contains"`:
+`POST /admin/llm-tck/configure` accepts readable enum values such as `"chat"` and `"contains"`:
 
 ```bash
-curl -X POST http://localhost:5000/__llm-tck/configure \
+curl -X POST http://localhost:5000/admin/llm-tck/configure \
   -H "content-type: application/json" \
   -H "authorization: Bearer test-key" \
   -d '{
@@ -634,10 +636,10 @@ await control.ResetAsync();
 - `POST /v1/embeddings`
 - `POST /v1/images/generations`
 - `POST /v1/audio/speech`
-- `GET /__llm-tck/models`
-- `GET /__llm-tck/assertions`
-- `POST /__llm-tck/configure`
-- `POST /__llm-tck/reset`
+- `GET /admin/llm-tck/models`
+- `GET /admin/llm-tck/assertions`
+- `POST /admin/llm-tck/configure`
+- `POST /admin/llm-tck/reset`
 
 Audio speech returns a deterministic WAV fixture by default.
 

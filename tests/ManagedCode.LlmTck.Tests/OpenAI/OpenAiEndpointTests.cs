@@ -5,6 +5,7 @@ using System.Text;
 using System.Text.Json;
 using ManagedCode.LlmTck.Client;
 using ManagedCode.LlmTck.Configuration;
+using ManagedCode.LlmTck.Control;
 using ManagedCode.LlmTck.Models;
 using ManagedCode.LlmTck.Tests.TestSupport;
 using Microsoft.AspNetCore.TestHost;
@@ -117,7 +118,7 @@ public sealed class OpenAiEndpointTests
             .IsEqualTo("generate a blue compatibility marker");
 
         var assertions = await client.GetFromJsonAsync<JsonElement>(
-            "/__llm-tck/assertions",
+            LlmTckControlRoutes.Assertions,
             _jsonOptions
         );
         await Assert.That(assertions.GetProperty("matched").GetInt32()).IsEqualTo(6);
@@ -187,10 +188,10 @@ public sealed class OpenAiEndpointTests
         using var host = await LlmTckTestHost.StartAsync(options => options.RequireBearerToken("test-key"));
         using var client = host.GetTestClient();
 
-        var assertions = await client.GetAsync("/__llm-tck/assertions");
-        var reset = await client.PostAsync("/__llm-tck/reset", content: null);
+        var assertions = await client.GetAsync(LlmTckControlRoutes.Assertions);
+        var reset = await client.PostAsync(LlmTckControlRoutes.Reset, content: null);
         var configure = await client.PostAsJsonAsync(
-            "/__llm-tck/configure",
+            LlmTckControlRoutes.Configure,
             new { models = Array.Empty<object>(), chatScenarios = Array.Empty<object>() },
             _jsonOptions
         );
@@ -200,7 +201,7 @@ public sealed class OpenAiEndpointTests
         await Assert.That(configure.StatusCode).IsEqualTo(HttpStatusCode.Unauthorized);
 
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", "test-key");
-        var authorizedAssertions = await client.GetAsync("/__llm-tck/assertions");
+        var authorizedAssertions = await client.GetAsync(LlmTckControlRoutes.Assertions);
 
         authorizedAssertions.EnsureSuccessStatusCode();
     }
@@ -254,7 +255,7 @@ public sealed class OpenAiEndpointTests
         using var client = host.GetTestClient();
 
         var configure = await client.PostAsJsonAsync(
-            "/__llm-tck/configure",
+            LlmTckControlRoutes.Configure,
             new
             {
                 models = new[]
@@ -394,7 +395,7 @@ public sealed class OpenAiEndpointTests
             new { model = "llm-tck-audio", input = "speak this", voice = "" },
             _jsonOptions
         );
-        var controlModels = await client.GetAsync("/__llm-tck/models");
+        var controlModels = await client.GetAsync(LlmTckControlRoutes.Models);
 
         await Assert.That(missingEmbeddingModel.StatusCode).IsEqualTo(HttpStatusCode.BadRequest);
         await Assert.That(missingEmbeddingInput.StatusCode).IsEqualTo(HttpStatusCode.BadRequest);
