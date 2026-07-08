@@ -3,7 +3,6 @@ using ManagedCode.LlmTck.Models;
 
 var builder = WebApplication.CreateBuilder(args);
 
-var endpoint = builder.Configuration["LlmTck:Endpoint"];
 var compatibility = new
 {
     openAi = builder.Configuration["LLM_TCK_OPENAI_COMPATIBILITY"],
@@ -53,7 +52,6 @@ app.MapGet(
             {
                 name = "LLM TCK",
                 status = "ready",
-                endpoint,
                 compatibility,
             }
         )

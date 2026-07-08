@@ -73,6 +73,14 @@ Rule format:
 
 `global.json` opts `dotnet test` into `Microsoft.Testing.Platform`; do not add VSTest-specific logger arguments to normal test commands.
 
+## Preferences
+
+### Likes
+
+### Dislikes
+
+- Do not introduce real-LLM toggles, external project environment variable names, or WA.Storied-specific constants into this repository; LlmTck tests and samples must remain deterministic, repo-owned, and free of cross-project naming leaks.
+
 ## Code Quality Skills
 
 - Repository-local skills live in `.codex/skills`; keep them checked in with the repo.
@@ -93,10 +101,12 @@ Rule format:
 - Azure OpenAI and Microsoft Foundry compatibility must be proven with official Azure SDK clients, not only raw HTTP requests.
 - Compatibility tag values in C# code must come from named constants everywhere they are assigned or asserted, so `CompatibilityTags` cannot drift through inline string literals.
 - The client package must expose a universal pre-test configuration API so tests can spawn a client, reset or configure the hosted TCK, load models, auth, datasets, scenarios, scripted errors, embeddings, images, and audio fixtures without hand-authoring raw DTOs.
-- Aspire examples must show endpoint configuration with `.WithEndpoint(...)`, compatibility selection, and API key wiring so users see the complete integration path.
+- Aspire examples must show endpoint retrieval from the Aspire resource (`GetEndpoint("http")` or `CreateHttpClient(...)`), compatibility selection, and API key wiring so users see the complete integration path.
 - Aspire integration must expose a package-owned `builder.AddLlmTck()` entry point so consumers can install the Aspire NuGet package and add the TCK without caller-supplied project paths or `Projects.*` metadata types.
 - Aspire integration must start an Aspire AppHost in tests before a change is considered covered, with the AppHost model built directly in test code or a test fixture.
 - Aspire test coverage should build the AppHost directly inside the test code or fixture; do not add a standalone `Obhost`/test AppHost file just to host Aspire for tests.
+- Aspire tests and samples must resolve service/provider URLs from the Aspire resource endpoint allocated by the AppHost; do not hard-code `127.0.0.1`, `localhost`, ports, or invented provider endpoints in configuration.
+- Do not add an Aspire provider-endpoint setter to `ManagedCode.LlmTck.Aspire`; consumers must use the endpoint exposed by the `LlmTckResource`.
 - Do not hide nondeterminism behind retries. Model responses, stream chunks, errors, auth requirements, embeddings, images, and audio fixtures should be explicit.
 
 ## Ownership Map

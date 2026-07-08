@@ -222,35 +222,37 @@ using ManagedCode.LlmTck.Aspire;
 
 var builder = DistributedApplication.CreateBuilder(args);
 
-builder
+var llmTck = builder
     .AddLlmTck()
-    .WithEndpoint("https://api.example.com/v1")
     .WithOpenAICompatibility()
     .WithApiKey("test-key");
+
+builder
+    .AddProject<Projects.Consumer>("consumer")
+    .WithReference(llmTck)
+    .WithEnvironment("LLM_PROVIDER_ENDPOINT", llmTck.GetHttpEndpoint())
+    .WaitFor(llmTck);
 
 builder.Build().Run();
 ```
 
-`AddLlmTck()` creates a `LlmTckResource` backed by the versioned container image `ghcr.io/managedcode/llm-tck:0.0.5` and exposes its `http` endpoint. `.WithEndpoint(...)` records the target provider base URL as `LlmTck:Endpoint`, and `.WithApiKey("test-key")` sets `LlmTck:RequiredBearerToken` so both `/v1/*` provider endpoints and `/__llm-tck/*` control endpoints require the same bearer token.
+`AddLlmTck()` creates a `LlmTckResource` backed by the versioned container image `ghcr.io/managedcode/llm-tck:0.0.5` and exposes its `http` endpoint. Consumer resources should reference the TCK resource, wait for it, and use `llmTck.GetHttpEndpoint()` when they need the provider-compatible base URL. `.WithApiKey("test-key")` sets `LlmTck:RequiredBearerToken` so both `/v1/*` provider endpoints and `/__llm-tck/*` control endpoints require the same bearer token.
 
 Provider compatibility flags are explicit:
 
 ```csharp
-builder
+var azureOpenAi = builder
     .AddLlmTck("azure-openai")
-    .WithEndpoint("https://contoso.openai.azure.com")
     .WithAzureOpenAICompatibility()
     .WithApiKey(apiKey);
 
-builder
+var anthropic = builder
     .AddLlmTck("anthropic")
-    .WithEndpoint("https://api.anthropic.com")
     .WithAnthropicCompatibility()
     .WithApiKey(apiKey);
 
-builder
+var gemini = builder
     .AddLlmTck("gemini")
-    .WithEndpoint("https://generativelanguage.googleapis.com")
     .WithGeminiCompatibility()
     .WithApiKey(apiKey);
 ```

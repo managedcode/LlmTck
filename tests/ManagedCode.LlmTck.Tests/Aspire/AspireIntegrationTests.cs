@@ -40,10 +40,9 @@ public sealed class AspireIntegrationTests
         await EnsureLlmTckContainerImageAsync(timeout.Token);
 
         var builder = DistributedApplicationTestingBuilder.Create([]);
-        builder
+        var llmTck = builder
             .AddLlmTck()
             .WithImagePullPolicy(ImagePullPolicy.Never)
-            .WithEndpoint("https://api.example.com/v1")
             .WithOpenAICompatibility()
             .WithAzureOpenAICompatibility()
             .WithFoundryCompatibility()
@@ -58,6 +57,7 @@ public sealed class AspireIntegrationTests
             .WithDeepSeekCompatibility()
             .WithPerplexityCompatibility()
             .WithApiKey(_apiKey);
+        var llmTckEndpointExpression = llmTck.GetHttpEndpoint().ToString();
 
         await using var app = await builder.BuildAsync(timeout.Token);
         await app.StartAsync(timeout.Token);
@@ -177,9 +177,8 @@ public sealed class AspireIntegrationTests
         );
         var assertions = await controlClient.GetAssertionsAsync(timeout.Token);
 
+        await Assert.That(llmTckEndpointExpression).IsNotEmpty();
         await Assert.That(models.GetProperty("data").GetArrayLength()).IsGreaterThanOrEqualTo(4);
-        await Assert.That(root.GetProperty("endpoint").GetString())
-            .IsEqualTo("https://api.example.com/v1");
         var compatibility = root.GetProperty("compatibility");
         await Assert.That(compatibility.GetProperty("openAi").GetString()).IsEqualTo("true");
         await Assert.That(compatibility.GetProperty("azureOpenAi").GetString()).IsEqualTo("true");

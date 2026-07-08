@@ -22,6 +22,15 @@ public static class LlmTckAspireExtensions
             .WithHttpHealthCheck("/");
     }
 
+    public static EndpointReference GetHttpEndpoint(
+        this IResourceBuilder<LlmTckResource> builder
+    )
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+
+        return builder.GetEndpoint("http");
+    }
+
     public static IResourceBuilder<TResource> WithOpenAICompatibility<TResource>(
         this IResourceBuilder<TResource> builder,
         bool enabled = true
@@ -137,28 +146,6 @@ public static class LlmTckAspireExtensions
         where TResource : IResourceWithEnvironment
     {
         return WithCompatibility(builder, "PERPLEXITY", enabled);
-    }
-
-    public static IResourceBuilder<TResource> WithEndpoint<TResource>(
-        this IResourceBuilder<TResource> builder,
-        string endpoint
-    )
-        where TResource : IResourceWithEnvironment
-    {
-        ArgumentNullException.ThrowIfNull(builder);
-        ArgumentException.ThrowIfNullOrWhiteSpace(endpoint);
-
-        if (
-            !Uri.TryCreate(endpoint, UriKind.Absolute, out var endpointUri)
-            || string.IsNullOrWhiteSpace(endpointUri.Host)
-        )
-        {
-            throw new ArgumentException("Endpoint must be an absolute URI.", nameof(endpoint));
-        }
-
-        return builder
-            .WithEnvironment("LlmTck__Endpoint", endpointUri.AbsoluteUri)
-            .WithEnvironment("LLM_TCK_ENDPOINT", endpointUri.AbsoluteUri);
     }
 
     public static IResourceBuilder<TResource> WithApiKey<TResource>(
