@@ -22,5 +22,39 @@ public static class CohereCompatibility
                 LlmTckProviderCapability.StructuredOutput,
             ],
             CompatibilityTags = [ProviderId],
+            ApiContract = new()
+            {
+                DocumentationUrl = "https://docs.cohere.com/reference/chat",
+                DocumentationRetrievedOn = "2026-07-08",
+                DocumentationVersion = "v2",
+                Operations =
+                [
+                    new()
+                    {
+                        Id = "chat.create",
+                        Method = "POST",
+                        Path = "/v2/chat",
+                        DocumentationUrl = "https://docs.cohere.com/reference/chat",
+                        SupportsStreaming = true,
+                        ImplementedByHosting = true,
+                        Capabilities =
+                        [
+                            LlmTckProviderCapability.Chat,
+                            LlmTckProviderCapability.StreamingChat,
+                            LlmTckProviderCapability.Tools,
+                            LlmTckProviderCapability.StructuredOutput,
+                        ],
+                    },
+                    new()
+                    {
+                        Id = "embed.create",
+                        Method = "POST",
+                        Path = "/v2/embed",
+                        DocumentationUrl = "https://docs.cohere.com/reference/embed",
+                        ImplementedByHosting = true,
+                        Capabilities = [LlmTckProviderCapability.Embeddings],
+                    },
+                ],
+            },
         };
 }

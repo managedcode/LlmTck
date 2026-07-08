@@ -13,4 +13,6 @@ public sealed record LlmTckProviderProfile
     public IReadOnlyList<LlmTckProviderCapability> Capabilities { get; init; } = [];
 
     public IReadOnlyList<string> CompatibilityTags { get; init; } = [];
+
+    public required LlmTckProviderApiContract ApiContract { get; init; }
 }

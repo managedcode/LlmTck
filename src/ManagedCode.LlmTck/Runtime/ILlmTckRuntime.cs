@@ -41,5 +41,28 @@ public interface ILlmTckRuntime
         CancellationToken cancellationToken = default
     );
 
+    Task<LlmTckTranscriptionResult> TranscribeAudioAsync(
+        string modelId,
+        string fileName,
+        string? prompt = null,
+        string? bearerToken = null,
+        CancellationToken cancellationToken = default
+    );
+
+    Task<LlmTckTranscriptionResult> TranslateAudioAsync(
+        string modelId,
+        string fileName,
+        string? prompt = null,
+        string? bearerToken = null,
+        CancellationToken cancellationToken = default
+    );
+
+    Task<LlmTckVideoResult> GenerateVideoAsync(
+        string modelId,
+        string prompt,
+        string? bearerToken = null,
+        CancellationToken cancellationToken = default
+    );
+
     LlmTckAssertionSummary GetAssertionSummary();
 }

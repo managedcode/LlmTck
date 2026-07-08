@@ -119,17 +119,17 @@ public sealed class AzureSdkCompatibilityTests
         httpClient.DefaultRequestHeaders.Add("api-key", "test-key");
 
         var embedding = await httpClient.PostAsJsonAsync(
-            "/openai/deployments/azure-embedding/embeddings?api-version=2024-06-01",
+            "/openai/deployments/azure-embedding/embeddings?api-version=2024-10-21",
             new { input = "invoice", encoding_format = "base64" },
             _jsonOptions
         );
         var image = await httpClient.PostAsJsonAsync(
-            "/openai/deployments/azure-image/images/generations?api-version=2024-06-01",
+            "/openai/deployments/azure-image/images/generations?api-version=2024-10-21",
             new { prompt = "fixture image" },
             _jsonOptions
         );
         var audio = await httpClient.PostAsJsonAsync(
-            "/openai/deployments/azure-audio/audio/speech?api-version=2024-06-01",
+            "/openai/deployments/azure-audio/audio/speech?api-version=2024-10-21",
             new { input = "fixture audio", voice = "alloy" },
             _jsonOptions
         );

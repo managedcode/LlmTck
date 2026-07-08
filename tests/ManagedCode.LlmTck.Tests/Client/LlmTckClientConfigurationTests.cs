@@ -21,9 +21,13 @@ public sealed class LlmTckClientConfigurationTests
                 .UseEmbeddingModel("dataset-embedding")
                 .UseImageModel("dataset-image")
                 .UseAudioModel("dataset-audio")
+                .UseVideoModel("dataset-video")
                 .UseEmbeddingVector(0.9f, 0.8f)
                 .UseImageDataUri("data:image/png;base64,Zm9v")
                 .UseAudio([1, 2, 3, 4], "audio/test")
+                .UseVideo([0, 0, 0, 24, 102, 116, 121, 112], "video/test")
+                .UseTranscriptionText("dataset transcript")
+                .UseTranslationText("dataset translation")
                 .UseDataset(
                     "support-flow",
                     dataset => dataset
@@ -61,6 +65,17 @@ public sealed class LlmTckClientConfigurationTests
             new ImageGenerationRequest { Prompt = "fixture prompt" }
         );
         var audio = await control.GenerateAudioAsync("dataset-audio", "say this");
+        var videoId = await control.GenerateVideoAsync("dataset-video", "make a fixture video");
+        var transcription = await control.TranscribeAudioAsync(
+            "dataset-audio",
+            [82, 73, 70, 70],
+            "fixture.wav"
+        );
+        var translation = await control.TranslateAudioAsync(
+            "dataset-audio",
+            [82, 73, 70, 70],
+            "fixture.wav"
+        );
         var assertions = await control.GetAssertionsAsync();
 
         await Assert.That(chat.Text).IsEqualTo("dataset answer");
@@ -70,6 +85,9 @@ public sealed class LlmTckClientConfigurationTests
         await Assert.That(image.Contents).Count().IsEqualTo(1);
         await Assert.That(audio.Bytes).IsEquivalentTo((byte[])[1, 2, 3, 4]);
         await Assert.That(audio.MediaType).IsEqualTo("audio/test");
-        await Assert.That(assertions.Matched).IsGreaterThanOrEqualTo(5);
+        await Assert.That(videoId).IsEqualTo("video_llm_tck");
+        await Assert.That(transcription).IsEqualTo("dataset transcript");
+        await Assert.That(translation).IsEqualTo("dataset translation");
+        await Assert.That(assertions.Matched).IsGreaterThanOrEqualTo(8);
     }
 }

@@ -3,6 +3,7 @@
 `ManagedCode.LlmTck` is a deterministic Technology Compatibility Kit for LLM APIs. It gives tests a local provider-compatible server that can be hosted by Aspire, scripted with explicit scenarios, and called through regular HTTP or `Microsoft.Extensions.AI`.
 
 The implemented OpenAI-compatible surface covers chat, streaming chat, models, embeddings, image generation, audio speech fixtures, bearer-token failures, scenario misses, and assertion summaries.
+The first implemented native non-OpenAI route is Anthropic Messages: `POST /v1/messages`, including the `anthropic-version` header, `x-api-key` auth, text message responses, and Anthropic-named streaming events.
 When a bearer token is configured, both provider endpoints and control endpoints require it.
 
 ## Packages
@@ -13,7 +14,7 @@ When a bearer token is configured, both provider endpoints and control endpoints
 | [`ManagedCode.LlmTck.OpenAI`](https://www.nuget.org/packages/ManagedCode.LlmTck.OpenAI) | [![NuGet](https://img.shields.io/nuget/v/ManagedCode.LlmTck.OpenAI.svg)](https://www.nuget.org/packages/ManagedCode.LlmTck.OpenAI) | OpenAI-compatible wire contracts. |
 | [`ManagedCode.LlmTck.AzureOpenAI`](https://www.nuget.org/packages/ManagedCode.LlmTck.AzureOpenAI) | [![NuGet](https://img.shields.io/nuget/v/ManagedCode.LlmTck.AzureOpenAI.svg)](https://www.nuget.org/packages/ManagedCode.LlmTck.AzureOpenAI) | Azure OpenAI compatibility profile and future wire contracts. |
 | [`ManagedCode.LlmTck.Foundry`](https://www.nuget.org/packages/ManagedCode.LlmTck.Foundry) | [![NuGet](https://img.shields.io/nuget/v/ManagedCode.LlmTck.Foundry.svg)](https://www.nuget.org/packages/ManagedCode.LlmTck.Foundry) | Microsoft Foundry compatibility profile and future wire contracts. |
-| [`ManagedCode.LlmTck.Anthropic`](https://www.nuget.org/packages/ManagedCode.LlmTck.Anthropic) | [![NuGet](https://img.shields.io/nuget/v/ManagedCode.LlmTck.Anthropic.svg)](https://www.nuget.org/packages/ManagedCode.LlmTck.Anthropic) | Anthropic Messages compatibility profile and future wire contracts. |
+| [`ManagedCode.LlmTck.Anthropic`](https://www.nuget.org/packages/ManagedCode.LlmTck.Anthropic) | [![NuGet](https://img.shields.io/nuget/v/ManagedCode.LlmTck.Anthropic.svg)](https://www.nuget.org/packages/ManagedCode.LlmTck.Anthropic) | Anthropic Messages compatibility profile and wire contracts. |
 | [`ManagedCode.LlmTck.Gemini`](https://www.nuget.org/packages/ManagedCode.LlmTck.Gemini) | [![NuGet](https://img.shields.io/nuget/v/ManagedCode.LlmTck.Gemini.svg)](https://www.nuget.org/packages/ManagedCode.LlmTck.Gemini) | Gemini compatibility profile and future wire contracts. |
 | [`ManagedCode.LlmTck.Groq`](https://www.nuget.org/packages/ManagedCode.LlmTck.Groq) | [![NuGet](https://img.shields.io/nuget/v/ManagedCode.LlmTck.Groq.svg)](https://www.nuget.org/packages/ManagedCode.LlmTck.Groq) | Groq compatibility profile and future wire contracts. |
 | [`ManagedCode.LlmTck.Mistral`](https://www.nuget.org/packages/ManagedCode.LlmTck.Mistral) | [![NuGet](https://img.shields.io/nuget/v/ManagedCode.LlmTck.Mistral.svg)](https://www.nuget.org/packages/ManagedCode.LlmTck.Mistral) | Mistral compatibility profile and future wire contracts. |
@@ -45,7 +46,9 @@ Provider packages keep vendor-specific protocol and compatibility metadata out o
 | `ManagedCode.LlmTck.Bedrock` | `bedrock` | Amazon Bedrock | `/model/{modelId}/converse` |
 | `ManagedCode.LlmTck.OpenRouter` | `openrouter` | OpenRouter | `/api/v1/chat/completions` |
 | `ManagedCode.LlmTck.DeepSeek` | `deepseek` | DeepSeek | `/v1/chat/completions` |
-| `ManagedCode.LlmTck.Perplexity` | `perplexity` | Perplexity | `/chat/completions` |
+| `ManagedCode.LlmTck.Perplexity` | `perplexity` | Perplexity | `/v1/sonar` |
+
+Each provider profile also carries a doc-backed `ApiContract` with official documentation links, retrieval date, API version or header requirements, documented operations, streaming support, and whether `ManagedCode.LlmTck.Hosting` currently maps the operation.
 
 Use a provider profile when code needs a stable package-level declaration without starting a host:
 
@@ -224,7 +227,6 @@ var builder = DistributedApplication.CreateBuilder(args);
 
 var llmTck = builder
     .AddLlmTck()
-    .WithOpenAICompatibility()
     .WithApiKey("test-key");
 
 builder
@@ -236,28 +238,7 @@ builder
 builder.Build().Run();
 ```
 
-`AddLlmTck()` creates a `LlmTckResource` backed by the versioned container image `ghcr.io/managedcode/llm-tck:0.0.5` and exposes its `http` endpoint. Consumer resources should reference the TCK resource, wait for it, and use `llmTck.GetHttpEndpoint()` when they need the provider-compatible base URL. `.WithApiKey("test-key")` sets `LlmTck:RequiredBearerToken` so both `/v1/*` provider endpoints and `/__llm-tck/*` control endpoints require the same bearer token.
-
-Provider compatibility flags are explicit:
-
-```csharp
-var azureOpenAi = builder
-    .AddLlmTck("azure-openai")
-    .WithAzureOpenAICompatibility()
-    .WithApiKey(apiKey);
-
-var anthropic = builder
-    .AddLlmTck("anthropic")
-    .WithAnthropicCompatibility()
-    .WithApiKey(apiKey);
-
-var gemini = builder
-    .AddLlmTck("gemini")
-    .WithGeminiCompatibility()
-    .WithApiKey(apiKey);
-```
-
-Other selectors follow the same pattern: `.WithFoundryCompatibility()`, `.WithGroqCompatibility()`, `.WithMistralCompatibility()`, `.WithOllamaCompatibility()`, `.WithCohereCompatibility()`, `.WithBedrockCompatibility()`, `.WithOpenRouterCompatibility()`, `.WithDeepSeekCompatibility()`, and `.WithPerplexityCompatibility()`.
+`AddLlmTck()` creates a `LlmTckResource` backed by the versioned container image `ghcr.io/managedcode/llm-tck:0.0.5` and exposes its `http` endpoint. Consumer resources should reference the TCK resource, wait for it, and use `llmTck.GetHttpEndpoint()` when they need the provider-compatible base URL. `.WithApiKey("test-key")` sets `LlmTck:RequiredBearerToken` so both provider endpoints and `/__llm-tck/*` control endpoints require the same bearer token.
 
 ## Chat Scenarios
 

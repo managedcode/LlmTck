@@ -23,6 +23,50 @@ public sealed record LlmTckConfiguration
 
     public string DefaultAudioMediaType { get; init; } = "audio/wav";
 
+    public string DefaultTranscriptionText { get; init; } = "transcribed audio fixture";
+
+    public string DefaultTranslationText { get; init; } = "translated audio fixture";
+
+    public byte[] DefaultVideoBytes { get; init; } =
+    [
+        0x00,
+        0x00,
+        0x00,
+        0x18,
+        0x66,
+        0x74,
+        0x79,
+        0x70,
+        0x69,
+        0x73,
+        0x6F,
+        0x6D,
+        0x00,
+        0x00,
+        0x02,
+        0x00,
+        0x69,
+        0x73,
+        0x6F,
+        0x6D,
+        0x69,
+        0x73,
+        0x6F,
+        0x32,
+    ];
+
+    public string DefaultVideoMediaType { get; init; } = "video/mp4";
+
+    public string DefaultVideoId { get; init; } = "video_llm_tck";
+
+    public string DefaultVideoGenerationId { get; init; } = "gen_llm_tck";
+
+    public long DefaultVideoCreatedAtUnixTime { get; init; } = 1712697600;
+
+    public string DefaultVideoSize { get; init; } = "1280x720";
+
+    public string DefaultVideoSeconds { get; init; } = "4";
+
     public static LlmTckConfiguration CreateDefault()
     {
         return new()
@@ -33,6 +77,7 @@ public sealed record LlmTckConfiguration
                 new LlmTckModel { Id = "llm-tck-embedding", Kind = LlmTckModelKind.Embedding },
                 new LlmTckModel { Id = "llm-tck-image", Kind = LlmTckModelKind.Image },
                 new LlmTckModel { Id = "llm-tck-audio", Kind = LlmTckModelKind.Audio },
+                new LlmTckModel { Id = "llm-tck-video", Kind = LlmTckModelKind.Video },
             ],
         };
     }

@@ -2,6 +2,7 @@ using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
 using ManagedCode.LlmTck.Configuration;
+using ManagedCode.LlmTck.OpenAI;
 using ManagedCode.LlmTck.Runtime;
 using Microsoft.Extensions.AI;
 
@@ -100,19 +101,30 @@ public sealed class LlmTckClient(HttpClient httpClient, string? bearerToken = nu
         return new LlmTckImageGenerator(httpClient, defaultModelId, bearerToken);
     }
 
+    public Task<LlmTckAudioContent> GenerateAudioAsync(
+        string modelId,
+        string input,
+        CancellationToken cancellationToken
+    )
+    {
+        return GenerateAudioAsync(modelId, input, voice: "alloy", cancellationToken);
+    }
+
     public async Task<LlmTckAudioContent> GenerateAudioAsync(
         string modelId,
         string input,
+        string voice = "alloy",
         CancellationToken cancellationToken = default
     )
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(modelId);
         ArgumentNullException.ThrowIfNull(input);
+        ArgumentException.ThrowIfNullOrWhiteSpace(voice);
 
         using var request = CreateJsonRequest(
             HttpMethod.Post,
             "/v1/audio/speech",
-            new { model = modelId, input }
+            new { model = modelId, input, voice }
         );
         using var response = await httpClient.SendAsync(request, cancellationToken).ConfigureAwait(false);
         response.EnsureSuccessStatusCode();
@@ -121,6 +133,93 @@ public sealed class LlmTckClient(HttpClient httpClient, string? bearerToken = nu
             await response.Content.ReadAsByteArrayAsync(cancellationToken).ConfigureAwait(false),
             response.Content.Headers.ContentType?.MediaType ?? "application/octet-stream"
         );
+    }
+
+    public async Task<string> GenerateVideoAsync(
+        string modelId,
+        string prompt,
+        CancellationToken cancellationToken = default
+    )
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(modelId);
+        ArgumentNullException.ThrowIfNull(prompt);
+
+        using var request = CreateRequest(HttpMethod.Post, "/v1/videos");
+        using var form = new MultipartFormDataContent();
+        form.Add(new StringContent(modelId), "model");
+        form.Add(new StringContent(prompt), "prompt");
+        request.Content = form;
+
+        using var response = await httpClient.SendAsync(request, cancellationToken).ConfigureAwait(false);
+        response.EnsureSuccessStatusCode();
+
+        var video = await response
+            .Content
+            .ReadFromJsonAsync<OpenAiVideoResponse>(_jsonOptions, cancellationToken)
+            .ConfigureAwait(false);
+        return video?.Id ?? string.Empty;
+    }
+
+    public async Task<string> TranscribeAudioAsync(
+        string modelId,
+        byte[] bytes,
+        string fileName = "audio.wav",
+        string mediaType = "audio/wav",
+        CancellationToken cancellationToken = default
+    )
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(modelId);
+        ArgumentNullException.ThrowIfNull(bytes);
+        ArgumentException.ThrowIfNullOrWhiteSpace(fileName);
+        ArgumentException.ThrowIfNullOrWhiteSpace(mediaType);
+
+        using var request = CreateRequest(HttpMethod.Post, "/v1/audio/transcriptions");
+        using var form = new MultipartFormDataContent();
+        using var audio = new ByteArrayContent(bytes);
+        audio.Headers.ContentType = new MediaTypeHeaderValue(mediaType);
+        form.Add(audio, "file", fileName);
+        form.Add(new StringContent(modelId), "model");
+        request.Content = form;
+
+        using var response = await httpClient.SendAsync(request, cancellationToken).ConfigureAwait(false);
+        response.EnsureSuccessStatusCode();
+
+        var transcription = await response
+            .Content
+            .ReadFromJsonAsync<OpenAiAudioTranscriptionResponse>(_jsonOptions, cancellationToken)
+            .ConfigureAwait(false);
+        return transcription?.Text ?? string.Empty;
+    }
+
+    public async Task<string> TranslateAudioAsync(
+        string modelId,
+        byte[] bytes,
+        string fileName = "audio.wav",
+        string mediaType = "audio/wav",
+        CancellationToken cancellationToken = default
+    )
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(modelId);
+        ArgumentNullException.ThrowIfNull(bytes);
+        ArgumentException.ThrowIfNullOrWhiteSpace(fileName);
+        ArgumentException.ThrowIfNullOrWhiteSpace(mediaType);
+
+        using var request = CreateRequest(HttpMethod.Post, "/v1/audio/translations");
+        using var form = new MultipartFormDataContent();
+        using var audio = new ByteArrayContent(bytes);
+        audio.Headers.ContentType = new MediaTypeHeaderValue(mediaType);
+        form.Add(audio, "file", fileName);
+        form.Add(new StringContent(modelId), "model");
+        request.Content = form;
+
+        using var response = await httpClient.SendAsync(request, cancellationToken).ConfigureAwait(false);
+        response.EnsureSuccessStatusCode();
+
+        var translation = await response
+            .Content
+            .ReadFromJsonAsync<OpenAiAudioTranscriptionResponse>(_jsonOptions, cancellationToken)
+            .ConfigureAwait(false);
+        return translation?.Text ?? string.Empty;
     }
 
     private HttpRequestMessage CreateRequest(HttpMethod method, string requestUri)

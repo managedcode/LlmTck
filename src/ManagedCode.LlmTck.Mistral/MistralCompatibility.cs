@@ -22,5 +22,39 @@ public static class MistralCompatibility
                 LlmTckProviderCapability.StructuredOutput,
             ],
             CompatibilityTags = [ProviderId, LlmTckCompatibilityTags.OpenAICompatible],
+            ApiContract = new()
+            {
+                DocumentationUrl = "https://docs.mistral.ai/api/endpoint/chat",
+                DocumentationRetrievedOn = "2026-07-08",
+                DocumentationVersion = "v1",
+                Operations =
+                [
+                    new()
+                    {
+                        Id = "chat.complete",
+                        Method = "POST",
+                        Path = "/v1/chat/completions",
+                        DocumentationUrl = "https://docs.mistral.ai/api/endpoint/chat",
+                        SupportsStreaming = true,
+                        ImplementedByHosting = true,
+                        Capabilities =
+                        [
+                            LlmTckProviderCapability.Chat,
+                            LlmTckProviderCapability.StreamingChat,
+                            LlmTckProviderCapability.Tools,
+                            LlmTckProviderCapability.StructuredOutput,
+                        ],
+                    },
+                    new()
+                    {
+                        Id = "embeddings.create",
+                        Method = "POST",
+                        Path = "/v1/embeddings",
+                        DocumentationUrl = "https://docs.mistral.ai/api/endpoint/embeddings",
+                        ImplementedByHosting = true,
+                        Capabilities = [LlmTckProviderCapability.Embeddings],
+                    },
+                ],
+            },
         };
 }

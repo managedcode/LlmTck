@@ -40,6 +40,11 @@ public sealed class LlmTckClientConfigurationBuilder
         return UseModel(id, LlmTckModelKind.Audio);
     }
 
+    public LlmTckClientConfigurationBuilder UseVideoModel(string id)
+    {
+        return UseModel(id, LlmTckModelKind.Video);
+    }
+
     public LlmTckClientConfigurationBuilder UseChatScenario(
         string id,
         Action<LlmTckScenarioBuilder> configure
@@ -73,6 +78,24 @@ public sealed class LlmTckClientConfigurationBuilder
     public LlmTckClientConfigurationBuilder UseAudio(byte[] bytes, string mediaType)
     {
         _builder.WithDefaultAudio(bytes, mediaType);
+        return this;
+    }
+
+    public LlmTckClientConfigurationBuilder UseVideo(byte[] bytes, string mediaType)
+    {
+        _builder.WithDefaultVideo(bytes, mediaType);
+        return this;
+    }
+
+    public LlmTckClientConfigurationBuilder UseTranscriptionText(string text)
+    {
+        _builder.WithDefaultTranscriptionText(text);
+        return this;
+    }
+
+    public LlmTckClientConfigurationBuilder UseTranslationText(string text)
+    {
+        _builder.WithDefaultTranslationText(text);
         return this;
     }
 

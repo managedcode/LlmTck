@@ -6,4 +6,5 @@ public enum LlmTckModelKind
     Embedding,
     Image,
     Audio,
+    Video,
 }

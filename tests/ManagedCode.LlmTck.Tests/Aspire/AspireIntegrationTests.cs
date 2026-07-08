@@ -10,7 +10,6 @@ using Azure.Core.Pipeline;
 using global::Aspire.Hosting.Testing;
 using ManagedCode.LlmTck.Aspire;
 using ManagedCode.LlmTck.Client;
-using ManagedCode.LlmTck.Providers;
 using Microsoft.Extensions.AI;
 using OpenAI.Chat;
 using ExtensionsChatMessage = Microsoft.Extensions.AI.ChatMessage;
@@ -43,19 +42,6 @@ public sealed class AspireIntegrationTests
         var llmTck = builder
             .AddLlmTck()
             .WithImagePullPolicy(ImagePullPolicy.Never)
-            .WithOpenAICompatibility()
-            .WithAzureOpenAICompatibility()
-            .WithFoundryCompatibility()
-            .WithAnthropicCompatibility()
-            .WithGeminiCompatibility()
-            .WithGroqCompatibility()
-            .WithMistralCompatibility()
-            .WithOllamaCompatibility()
-            .WithCohereCompatibility()
-            .WithBedrockCompatibility()
-            .WithOpenRouterCompatibility()
-            .WithDeepSeekCompatibility()
-            .WithPerplexityCompatibility()
             .WithApiKey(_apiKey);
         var llmTckEndpointExpression = llmTck.GetHttpEndpoint().ToString();
 
@@ -93,7 +79,6 @@ public sealed class AspireIntegrationTests
         using var embeddingGenerator = controlClient.CreateEmbeddingGenerator(_embeddingModel);
         using var imageGenerator = controlClient.CreateImageGenerator(_imageModel);
 
-        var root = await httpClient.GetFromJsonAsync<JsonElement>("/", timeout.Token);
         var models = await httpClient.GetFromJsonAsync<JsonElement>("/v1/models", timeout.Token);
         var chat = await chatClient.GetResponseAsync(
             [new ExtensionsChatMessage(ExtensionsChatRole.User, "hello from aspire sdk")],
@@ -179,29 +164,6 @@ public sealed class AspireIntegrationTests
 
         await Assert.That(llmTckEndpointExpression).IsNotEmpty();
         await Assert.That(models.GetProperty("data").GetArrayLength()).IsGreaterThanOrEqualTo(4);
-        var compatibility = root.GetProperty("compatibility");
-        await Assert.That(compatibility.GetProperty("openAi").GetString()).IsEqualTo("true");
-        await Assert.That(compatibility.GetProperty("azureOpenAi").GetString()).IsEqualTo("true");
-        await Assert.That(compatibility.GetProperty("microsoftFoundry").GetString())
-            .IsEqualTo("true");
-        await Assert.That(compatibility.GetProperty(LlmTckCompatibilityTags.Anthropic).GetString())
-            .IsEqualTo("true");
-        await Assert.That(compatibility.GetProperty(LlmTckCompatibilityTags.Gemini).GetString())
-            .IsEqualTo("true");
-        await Assert.That(compatibility.GetProperty(LlmTckCompatibilityTags.Groq).GetString())
-            .IsEqualTo("true");
-        await Assert.That(compatibility.GetProperty(LlmTckCompatibilityTags.Mistral).GetString())
-            .IsEqualTo("true");
-        await Assert.That(compatibility.GetProperty(LlmTckCompatibilityTags.Ollama).GetString())
-            .IsEqualTo("true");
-        await Assert.That(compatibility.GetProperty(LlmTckCompatibilityTags.Cohere).GetString())
-            .IsEqualTo("true");
-        await Assert.That(compatibility.GetProperty(LlmTckCompatibilityTags.Bedrock).GetString())
-            .IsEqualTo("true");
-        await Assert.That(compatibility.GetProperty("openRouter").GetString()).IsEqualTo("true");
-        await Assert.That(compatibility.GetProperty("deepSeek").GetString()).IsEqualTo("true");
-        await Assert.That(compatibility.GetProperty(LlmTckCompatibilityTags.Perplexity).GetString())
-            .IsEqualTo("true");
         await Assert.That(chat.Text).IsEqualTo("aspire blue whale");
         await Assert.That(string.Concat(streamChunks)).IsEqualTo("aspire blue whale");
         await Assert.That(embeddings).Count().IsEqualTo(2);

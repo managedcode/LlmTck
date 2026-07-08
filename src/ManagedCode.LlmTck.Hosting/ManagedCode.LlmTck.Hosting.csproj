@@ -10,6 +10,11 @@
 
   <ItemGroup>
     <ProjectReference Include="..\ManagedCode.LlmTck\ManagedCode.LlmTck.csproj" />
+    <ProjectReference Include="..\ManagedCode.LlmTck.Anthropic\ManagedCode.LlmTck.Anthropic.csproj" />
+    <ProjectReference Include="..\ManagedCode.LlmTck.Bedrock\ManagedCode.LlmTck.Bedrock.csproj" />
+    <ProjectReference Include="..\ManagedCode.LlmTck.Cohere\ManagedCode.LlmTck.Cohere.csproj" />
+    <ProjectReference Include="..\ManagedCode.LlmTck.Gemini\ManagedCode.LlmTck.Gemini.csproj" />
+    <ProjectReference Include="..\ManagedCode.LlmTck.Ollama\ManagedCode.LlmTck.Ollama.csproj" />
     <ProjectReference Include="..\ManagedCode.LlmTck.OpenAI\ManagedCode.LlmTck.OpenAI.csproj" />
   </ItemGroup>
 </Project>

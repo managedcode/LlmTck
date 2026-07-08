@@ -26,5 +26,32 @@ public static class AnthropicCompatibility
                 LlmTckCompatibilityTags.Claude,
                 LlmTckCompatibilityTags.MessagesApi,
             ],
+            ApiContract = new()
+            {
+                DocumentationUrl = "https://docs.anthropic.com/en/api/messages",
+                DocumentationRetrievedOn = "2026-07-08",
+                DocumentationVersion = "anthropic-version: 2023-06-01",
+                Operations =
+                [
+                    new()
+                    {
+                        Id = "messages.create",
+                        Method = "POST",
+                        Path = "/v1/messages",
+                        DocumentationUrl = "https://docs.anthropic.com/en/api/messages",
+                        RequiredHeader = "anthropic-version",
+                        ApiVersion = "2023-06-01",
+                        SupportsStreaming = true,
+                        ImplementedByHosting = true,
+                        Capabilities =
+                        [
+                            LlmTckProviderCapability.Chat,
+                            LlmTckProviderCapability.StreamingChat,
+                            LlmTckProviderCapability.Tools,
+                            LlmTckProviderCapability.StructuredOutput,
+                        ],
+                    },
+                ],
+            },
         };
 }

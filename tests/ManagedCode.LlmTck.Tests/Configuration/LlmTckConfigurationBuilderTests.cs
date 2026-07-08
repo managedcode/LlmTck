@@ -15,6 +15,9 @@ public sealed class LlmTckConfigurationBuilderTests
             .WithDefaultEmbeddingVector(0.5f, 0.75f)
             .WithDefaultImageDataUri("data:image/png;base64,Zm9v")
             .WithDefaultAudio([1, 2, 3], "audio/test")
+            .WithDefaultVideo([4, 5, 6], "video/test")
+            .WithDefaultTranscriptionText("fixture transcript")
+            .WithDefaultTranslationText("fixture translation")
             .AddDataset(
                 "docs-dataset",
                 dataset => dataset
@@ -50,6 +53,7 @@ public sealed class LlmTckConfigurationBuilderTests
         configuration.ChatScenarios[0].Responses[0].StreamChunks.Add("mutated");
         configuration.DefaultEmbeddingVector.Clear();
         configuration.DefaultAudioBytes[0] = 99;
+        configuration.DefaultVideoBytes[0] = 99;
 
         var rebuilt = builder.Build();
 
@@ -66,6 +70,10 @@ public sealed class LlmTckConfigurationBuilderTests
         await Assert.That(rebuilt.DefaultImageDataUri).IsEqualTo("data:image/png;base64,Zm9v");
         await Assert.That(rebuilt.DefaultAudioBytes).IsEquivalentTo((byte[])[1, 2, 3]);
         await Assert.That(rebuilt.DefaultAudioMediaType).IsEqualTo("audio/test");
+        await Assert.That(rebuilt.DefaultVideoBytes).IsEquivalentTo((byte[])[4, 5, 6]);
+        await Assert.That(rebuilt.DefaultVideoMediaType).IsEqualTo("video/test");
+        await Assert.That(rebuilt.DefaultTranscriptionText).IsEqualTo("fixture transcript");
+        await Assert.That(rebuilt.DefaultTranslationText).IsEqualTo("fixture translation");
     }
 
     [Test]
@@ -91,6 +99,18 @@ public sealed class LlmTckConfigurationBuilderTests
         );
         await ShouldThrowAsync<ArgumentException>(
             () => new LlmTckConfigurationBuilder().WithDefaultAudio([1], "")
+        );
+        await ShouldThrowAsync<ArgumentException>(
+            () => new LlmTckConfigurationBuilder().WithDefaultVideo([], "video/mp4")
+        );
+        await ShouldThrowAsync<ArgumentException>(
+            () => new LlmTckConfigurationBuilder().WithDefaultVideo([1], "")
+        );
+        await ShouldThrowAsync<ArgumentException>(
+            () => new LlmTckConfigurationBuilder().WithDefaultTranscriptionText("")
+        );
+        await ShouldThrowAsync<ArgumentException>(
+            () => new LlmTckConfigurationBuilder().WithDefaultTranslationText("")
         );
 
         await ShouldThrowAsync<ArgumentException>(() => new LlmTckScenarioBuilder("id").ForModel(""));

@@ -344,6 +344,167 @@ public sealed class LlmTckRuntime : ILlmTckRuntime
         }
     }
 
+    public Task<LlmTckTranscriptionResult> TranscribeAudioAsync(
+        string modelId,
+        string fileName,
+        string? prompt = null,
+        string? bearerToken = null,
+        CancellationToken cancellationToken = default
+    )
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(modelId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(fileName);
+        cancellationToken.ThrowIfCancellationRequested();
+
+        lock (_gate)
+        {
+            if (!HasRequiredToken(_configuration.RequiredBearerToken, bearerToken))
+            {
+                AddEvent(LlmTckEventKind.AuthFailed, null, modelId, "Audio transcription auth failed.");
+                return Task.FromResult(
+                    new LlmTckTranscriptionResult
+                    {
+                        IsSuccess = false,
+                        StatusCode = 401,
+                        ModelId = modelId,
+                        ErrorCode = "invalid_api_key",
+                        ErrorMessage = "The supplied bearer token did not match the configured LLM TCK token.",
+                    }
+                );
+            }
+
+            if (!IsConfiguredModel(modelId, LlmTckModelKind.Audio))
+            {
+                AddModelNotFoundEvent(modelId, LlmTckModelKind.Audio);
+                return Task.FromResult(UnknownTranscriptionModel(modelId));
+            }
+
+            AddEvent(
+                LlmTckEventKind.Matched,
+                null,
+                modelId,
+                string.IsNullOrWhiteSpace(prompt)
+                    ? $"Transcribed audio file '{fileName}'."
+                    : $"Transcribed audio file '{fileName}' with prompt."
+            );
+            return Task.FromResult(
+                new LlmTckTranscriptionResult
+                {
+                    IsSuccess = true,
+                    ModelId = modelId,
+                    Text = _configuration.DefaultTranscriptionText,
+                }
+            );
+        }
+    }
+
+    public Task<LlmTckTranscriptionResult> TranslateAudioAsync(
+        string modelId,
+        string fileName,
+        string? prompt = null,
+        string? bearerToken = null,
+        CancellationToken cancellationToken = default
+    )
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(modelId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(fileName);
+        cancellationToken.ThrowIfCancellationRequested();
+
+        lock (_gate)
+        {
+            if (!HasRequiredToken(_configuration.RequiredBearerToken, bearerToken))
+            {
+                AddEvent(LlmTckEventKind.AuthFailed, null, modelId, "Audio translation auth failed.");
+                return Task.FromResult(
+                    new LlmTckTranscriptionResult
+                    {
+                        IsSuccess = false,
+                        StatusCode = 401,
+                        ModelId = modelId,
+                        ErrorCode = "invalid_api_key",
+                        ErrorMessage = "The supplied bearer token did not match the configured LLM TCK token.",
+                    }
+                );
+            }
+
+            if (!IsConfiguredModel(modelId, LlmTckModelKind.Audio))
+            {
+                AddModelNotFoundEvent(modelId, LlmTckModelKind.Audio);
+                return Task.FromResult(UnknownTranscriptionModel(modelId));
+            }
+
+            AddEvent(
+                LlmTckEventKind.Matched,
+                null,
+                modelId,
+                string.IsNullOrWhiteSpace(prompt)
+                    ? $"Translated audio file '{fileName}'."
+                    : $"Translated audio file '{fileName}' with prompt."
+            );
+            return Task.FromResult(
+                new LlmTckTranscriptionResult
+                {
+                    IsSuccess = true,
+                    ModelId = modelId,
+                    Text = _configuration.DefaultTranslationText,
+                }
+            );
+        }
+    }
+
+    public Task<LlmTckVideoResult> GenerateVideoAsync(
+        string modelId,
+        string prompt,
+        string? bearerToken = null,
+        CancellationToken cancellationToken = default
+    )
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(modelId);
+        ArgumentNullException.ThrowIfNull(prompt);
+        cancellationToken.ThrowIfCancellationRequested();
+
+        lock (_gate)
+        {
+            if (!HasRequiredToken(_configuration.RequiredBearerToken, bearerToken))
+            {
+                AddEvent(LlmTckEventKind.AuthFailed, null, modelId, "Video auth failed.");
+                return Task.FromResult(
+                    new LlmTckVideoResult
+                    {
+                        IsSuccess = false,
+                        StatusCode = 401,
+                        ModelId = modelId,
+                        ErrorCode = "invalid_api_key",
+                        ErrorMessage = "The supplied bearer token did not match the configured LLM TCK token.",
+                    }
+                );
+            }
+
+            if (!IsConfiguredModel(modelId, LlmTckModelKind.Video))
+            {
+                AddModelNotFoundEvent(modelId, LlmTckModelKind.Video);
+                return Task.FromResult(UnknownVideoModel(modelId));
+            }
+
+            AddEvent(LlmTckEventKind.Matched, null, modelId, $"Generated video for '{prompt}'.");
+            return Task.FromResult(
+                new LlmTckVideoResult
+                {
+                    IsSuccess = true,
+                    ModelId = modelId,
+                    Prompt = prompt,
+                    VideoId = _configuration.DefaultVideoId,
+                    GenerationId = _configuration.DefaultVideoGenerationId,
+                    Bytes = [.. _configuration.DefaultVideoBytes],
+                    MediaType = _configuration.DefaultVideoMediaType,
+                    CreatedAt = _configuration.DefaultVideoCreatedAtUnixTime,
+                    Size = _configuration.DefaultVideoSize,
+                    Seconds = _configuration.DefaultVideoSeconds,
+                }
+            );
+        }
+    }
+
     public LlmTckAssertionSummary GetAssertionSummary()
     {
         lock (_gate)
@@ -424,6 +585,30 @@ public sealed class LlmTckRuntime : ILlmTckRuntime
             ModelId = modelId,
             ErrorCode = "llm_tck_unknown_model",
             ErrorMessage = CreateUnknownModelMessage(modelId, LlmTckModelKind.Audio),
+        };
+    }
+
+    private static LlmTckTranscriptionResult UnknownTranscriptionModel(string modelId)
+    {
+        return new()
+        {
+            IsSuccess = false,
+            StatusCode = 404,
+            ModelId = modelId,
+            ErrorCode = "llm_tck_unknown_model",
+            ErrorMessage = CreateUnknownModelMessage(modelId, LlmTckModelKind.Audio),
+        };
+    }
+
+    private static LlmTckVideoResult UnknownVideoModel(string modelId)
+    {
+        return new()
+        {
+            IsSuccess = false,
+            StatusCode = 404,
+            ModelId = modelId,
+            ErrorCode = "llm_tck_unknown_model",
+            ErrorMessage = CreateUnknownModelMessage(modelId, LlmTckModelKind.Video),
         };
     }
 

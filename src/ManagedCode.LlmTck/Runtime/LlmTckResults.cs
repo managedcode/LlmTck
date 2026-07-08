@@ -101,3 +101,47 @@ public sealed record LlmTckAudioResult
 
     public string? ErrorMessage { get; init; }
 }
+
+public sealed record LlmTckTranscriptionResult
+{
+    public bool IsSuccess { get; init; }
+
+    public int StatusCode { get; init; } = 200;
+
+    public string ModelId { get; init; } = "llm-tck-audio";
+
+    public string Text { get; init; } = string.Empty;
+
+    public string? ErrorCode { get; init; }
+
+    public string? ErrorMessage { get; init; }
+}
+
+public sealed record LlmTckVideoResult
+{
+    public bool IsSuccess { get; init; }
+
+    public int StatusCode { get; init; } = 200;
+
+    public string ModelId { get; init; } = "llm-tck-video";
+
+    public string Prompt { get; init; } = string.Empty;
+
+    public string VideoId { get; init; } = "video_llm_tck";
+
+    public string GenerationId { get; init; } = "gen_llm_tck";
+
+    public byte[] Bytes { get; init; } = [];
+
+    public string MediaType { get; init; } = "video/mp4";
+
+    public long CreatedAt { get; init; }
+
+    public string Size { get; init; } = "1280x720";
+
+    public string Seconds { get; init; } = "4";
+
+    public string? ErrorCode { get; init; }
+
+    public string? ErrorMessage { get; init; }
+}

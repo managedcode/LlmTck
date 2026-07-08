@@ -1,0 +1,278 @@
+using System.Net.Http.Json;
+using System.Text;
+using System.Text.Json;
+using ManagedCode.LlmTck.Models;
+using ManagedCode.LlmTck.Tests.TestSupport;
+using Microsoft.AspNetCore.TestHost;
+
+namespace ManagedCode.LlmTck.Tests.Bedrock;
+
+public sealed class BedrockEndpointTests
+{
+    private static readonly JsonSerializerOptions _jsonOptions = new(JsonSerializerDefaults.Web);
+
+    [Test]
+    public async Task ConverseEndpoint_ReturnsBedrockConverseShapeAsync()
+    {
+        using var host = await LlmTckTestHost.StartAsync(options => options
+                .AddModel("amazon.nova-lite-v1:0", LlmTckModelKind.Chat)
+                .AddChatScenario(
+                    "bedrock-converse",
+                    scenario => scenario
+                        .ForModel("amazon.nova-lite-v1:0")
+                        .WhenUserContains("largest animal")
+                        .Responds("blue whale")
+                ));
+        using var client = host.GetTestClient();
+
+        var response = await client.PostAsJsonAsync(
+            "/model/amazon.nova-lite-v1:0/converse",
+            new
+            {
+                system = new[] { new { text = "Answer briefly." } },
+                messages = new[]
+                {
+                    new
+                    {
+                        role = "user",
+                        content = new[] { new { text = "largest animal?" } },
+                    },
+                },
+            },
+            _jsonOptions
+        );
+
+        response.EnsureSuccessStatusCode();
+        var payload = await response.Content.ReadFromJsonAsync<JsonElement>(_jsonOptions);
+
+        await Assert.That(payload.GetProperty("stopReason").GetString()).IsEqualTo("end_turn");
+        await Assert.That(
+                payload
+                    .GetProperty("output")
+                    .GetProperty("message")
+                    .GetProperty("role")
+                    .GetString()
+            )
+            .IsEqualTo("assistant");
+        await Assert.That(
+                payload
+                    .GetProperty("output")
+                    .GetProperty("message")
+                    .GetProperty("content")[0]
+                    .GetProperty("text")
+                    .GetString()
+            )
+            .IsEqualTo("blue whale");
+        await Assert.That(payload.GetProperty("usage").GetProperty("outputTokens").GetInt32())
+            .IsEqualTo(2);
+        await Assert.That(payload.GetProperty("metrics").GetProperty("latencyMs").GetInt32())
+            .IsEqualTo(0);
+    }
+
+    [Test]
+    public async Task ConverseStreamEndpoint_ReturnsBedrockEventStreamShapeAsync()
+    {
+        using var host = await LlmTckTestHost.StartAsync(options => options
+                .AddModel("amazon.nova-lite-v1:0", LlmTckModelKind.Chat)
+                .AddChatScenario(
+                    "bedrock-converse-stream",
+                    scenario => scenario
+                        .ForModel("amazon.nova-lite-v1:0")
+                        .WhenUserContains("stream largest animal")
+                        .Responds("blue whale", "blue ", "whale")
+                ));
+        using var client = host.GetTestClient();
+
+        var response = await client.PostAsJsonAsync(
+            "/model/amazon.nova-lite-v1:0/converse-stream",
+            new
+            {
+                messages = new[]
+                {
+                    new
+                    {
+                        role = "user",
+                        content = new[] { new { text = "stream largest animal" } },
+                    },
+                },
+            },
+            _jsonOptions
+        );
+
+        response.EnsureSuccessStatusCode();
+        var lines = await ReadJsonLinesAsync(response);
+
+        await Assert.That(response.Content.Headers.ContentType?.MediaType)
+            .IsEqualTo("application/vnd.amazon.eventstream");
+        await Assert.That(lines[0].GetProperty("messageStart").GetProperty("role").GetString())
+            .IsEqualTo("assistant");
+        await Assert.That(lines[1].GetProperty("contentBlockStart").GetProperty("contentBlockIndex").GetInt32())
+            .IsEqualTo(0);
+        await Assert.That(
+                lines[2]
+                    .GetProperty("contentBlockDelta")
+                    .GetProperty("delta")
+                    .GetProperty("text")
+                    .GetString()
+            )
+            .IsEqualTo("blue ");
+        await Assert.That(
+                lines[3]
+                    .GetProperty("contentBlockDelta")
+                    .GetProperty("delta")
+                    .GetProperty("text")
+                    .GetString()
+            )
+            .IsEqualTo("whale");
+        await Assert.That(lines[4].GetProperty("contentBlockStop").GetProperty("contentBlockIndex").GetInt32())
+            .IsEqualTo(0);
+        await Assert.That(lines[5].GetProperty("messageStop").GetProperty("stopReason").GetString())
+            .IsEqualTo("end_turn");
+        await Assert.That(lines[6].GetProperty("metadata").GetProperty("usage").GetProperty("totalTokens").GetInt32())
+            .IsEqualTo(2);
+    }
+
+    [Test]
+    public async Task InvokeEndpoint_ReturnsTitanTextShapeForChatModelAsync()
+    {
+        using var host = await LlmTckTestHost.StartAsync(options => options
+                .AddModel("amazon.titan-text-premier-v1:0", LlmTckModelKind.Chat)
+                .AddChatScenario(
+                    "bedrock-titan-text",
+                    scenario => scenario
+                        .ForModel("amazon.titan-text-premier-v1:0")
+                        .WhenUserContains("hello world")
+                        .Responds("prints a greeting")
+                ));
+        using var client = host.GetTestClient();
+
+        var response = await client.PostAsJsonAsync(
+            "/model/amazon.titan-text-premier-v1:0/invoke",
+            new
+            {
+                inputText = "Describe hello world",
+                textGenerationConfig = new { maxTokenCount = 64 },
+            },
+            _jsonOptions
+        );
+
+        response.EnsureSuccessStatusCode();
+        var payload = await response.Content.ReadFromJsonAsync<JsonElement>(_jsonOptions);
+
+        await Assert.That(payload.GetProperty("inputTextTokenCount").GetInt32()).IsEqualTo(3);
+        await Assert.That(payload.GetProperty("results").GetArrayLength()).IsEqualTo(1);
+        await Assert.That(payload.GetProperty("results")[0].GetProperty("outputText").GetString())
+            .IsEqualTo("prints a greeting");
+        await Assert.That(payload.GetProperty("results")[0].GetProperty("completionReason").GetString())
+            .IsEqualTo("FINISHED");
+    }
+
+    [Test]
+    public async Task InvokeModelWithResponseStreamEndpoint_ReturnsChunkBytesAsync()
+    {
+        using var host = await LlmTckTestHost.StartAsync(options => options
+                .AddModel("amazon.titan-text-premier-v1:0", LlmTckModelKind.Chat)
+                .AddChatScenario(
+                    "bedrock-titan-stream",
+                    scenario => scenario
+                        .ForModel("amazon.titan-text-premier-v1:0")
+                        .WhenUserContains("stream hello")
+                        .Responds("prints a greeting", "prints ", "a greeting")
+                ));
+        using var client = host.GetTestClient();
+
+        var response = await client.PostAsJsonAsync(
+            "/model/amazon.titan-text-premier-v1:0/invoke-with-response-stream",
+            new
+            {
+                inputText = "stream hello",
+            },
+            _jsonOptions
+        );
+
+        response.EnsureSuccessStatusCode();
+        var lines = await ReadJsonLinesAsync(response);
+        var firstChunk = ReadBedrockChunkPayload(lines[0]);
+        var secondChunk = ReadBedrockChunkPayload(lines[1]);
+
+        await Assert.That(response.Content.Headers.ContentType?.MediaType)
+            .IsEqualTo("application/vnd.amazon.eventstream");
+        await Assert.That(response.Headers.GetValues("x-amzn-bedrock-content-type").Single())
+            .IsEqualTo("application/json");
+        await Assert.That(firstChunk.GetProperty("outputText").GetString()).IsEqualTo("prints ");
+        await Assert.That(secondChunk.GetProperty("outputText").GetString()).IsEqualTo("a greeting");
+    }
+
+    [Test]
+    public async Task InvokeEndpoint_ReturnsTitanEmbeddingShapeForEmbeddingModelAsync()
+    {
+        using var host = await LlmTckTestHost.StartAsync(options => options
+                .AddModel("amazon.titan-embed-text-v2:0", LlmTckModelKind.Embedding)
+                .WithDefaultEmbeddingVector(0.125f, 0.25f, 0.5f));
+        using var client = host.GetTestClient();
+
+        var response = await client.PostAsJsonAsync(
+            "/model/amazon.titan-embed-text-v2:0/invoke",
+            new
+            {
+                inputText = "embed this text",
+                embeddingTypes = new[] { "float" },
+            },
+            _jsonOptions
+        );
+
+        response.EnsureSuccessStatusCode();
+        var payload = await response.Content.ReadFromJsonAsync<JsonElement>(_jsonOptions);
+
+        await Assert.That(payload.GetProperty("inputTextTokenCount").GetInt32()).IsEqualTo(3);
+        await Assert.That(payload.GetProperty("embedding").GetArrayLength()).IsEqualTo(3);
+        await Assert.That(
+                payload.GetProperty("embeddingsByType").GetProperty("float").GetArrayLength()
+            )
+            .IsEqualTo(3);
+    }
+
+    [Test]
+    public async Task InvokeEndpoint_ReturnsImageShapeForImageModelAsync()
+    {
+        using var host = await LlmTckTestHost.StartAsync(options => options
+                .AddModel("stability.stable-image-ultra-v1:1", LlmTckModelKind.Image)
+                .WithDefaultImageDataUri("data:image/png;base64,ZmFrZS1wbmc="));
+        using var client = host.GetTestClient();
+
+        var response = await client.PostAsJsonAsync(
+            "/model/stability.stable-image-ultra-v1:1/invoke",
+            new
+            {
+                prompt = "A simple diagram",
+                output_format = "png",
+            },
+            _jsonOptions
+        );
+
+        response.EnsureSuccessStatusCode();
+        var payload = await response.Content.ReadFromJsonAsync<JsonElement>(_jsonOptions);
+
+        await Assert.That(payload.GetProperty("images").GetArrayLength()).IsEqualTo(1);
+        await Assert.That(payload.GetProperty("images")[0].GetString()).IsEqualTo("ZmFrZS1wbmc=");
+        await Assert.That(payload.GetProperty("finish_reasons").GetArrayLength()).IsEqualTo(1);
+        await Assert.That(payload.GetProperty("finish_reasons")[0].ValueKind)
+            .IsEqualTo(JsonValueKind.Null);
+    }
+
+    private static async Task<JsonElement[]> ReadJsonLinesAsync(HttpResponseMessage response)
+    {
+        var body = await response.Content.ReadAsStringAsync();
+        return body
+            .Split('\n', StringSplitOptions.RemoveEmptyEntries)
+            .Select(line => JsonDocument.Parse(line).RootElement.Clone())
+            .ToArray();
+    }
+
+    private static JsonElement ReadBedrockChunkPayload(JsonElement streamEvent)
+    {
+        var bytes = streamEvent.GetProperty("chunk").GetProperty("bytes").GetString();
+        var json = Encoding.UTF8.GetString(Convert.FromBase64String(bytes!));
+        return JsonDocument.Parse(json).RootElement.Clone();
+    }
+}

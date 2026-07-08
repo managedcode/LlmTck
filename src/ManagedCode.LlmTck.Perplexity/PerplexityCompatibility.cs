@@ -12,12 +12,37 @@ public static class PerplexityCompatibility
             Id = ProviderId,
             DisplayName = "Perplexity",
             Protocol = LlmTckProtocolFamily.Perplexity,
-            DefaultEndpointPath = "/chat/completions",
+            DefaultEndpointPath = "/v1/sonar",
             Capabilities =
             [
                 LlmTckProviderCapability.Chat,
                 LlmTckProviderCapability.StreamingChat,
+                LlmTckProviderCapability.StructuredOutput,
             ],
             CompatibilityTags = [ProviderId, LlmTckCompatibilityTags.OpenAICompatible],
+            ApiContract = new()
+            {
+                DocumentationUrl = "https://docs.perplexity.ai/api-reference/sonar-post",
+                DocumentationRetrievedOn = "2026-07-08",
+                DocumentationVersion = "Sonar API v1",
+                Operations =
+                [
+                    new()
+                    {
+                        Id = "sonar.create",
+                        Method = "POST",
+                        Path = "/v1/sonar",
+                        DocumentationUrl = "https://docs.perplexity.ai/api-reference/sonar-post",
+                        SupportsStreaming = true,
+                        ImplementedByHosting = true,
+                        Capabilities =
+                        [
+                            LlmTckProviderCapability.Chat,
+                            LlmTckProviderCapability.StreamingChat,
+                            LlmTckProviderCapability.StructuredOutput,
+                        ],
+                    },
+                ],
+            },
         };
 }

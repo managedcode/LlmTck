@@ -18,8 +18,6 @@ public static class MicrosoftFoundryCompatibility
                 LlmTckProviderCapability.Chat,
                 LlmTckProviderCapability.StreamingChat,
                 LlmTckProviderCapability.Embeddings,
-                LlmTckProviderCapability.Images,
-                LlmTckProviderCapability.Audio,
                 LlmTckProviderCapability.Tools,
                 LlmTckProviderCapability.StructuredOutput,
             ],
@@ -29,5 +27,67 @@ public static class MicrosoftFoundryCompatibility
                 LlmTckCompatibilityTags.AzureAIFoundry,
                 LlmTckCompatibilityTags.OpenAICompatible,
             ],
+            ApiContract = new()
+            {
+                DocumentationUrl =
+                    "https://learn.microsoft.com/en-us/rest/api/microsoft-foundry/modelinference/",
+                DocumentationRetrievedOn = "2026-07-08",
+                DocumentationVersion = "Azure AI Model Inference",
+                Operations =
+                [
+                    new()
+                    {
+                        Id = "chat.completions.create",
+                        Method = "POST",
+                        Path = "/chat/completions",
+                        DocumentationUrl =
+                            "https://learn.microsoft.com/en-us/rest/api/microsoft-foundry/modelinference/chat-completions",
+                        SupportsStreaming = true,
+                        ImplementedByHosting = true,
+                        Capabilities =
+                        [
+                            LlmTckProviderCapability.Chat,
+                            LlmTckProviderCapability.StreamingChat,
+                            LlmTckProviderCapability.Tools,
+                            LlmTckProviderCapability.StructuredOutput,
+                        ],
+                    },
+                    new()
+                    {
+                        Id = "embeddings.create",
+                        Method = "POST",
+                        Path = "/embeddings",
+                        DocumentationUrl =
+                            "https://learn.microsoft.com/en-us/rest/api/microsoft-foundry/modelinference/text-embeddings",
+                        ImplementedByHosting = true,
+                        Capabilities = [LlmTckProviderCapability.Embeddings],
+                    },
+                    new()
+                    {
+                        Id = "models.chat.completions.create",
+                        Method = "POST",
+                        Path = "/models/chat/completions",
+                        DocumentationUrl =
+                            "https://learn.microsoft.com/en-us/rest/api/microsoft-foundry/modelinference/chat-completions",
+                        SupportsStreaming = true,
+                        ImplementedByHosting = true,
+                        Capabilities =
+                        [
+                            LlmTckProviderCapability.Chat,
+                            LlmTckProviderCapability.StreamingChat,
+                        ],
+                    },
+                    new()
+                    {
+                        Id = "models.embeddings.create",
+                        Method = "POST",
+                        Path = "/models/embeddings",
+                        DocumentationUrl =
+                            "https://learn.microsoft.com/en-us/rest/api/microsoft-foundry/modelinference/text-embeddings",
+                        ImplementedByHosting = true,
+                        Capabilities = [LlmTckProviderCapability.Embeddings],
+                    },
+                ],
+            },
         };
 }

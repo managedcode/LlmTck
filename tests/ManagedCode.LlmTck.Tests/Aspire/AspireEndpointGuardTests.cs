@@ -23,6 +23,23 @@ public sealed class AspireEndpointGuardTests
             "127.0.0.1",
             "LlmTck__Endpoint",
             "LLM_TCK_ENDPOINT",
+            ".WithOpenAICompatibility(",
+            ".WithAzureOpenAICompatibility(",
+            ".WithFoundryCompatibility(",
+            ".WithAnthropicCompatibility(",
+            ".WithGeminiCompatibility(",
+            ".WithGroqCompatibility(",
+            ".WithMistralCompatibility(",
+            ".WithOllamaCompatibility(",
+            ".WithCohereCompatibility(",
+            ".WithBedrockCompatibility(",
+            ".WithOpenRouterCompatibility(",
+            ".WithDeepSeekCompatibility(",
+            ".WithPerplexityCompatibility(",
+            "LLM_TCK_OPENAI_COMPATIBILITY",
+            "LLM_TCK_AZURE_OPENAI_COMPATIBILITY",
+            "LLM_TCK_MICROSOFT_FOUNDRY_COMPATIBILITY",
+            "LLM_TCK_RESOURCE_NAME",
         ];
 
         foreach (var relativePath in guardedFiles)

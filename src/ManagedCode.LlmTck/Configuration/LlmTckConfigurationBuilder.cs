@@ -111,6 +111,40 @@ public sealed class LlmTckConfigurationBuilder
         return this;
     }
 
+    public LlmTckConfigurationBuilder WithDefaultTranscriptionText(string text)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(text);
+
+        _configuration = _configuration with { DefaultTranscriptionText = text };
+        return this;
+    }
+
+    public LlmTckConfigurationBuilder WithDefaultTranslationText(string text)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(text);
+
+        _configuration = _configuration with { DefaultTranslationText = text };
+        return this;
+    }
+
+    public LlmTckConfigurationBuilder WithDefaultVideo(byte[] bytes, string mediaType)
+    {
+        ArgumentNullException.ThrowIfNull(bytes);
+        ArgumentException.ThrowIfNullOrWhiteSpace(mediaType);
+        if (bytes.Length == 0)
+        {
+            throw new ArgumentException("At least one video byte is required.", nameof(bytes));
+        }
+
+        _configuration = _configuration with
+        {
+            DefaultVideoBytes = [.. bytes],
+            DefaultVideoMediaType = mediaType,
+        };
+
+        return this;
+    }
+
     public LlmTckConfiguration Build()
     {
         return Snapshot(_configuration);
@@ -127,6 +161,7 @@ public sealed class LlmTckConfigurationBuilder
             Datasets = [.. configuration.Datasets.Select(SnapshotDataset)],
             DefaultEmbeddingVector = [.. configuration.DefaultEmbeddingVector],
             DefaultAudioBytes = [.. configuration.DefaultAudioBytes],
+            DefaultVideoBytes = [.. configuration.DefaultVideoBytes],
         };
     }
 

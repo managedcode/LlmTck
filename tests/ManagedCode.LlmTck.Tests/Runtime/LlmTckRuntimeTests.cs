@@ -226,6 +226,9 @@ public sealed class LlmTckRuntimeTests
                 .RequireBearerToken("test-key")
                 .AddModel("text-model", LlmTckModelKind.Chat)
                 .WithDefaultEmbeddingVector(0.1f, 0.2f, 0.3f, 0.4f)
+                .WithDefaultVideo([0, 0, 0, 24, 102, 116, 121, 112], "video/test")
+                .WithDefaultTranscriptionText("hello from audio")
+                .WithDefaultTranslationText("hello translated audio")
                 .Build()
         );
 
@@ -249,16 +252,35 @@ public sealed class LlmTckRuntimeTests
             "hello",
             bearerToken: "test-key"
         );
+        var video = await runtime.GenerateVideoAsync(
+            "llm-tck-video",
+            "generate a compatibility clip",
+            bearerToken: "test-key"
+        );
+        var transcription = await runtime.TranscribeAudioAsync(
+            "llm-tck-audio",
+            "fixture.wav",
+            bearerToken: "test-key"
+        );
+        var translation = await runtime.TranslateAudioAsync(
+            "llm-tck-audio",
+            "fixture.wav",
+            bearerToken: "test-key"
+        );
 
         await Assert.That(unauthorized.StatusCode).IsEqualTo(401);
         await Assert.That(embeddings.Vectors).Count().IsEqualTo(2);
         await Assert.That(embeddings.Vectors[0]).IsEquivalentTo([0.1f, 0.2f, 0.3f, 0.4f]);
         await Assert.That(image.DataUri).StartsWith("data:image/png;base64,");
         await Assert.That(audio.Bytes.Length).IsGreaterThan(0);
+        await Assert.That(video.Bytes).IsEquivalentTo((byte[])[0, 0, 0, 24, 102, 116, 121, 112]);
+        await Assert.That(video.MediaType).IsEqualTo("video/test");
+        await Assert.That(transcription.Text).IsEqualTo("hello from audio");
+        await Assert.That(translation.Text).IsEqualTo("hello translated audio");
 
         var summary = runtime.GetAssertionSummary();
         await Assert.That(summary.AuthFailed).IsEqualTo(1);
-        await Assert.That(summary.Matched).IsEqualTo(3);
+        await Assert.That(summary.Matched).IsEqualTo(6);
     }
 
     [Test]
@@ -270,6 +292,9 @@ public sealed class LlmTckRuntimeTests
         var missingEmbedding = await runtime.CreateEmbeddingAsync("missing-embedding", ["input"]);
         var wrongKindImage = await runtime.GenerateImageAsync("llm-tck-chat", "prompt");
         var missingAudio = await runtime.GenerateAudioAsync("missing-audio", "input");
+        var wrongKindTranscription = await runtime.TranscribeAudioAsync("llm-tck-chat", "fixture.wav");
+        var wrongKindTranslation = await runtime.TranslateAudioAsync("llm-tck-chat", "fixture.wav");
+        var wrongKindVideo = await runtime.GenerateVideoAsync("llm-tck-chat", "prompt");
 
         await Assert.That(missingEmbedding.IsSuccess).IsFalse();
         await Assert.That(missingEmbedding.StatusCode).IsEqualTo(404);
@@ -278,9 +303,15 @@ public sealed class LlmTckRuntimeTests
         await Assert.That(wrongKindImage.ErrorCode).IsEqualTo("llm_tck_unknown_model");
         await Assert.That(missingAudio.IsSuccess).IsFalse();
         await Assert.That(missingAudio.ErrorCode).IsEqualTo("llm_tck_unknown_model");
+        await Assert.That(wrongKindTranscription.IsSuccess).IsFalse();
+        await Assert.That(wrongKindTranscription.ErrorCode).IsEqualTo("llm_tck_unknown_model");
+        await Assert.That(wrongKindTranslation.IsSuccess).IsFalse();
+        await Assert.That(wrongKindTranslation.ErrorCode).IsEqualTo("llm_tck_unknown_model");
+        await Assert.That(wrongKindVideo.IsSuccess).IsFalse();
+        await Assert.That(wrongKindVideo.ErrorCode).IsEqualTo("llm_tck_unknown_model");
 
         var summary = runtime.GetAssertionSummary();
-        await Assert.That(summary.ModelNotFound).IsEqualTo(3);
+        await Assert.That(summary.ModelNotFound).IsEqualTo(6);
         await Assert.That(summary.Matched).IsEqualTo(0);
     }
 
@@ -296,12 +327,33 @@ public sealed class LlmTckRuntimeTests
 
         var image = await runtime.GenerateImageAsync("llm-tck-image", "prompt", bearerToken: "wrong-key");
         var audio = await runtime.GenerateAudioAsync("llm-tck-audio", "input", bearerToken: "wrong-key");
+        var transcription = await runtime.TranscribeAudioAsync(
+            "llm-tck-audio",
+            "fixture.wav",
+            bearerToken: "wrong-key"
+        );
+        var translation = await runtime.TranslateAudioAsync(
+            "llm-tck-audio",
+            "fixture.wav",
+            bearerToken: "wrong-key"
+        );
+        var video = await runtime.GenerateVideoAsync(
+            "llm-tck-video",
+            "prompt",
+            bearerToken: "wrong-key"
+        );
 
         await Assert.That(image.StatusCode).IsEqualTo(401);
         await Assert.That(image.ErrorCode).IsEqualTo("invalid_api_key");
         await Assert.That(audio.StatusCode).IsEqualTo(401);
         await Assert.That(audio.ErrorCode).IsEqualTo("invalid_api_key");
-        await Assert.That(runtime.GetAssertionSummary().AuthFailed).IsEqualTo(2);
+        await Assert.That(transcription.StatusCode).IsEqualTo(401);
+        await Assert.That(transcription.ErrorCode).IsEqualTo("invalid_api_key");
+        await Assert.That(translation.StatusCode).IsEqualTo(401);
+        await Assert.That(translation.ErrorCode).IsEqualTo("invalid_api_key");
+        await Assert.That(video.StatusCode).IsEqualTo(401);
+        await Assert.That(video.ErrorCode).IsEqualTo("invalid_api_key");
+        await Assert.That(runtime.GetAssertionSummary().AuthFailed).IsEqualTo(5);
     }
 
     [Test]
