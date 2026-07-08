@@ -56,6 +56,14 @@ public sealed class CohereEndpointTests
                     .GetString()
             )
             .IsEqualTo("blue whale");
+        var tokens = payload.GetProperty("usage").GetProperty("tokens");
+        var billedUnits = payload.GetProperty("usage").GetProperty("billed_units");
+
+        await Assert.That(tokens.GetProperty("input_tokens").GetInt32()).IsGreaterThan(0);
+        await Assert.That(tokens.GetProperty("output_tokens").GetInt32()).IsEqualTo(2);
+        await Assert.That(billedUnits.GetProperty("input_tokens").GetInt32())
+            .IsEqualTo(tokens.GetProperty("input_tokens").GetInt32());
+        await Assert.That(billedUnits.GetProperty("output_tokens").GetInt32()).IsEqualTo(2);
     }
 
     [Test]
@@ -100,6 +108,8 @@ public sealed class CohereEndpointTests
         await Assert.That(body).Contains("event: content-delta");
         await Assert.That(body).Contains("event: content-end");
         await Assert.That(body).Contains("event: message-end");
+        await Assert.That(body).Contains("\"input_tokens\":");
+        await Assert.That(body).Contains("\"output_tokens\":2");
         await Assert.That(body).Contains("blue ");
         await Assert.That(body).Contains("whale");
     }

@@ -50,6 +50,8 @@ public sealed class AnthropicEndpointTests
             .IsEqualTo("text");
         await Assert.That(payload.GetProperty("content")[0].GetProperty("text").GetString())
             .IsEqualTo("blue whale");
+        await Assert.That(payload.GetProperty("usage").GetProperty("input_tokens").GetInt32())
+            .IsGreaterThan(0);
         await Assert.That(payload.GetProperty("usage").GetProperty("output_tokens").GetInt32())
             .IsGreaterThan(0);
     }
@@ -99,6 +101,9 @@ public sealed class AnthropicEndpointTests
         await Assert.That(body).Contains("event: content_block_stop");
         await Assert.That(body).Contains("event: message_delta");
         await Assert.That(body).Contains("event: message_stop");
+        await Assert.That(body).Contains("\"usage\":{\"input_tokens\":");
+        await Assert.That(body).Contains("\"usage\":{\"output_tokens\":2}");
+        await Assert.That(body.Contains("\"input_tokens\":0")).IsFalse();
         await Assert.That(body).Contains("\"type\":\"text_delta\"");
         await Assert.That(body).Contains("blue ");
         await Assert.That(body).Contains("whale");

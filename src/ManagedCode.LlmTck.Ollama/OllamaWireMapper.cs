@@ -30,7 +30,8 @@ public static class OllamaWireMapper
             Message = new OllamaChatMessageResponse { Content = result.Content },
             Done = true,
             DoneReason = "stop",
-            EvalCount = LlmTckTokenCounter.CountTextTokens(result.Content),
+            PromptEvalCount = result.Usage.InputTokens,
+            EvalCount = result.Usage.OutputTokens,
         };
     }
 
@@ -46,7 +47,8 @@ public static class OllamaWireMapper
             Message = new OllamaChatMessageResponse { Content = content },
             Done = done,
             DoneReason = done ? "stop" : null,
-            EvalCount = done ? LlmTckTokenCounter.CountTextTokens(result.Content) : 0,
+            PromptEvalCount = done ? result.Usage.InputTokens : 0,
+            EvalCount = done ? result.Usage.OutputTokens : 0,
         };
     }
 

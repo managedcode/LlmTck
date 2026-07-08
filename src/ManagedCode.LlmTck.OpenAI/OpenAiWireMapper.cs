@@ -64,7 +64,7 @@ public static class OpenAiWireMapper
                     Message = OpenAiChatMessage.FromText("assistant", result.Content),
                 },
             ],
-            Usage = CreateUsage(0, result.Content),
+            Usage = CreateUsage(result.Usage),
         };
     }
 
@@ -99,7 +99,6 @@ public static class OpenAiWireMapper
         long created
     )
     {
-        var outputTokens = LlmTckTokenCounter.CountTextTokens(result.Content);
         return new()
         {
             Id = responseId,
@@ -108,8 +107,9 @@ public static class OpenAiWireMapper
             Output = [CreateOutputMessage(result.Content, completed: true)],
             Usage = new OpenAiResponseUsage
             {
-                OutputTokens = outputTokens,
-                TotalTokens = outputTokens,
+                InputTokens = result.Usage.InputTokens,
+                OutputTokens = result.Usage.OutputTokens,
+                TotalTokens = result.Usage.TotalTokens,
             },
         };
     }
@@ -447,14 +447,13 @@ public static class OpenAiWireMapper
         return $"llmtck-{Guid.NewGuid():N}";
     }
 
-    private static OpenAiUsage CreateUsage(int promptTokens, string completion)
+    private static OpenAiUsage CreateUsage(LlmTckTokenUsage usage)
     {
-        var completionTokens = LlmTckTokenCounter.CountTextTokens(completion);
         return new()
         {
-            PromptTokens = promptTokens,
-            CompletionTokens = completionTokens,
-            TotalTokens = promptTokens + completionTokens,
+            PromptTokens = usage.InputTokens,
+            CompletionTokens = usage.OutputTokens,
+            TotalTokens = usage.TotalTokens,
         };
     }
 

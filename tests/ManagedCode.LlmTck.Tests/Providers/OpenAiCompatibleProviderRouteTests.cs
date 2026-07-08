@@ -52,6 +52,13 @@ public sealed class OpenAiCompatibleProviderRouteTests
                     .GetString()
             )
             .IsEqualTo("blue whale");
+        var usage = payload.GetProperty("usage");
+        var promptTokens = usage.GetProperty("prompt_tokens").GetInt32();
+
+        await Assert.That(promptTokens).IsGreaterThan(0);
+        await Assert.That(usage.GetProperty("completion_tokens").GetInt32()).IsEqualTo(2);
+        await Assert.That(usage.GetProperty("total_tokens").GetInt32())
+            .IsEqualTo(promptTokens + 2);
     }
 
     [Test]
@@ -127,8 +134,14 @@ public sealed class OpenAiCompatibleProviderRouteTests
             .IsEqualTo("output_text");
         await Assert.That(output.GetProperty("content")[0].GetProperty("text").GetString())
             .IsEqualTo("response text");
+        var usage = payload.GetProperty("usage");
+        var inputTokens = usage.GetProperty("input_tokens").GetInt32();
+
+        await Assert.That(inputTokens).IsGreaterThan(0);
         await Assert.That(payload.GetProperty("usage").GetProperty("output_tokens").GetInt32())
             .IsEqualTo(2);
+        await Assert.That(payload.GetProperty("usage").GetProperty("total_tokens").GetInt32())
+            .IsEqualTo(inputTokens + 2);
     }
 
     [Test]
@@ -169,6 +182,8 @@ public sealed class OpenAiCompatibleProviderRouteTests
         await Assert.That(body).Contains("\"delta\":\"text\"");
         await Assert.That(body).Contains("\"type\":\"response.output_item.done\"");
         await Assert.That(body).Contains("\"type\":\"response.done\"");
+        await Assert.That(body).Contains("\"input_tokens\":");
+        await Assert.That(body).Contains("\"output_tokens\":2");
     }
 
     [Test]

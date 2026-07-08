@@ -40,8 +40,8 @@ public static class AnthropicWireMapper
             Content = [new AnthropicContentBlock { Text = result.Content }],
             Usage = new AnthropicUsage
             {
-                InputTokens = 0,
-                OutputTokens = LlmTckTokenCounter.CountTextTokens(result.Content),
+                InputTokens = result.Usage.InputTokens,
+                OutputTokens = result.Usage.OutputTokens,
             },
         };
     }
@@ -70,7 +70,11 @@ public static class AnthropicWireMapper
                 Model = result.ModelId,
                 StopReason = null,
                 Content = [],
-                Usage = new AnthropicUsage { OutputTokens = 1 },
+                Usage = new AnthropicUsage
+                {
+                    InputTokens = result.Usage.InputTokens,
+                    OutputTokens = result.Usage.OutputTokens > 0 ? 1 : 0,
+                },
             },
         };
     }
@@ -118,10 +122,7 @@ public static class AnthropicWireMapper
                 stop_reason = "end_turn",
                 stop_sequence = (string?)null,
             },
-            usage = new AnthropicUsage
-            {
-                OutputTokens = LlmTckTokenCounter.CountTextTokens(result.Content),
-            },
+            usage = new { output_tokens = result.Usage.OutputTokens },
         };
     }
 

@@ -52,6 +52,9 @@ public sealed class LlmTckRuntimeTests
         await Assert.That(result.IsSuccess).IsTrue();
         await Assert.That(result.Content).IsEqualTo("blue whale");
         await Assert.That(result.StreamChunks).IsEquivalentTo(["blue ", "whale"]);
+        await Assert.That(result.Usage.InputTokens).IsEqualTo(inputTokens);
+        await Assert.That(result.Usage.OutputTokens).IsEqualTo(outputTokens);
+        await Assert.That(result.Usage.TotalTokens).IsEqualTo(inputTokens + outputTokens);
 
         var summary = runtime.GetAssertionSummary();
         await Assert.That(summary.Matched).IsEqualTo(1);
@@ -288,6 +291,9 @@ public sealed class LlmTckRuntimeTests
         await Assert.That(audio.Bytes.Length).IsGreaterThan(0);
         await Assert.That(video.Bytes).IsEquivalentTo((byte[])[0, 0, 0, 24, 102, 116, 121, 112]);
         await Assert.That(video.MediaType).IsEqualTo("video/test");
+        await Assert.That(video.Usage.InputTokens)
+            .IsEqualTo(LlmTckTokenCounter.CountTextTokens("generate a compatibility clip"));
+        await Assert.That(video.Usage.TotalTokens).IsEqualTo(video.Usage.InputTokens);
         await Assert.That(transcription.Text).IsEqualTo("hello from audio");
         await Assert.That(translation.Text).IsEqualTo("hello translated audio");
 

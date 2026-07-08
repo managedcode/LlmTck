@@ -14,6 +14,8 @@ public sealed record LlmTckChatResult
 
     public List<string> StreamChunks { get; init; } = [];
 
+    public LlmTckTokenUsage Usage { get; init; } = new();
+
     public string? ErrorCode { get; init; }
 
     public string? ErrorMessage { get; init; }
@@ -22,7 +24,8 @@ public sealed record LlmTckChatResult
         string modelId,
         string scenarioId,
         string content,
-        IEnumerable<string> streamChunks
+        IEnumerable<string> streamChunks,
+        LlmTckTokenUsage? usage = null
     )
     {
         return new()
@@ -32,6 +35,7 @@ public sealed record LlmTckChatResult
             ScenarioId = scenarioId,
             Content = content,
             StreamChunks = [.. streamChunks],
+            Usage = usage ?? new LlmTckTokenUsage(),
         };
     }
 
@@ -40,7 +44,8 @@ public sealed record LlmTckChatResult
         int statusCode,
         string errorCode,
         string errorMessage,
-        string? scenarioId = null
+        string? scenarioId = null,
+        LlmTckTokenUsage? usage = null
     )
     {
         return new()
@@ -51,6 +56,7 @@ public sealed record LlmTckChatResult
             StatusCode = statusCode,
             ErrorCode = errorCode,
             ErrorMessage = errorMessage,
+            Usage = usage ?? new LlmTckTokenUsage(),
         };
     }
 }
@@ -140,6 +146,8 @@ public sealed record LlmTckVideoResult
     public string Size { get; init; } = "1280x720";
 
     public string Seconds { get; init; } = "4";
+
+    public LlmTckTokenUsage Usage { get; init; } = new();
 
     public string? ErrorCode { get; init; }
 

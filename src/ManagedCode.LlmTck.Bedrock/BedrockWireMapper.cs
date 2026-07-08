@@ -59,7 +59,6 @@ public static class BedrockWireMapper
 
     public static BedrockConverseResponse ToConverseResponse(LlmTckChatResult result)
     {
-        var outputTokens = LlmTckTokenCounter.CountTextTokens(result.Content);
         return new()
         {
             Output = new BedrockConverseOutput
@@ -72,8 +71,9 @@ public static class BedrockWireMapper
             },
             Usage = new BedrockUsage
             {
-                OutputTokens = outputTokens,
-                TotalTokens = outputTokens,
+                InputTokens = result.Usage.InputTokens,
+                OutputTokens = result.Usage.OutputTokens,
+                TotalTokens = result.Usage.TotalTokens,
             },
         };
     }
@@ -90,7 +90,7 @@ public static class BedrockWireMapper
             [
                 new BedrockTitanTextResult
                 {
-                    TokenCount = LlmTckTokenCounter.CountTextTokens(result.Content),
+                    TokenCount = result.Usage.OutputTokens,
                     OutputText = result.Content,
                 },
             ],
@@ -159,15 +159,15 @@ public static class BedrockWireMapper
 
     public static object ToConverseMetadataEvent(LlmTckChatResult result)
     {
-        var outputTokens = LlmTckTokenCounter.CountTextTokens(result.Content);
         return new
         {
             metadata = new
             {
                 usage = new
                 {
-                    outputTokens,
-                    totalTokens = outputTokens,
+                    inputTokens = result.Usage.InputTokens,
+                    outputTokens = result.Usage.OutputTokens,
+                    totalTokens = result.Usage.TotalTokens,
                 },
                 metrics = new { latencyMs = 0 },
             },

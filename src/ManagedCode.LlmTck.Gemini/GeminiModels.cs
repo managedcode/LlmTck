@@ -141,6 +141,9 @@ public sealed record GeminiGenerateVideoResponse
 {
     [JsonPropertyName("generatedSamples")]
     public IReadOnlyList<GeminiGeneratedVideoSample> GeneratedSamples { get; init; } = [];
+
+    [JsonPropertyName("usageMetadata")]
+    public GeminiUsageMetadata UsageMetadata { get; init; } = new();
 }
 
 public sealed record GeminiGeneratedVideoSample

@@ -67,8 +67,14 @@ public sealed class GeminiEndpointTests
             .IsEqualTo("Saturn");
         await Assert.That(candidate.GetProperty("finishReason").GetString()).IsEqualTo("STOP");
         await Assert.That(payload.GetProperty("modelVersion").GetString()).IsEqualTo("gemini-test");
-        await Assert.That(payload.GetProperty("usageMetadata").GetProperty("totalTokenCount").GetInt32())
-            .IsGreaterThan(0);
+        var usage = payload.GetProperty("usageMetadata");
+        var promptTokens = usage.GetProperty("promptTokenCount").GetInt32();
+        var candidateTokens = usage.GetProperty("candidatesTokenCount").GetInt32();
+
+        await Assert.That(promptTokens).IsGreaterThan(0);
+        await Assert.That(candidateTokens).IsGreaterThan(0);
+        await Assert.That(usage.GetProperty("totalTokenCount").GetInt32())
+            .IsEqualTo(promptTokens + candidateTokens);
     }
 
     [Test]
@@ -201,11 +207,19 @@ public sealed class GeminiEndpointTests
             .GetProperty("generateVideoResponse")
             .GetProperty("generatedSamples")[0]
             .GetProperty("video");
+        var operationUsage = pollPayload
+            .GetProperty("response")
+            .GetProperty("generateVideoResponse")
+            .GetProperty("usageMetadata");
         var fileUri = video.GetProperty("uri").GetString();
 
         await Assert.That(pollPayload.GetProperty("done").GetBoolean()).IsTrue();
         await Assert.That(video.GetProperty("mimeType").GetString()).IsEqualTo("video/mp4");
         await Assert.That(fileUri).IsNotNull();
+        await Assert.That(operationUsage.GetProperty("promptTokenCount").GetInt32())
+            .IsGreaterThan(0);
+        await Assert.That(operationUsage.GetProperty("totalTokenCount").GetInt32())
+            .IsEqualTo(operationUsage.GetProperty("promptTokenCount").GetInt32());
 
         var fileMetadataResponse = await client.GetAsync(new Uri(fileUri!).PathAndQuery);
 

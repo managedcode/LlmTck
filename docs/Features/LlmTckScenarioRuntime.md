@@ -17,6 +17,7 @@ The scenario runtime lets tests emulate LLM provider responses without calling a
 - Explicit unknown-model errors for requests that use missing models or the wrong modality.
 - OpenAI-style bad request envelopes for malformed provider request bodies.
 - Control endpoints for configure, reset, and assertion summary.
+- Deterministic tiktoken-compatible usage for runtime events and provider response envelopes.
 - `Microsoft.Extensions.AI` chat, embedding, and image clients.
 - Aspire AppHost integration tested through `Aspire.Hosting.Testing`.
 

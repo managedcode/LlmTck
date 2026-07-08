@@ -45,6 +45,8 @@ public sealed class OllamaEndpointTests
             .IsEqualTo("blue whale");
         await Assert.That(payload.GetProperty("done").GetBoolean()).IsTrue();
         await Assert.That(payload.GetProperty("done_reason").GetString()).IsEqualTo("stop");
+        await Assert.That(payload.GetProperty("prompt_eval_count").GetInt32()).IsGreaterThan(0);
+        await Assert.That(payload.GetProperty("eval_count").GetInt32()).IsEqualTo(2);
     }
 
     [Test]
@@ -91,6 +93,12 @@ public sealed class OllamaEndpointTests
             .IsEqualTo("blue ");
         await Assert.That(JsonDocument.Parse(lines[^1]).RootElement.GetProperty("done").GetBoolean())
             .IsTrue();
+        await Assert.That(
+                JsonDocument.Parse(lines[^1]).RootElement.GetProperty("prompt_eval_count").GetInt32()
+            )
+            .IsGreaterThan(0);
+        await Assert.That(JsonDocument.Parse(lines[^1]).RootElement.GetProperty("eval_count").GetInt32())
+            .IsEqualTo(2);
     }
 
     [Test]

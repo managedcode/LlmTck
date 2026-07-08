@@ -47,7 +47,9 @@ public static class GeminiWireMapper
         string? finishReason = "STOP"
     )
     {
-        var outputTokens = LlmTckTokenCounter.CountTextTokens(content);
+        var outputTokens = string.IsNullOrEmpty(content) && finishReason is not null
+            ? result.Usage.OutputTokens
+            : LlmTckTokenCounter.CountTextTokens(content);
         return new()
         {
             Candidates =
@@ -65,8 +67,9 @@ public static class GeminiWireMapper
             ],
             UsageMetadata = new GeminiUsageMetadata
             {
+                PromptTokenCount = result.Usage.InputTokens,
                 CandidatesTokenCount = outputTokens,
-                TotalTokenCount = outputTokens,
+                TotalTokenCount = result.Usage.InputTokens + outputTokens,
             },
             ModelVersion = result.ModelId,
             ResponseId = CreateResponseId(),
@@ -102,6 +105,7 @@ public static class GeminiWireMapper
                 {
                     GenerateVideoResponse = new GeminiGenerateVideoResponse
                     {
+                        UsageMetadata = ToUsageMetadata(result.Usage),
                         GeneratedSamples =
                         [
                             new GeminiGeneratedVideoSample
@@ -180,6 +184,16 @@ public static class GeminiWireMapper
     public static string CreateFileName(string fileId)
     {
         return $"files/{fileId}";
+    }
+
+    private static GeminiUsageMetadata ToUsageMetadata(LlmTckTokenUsage usage)
+    {
+        return new()
+        {
+            PromptTokenCount = usage.InputTokens,
+            CandidatesTokenCount = usage.OutputTokens,
+            TotalTokenCount = usage.TotalTokens,
+        };
     }
 
     private static string ReadPrompt(JsonElement instance)

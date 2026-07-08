@@ -74,31 +74,34 @@ public sealed class LlmTckRuntime : ILlmTckRuntime
         {
             if (!HasRequiredToken(_configuration.RequiredBearerToken, bearerToken))
             {
+                var usage = CreateChatUsage(request);
                 AddEvent(
                     LlmTckEventKind.AuthFailed,
                     null,
                     request.ModelId,
                     "Global bearer token requirement failed.",
                     FormatChatRequest(request),
-                    usage: CreateChatUsage(request)
+                    usage: usage
                 );
                 return LlmTckChatResult.Failure(
                     request.ModelId,
                     401,
                     "invalid_api_key",
-                    "The supplied bearer token did not match the configured LLM TCK token."
+                    "The supplied bearer token did not match the configured LLM TCK token.",
+                    usage: usage
                 );
             }
 
             if (!IsConfiguredModel(request.ModelId, LlmTckModelKind.Chat))
             {
+                var usage = CreateChatUsage(request);
                 AddModelNotFoundEvent(
                     request.ModelId,
                     LlmTckModelKind.Chat,
                     FormatChatRequest(request),
-                    CreateChatUsage(request)
+                    usage
                 );
-                return UnknownModel(request.ModelId, LlmTckModelKind.Chat);
+                return UnknownModel(request.ModelId, LlmTckModelKind.Chat, usage);
             }
 
             scenario = GetChatScenarios(_configuration)
@@ -106,58 +109,64 @@ public sealed class LlmTckRuntime : ILlmTckRuntime
 
             if (scenario is null)
             {
+                var usage = CreateChatUsage(request);
                 AddEvent(
                     LlmTckEventKind.Unmatched,
                     null,
                     request.ModelId,
                     "No configured scenario matched the request.",
                     FormatChatRequest(request),
-                    usage: CreateChatUsage(request)
+                    usage: usage
                 );
                 return LlmTckChatResult.Failure(
                     request.ModelId,
                     404,
                     "llm_tck_unmatched_request",
-                    "No configured LLM TCK scenario matched the request."
+                    "No configured LLM TCK scenario matched the request.",
+                    usage: usage
                 );
             }
 
             if (!HasRequiredToken(scenario.RequiredBearerToken, bearerToken))
             {
+                var usage = CreateChatUsage(request);
                 AddEvent(
                     LlmTckEventKind.AuthFailed,
                     scenario.Id,
                     request.ModelId,
                     "Scenario bearer token requirement failed.",
                     FormatChatRequest(request),
-                    usage: CreateChatUsage(request)
+                    usage: usage
                 );
                 return LlmTckChatResult.Failure(
                     request.ModelId,
                     401,
                     "invalid_api_key",
                     "The supplied bearer token did not match the scenario token.",
-                    scenario.Id
+                    scenario.Id,
+                    usage
                 );
             }
 
             responsePosition = _scenarioPositions.GetValueOrDefault(scenario.Id);
             if (responsePosition >= scenario.Responses.Count)
             {
+                var usage = CreateChatUsage(request);
                 AddEvent(
                     LlmTckEventKind.ScenarioExhausted,
                     scenario.Id,
                     request.ModelId,
                     "Scenario response queue is exhausted.",
                     FormatChatRequest(request),
-                    usage: CreateChatUsage(request)
+                    usage: usage
                 );
                 return LlmTckChatResult.Failure(
                     request.ModelId,
                     409,
                     "llm_tck_scenario_exhausted",
                     "The matched scenario has no responses left.",
-                    scenario.Id
+                    scenario.Id,
+                    usage
                 );
             }
 
@@ -181,6 +190,7 @@ public sealed class LlmTckRuntime : ILlmTckRuntime
         lock (_gate)
         {
             var responseText = response.Error?.Message ?? response.Content;
+            var usage = CreateChatUsage(request, responseText);
             AddEvent(
                 response.Error is null ? LlmTckEventKind.Matched : LlmTckEventKind.ErrorReturned,
                 scenario.Id,
@@ -188,27 +198,29 @@ public sealed class LlmTckRuntime : ILlmTckRuntime
                 response.Error?.Message ?? "Scenario matched.",
                 FormatChatRequest(request),
                 responseText,
-                CreateChatUsage(request, responseText)
+                usage
             );
-        }
 
-        if (response.Error is not null)
-        {
-            return LlmTckChatResult.Failure(
+            if (response.Error is not null)
+            {
+                return LlmTckChatResult.Failure(
+                    request.ModelId,
+                    response.Error.StatusCode,
+                    response.Error.Code,
+                    response.Error.Message,
+                    scenario.Id,
+                    usage
+                );
+            }
+
+            return LlmTckChatResult.Success(
                 request.ModelId,
-                response.Error.StatusCode,
-                response.Error.Code,
-                response.Error.Message,
-                scenario.Id
+                scenario.Id,
+                response.Content,
+                response.StreamChunks.Count > 0 ? response.StreamChunks : [response.Content],
+                usage
             );
         }
-
-        return LlmTckChatResult.Success(
-            request.ModelId,
-            scenario.Id,
-            response.Content,
-            response.StreamChunks.Count > 0 ? response.StreamChunks : [response.Content]
-        );
     }
 
     public Task<LlmTckEmbeddingResult> CreateEmbeddingAsync(
@@ -482,9 +494,16 @@ public sealed class LlmTckRuntime : ILlmTckRuntime
 
         lock (_gate)
         {
+            var usage = CreateVideoUsage(prompt);
             if (!HasRequiredToken(_configuration.RequiredBearerToken, bearerToken))
             {
-                AddEvent(LlmTckEventKind.AuthFailed, null, modelId, "Video auth failed.");
+                AddEvent(
+                    LlmTckEventKind.AuthFailed,
+                    null,
+                    modelId,
+                    "Video auth failed.",
+                    usage: usage
+                );
                 return Task.FromResult(
                     new LlmTckVideoResult
                     {
@@ -493,17 +512,24 @@ public sealed class LlmTckRuntime : ILlmTckRuntime
                         ModelId = modelId,
                         ErrorCode = "invalid_api_key",
                         ErrorMessage = "The supplied bearer token did not match the configured LLM TCK token.",
+                        Usage = usage,
                     }
                 );
             }
 
             if (!IsConfiguredModel(modelId, LlmTckModelKind.Video))
             {
-                AddModelNotFoundEvent(modelId, LlmTckModelKind.Video);
-                return Task.FromResult(UnknownVideoModel(modelId));
+                AddModelNotFoundEvent(modelId, LlmTckModelKind.Video, usage: usage);
+                return Task.FromResult(UnknownVideoModel(modelId, usage));
             }
 
-            AddEvent(LlmTckEventKind.Matched, null, modelId, $"Generated video for '{prompt}'.");
+            AddEvent(
+                LlmTckEventKind.Matched,
+                null,
+                modelId,
+                $"Generated video for '{prompt}'.",
+                usage: usage
+            );
             return Task.FromResult(
                 new LlmTckVideoResult
                 {
@@ -517,6 +543,7 @@ public sealed class LlmTckRuntime : ILlmTckRuntime
                     CreatedAt = _configuration.DefaultVideoCreatedAtUnixTime,
                     Size = _configuration.DefaultVideoSize,
                     Seconds = _configuration.DefaultVideoSeconds,
+                    Usage = usage,
                 }
             );
         }
@@ -562,13 +589,18 @@ public sealed class LlmTckRuntime : ILlmTckRuntime
         );
     }
 
-    private static LlmTckChatResult UnknownModel(string modelId, LlmTckModelKind kind)
+    private static LlmTckChatResult UnknownModel(
+        string modelId,
+        LlmTckModelKind kind,
+        LlmTckTokenUsage? usage = null
+    )
     {
         return LlmTckChatResult.Failure(
             modelId,
             404,
             "llm_tck_unknown_model",
-            CreateUnknownModelMessage(modelId, kind)
+            CreateUnknownModelMessage(modelId, kind),
+            usage: usage
         );
     }
 
@@ -620,7 +652,10 @@ public sealed class LlmTckRuntime : ILlmTckRuntime
         };
     }
 
-    private static LlmTckVideoResult UnknownVideoModel(string modelId)
+    private static LlmTckVideoResult UnknownVideoModel(
+        string modelId,
+        LlmTckTokenUsage? usage = null
+    )
     {
         return new()
         {
@@ -629,6 +664,7 @@ public sealed class LlmTckRuntime : ILlmTckRuntime
             ModelId = modelId,
             ErrorCode = "llm_tck_unknown_model",
             ErrorMessage = CreateUnknownModelMessage(modelId, LlmTckModelKind.Video),
+            Usage = usage ?? new LlmTckTokenUsage(),
         };
     }
 
@@ -764,6 +800,16 @@ public sealed class LlmTckRuntime : ILlmTckRuntime
             InputTokens = inputTokens,
             OutputTokens = outputTokens,
             TotalTokens = inputTokens + outputTokens,
+        };
+    }
+
+    private static LlmTckTokenUsage CreateVideoUsage(string prompt)
+    {
+        var inputTokens = LlmTckTokenCounter.CountTextTokens(prompt);
+        return new LlmTckTokenUsage
+        {
+            InputTokens = inputTokens,
+            TotalTokens = inputTokens,
         };
     }
 

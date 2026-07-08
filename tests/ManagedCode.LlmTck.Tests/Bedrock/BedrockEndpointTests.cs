@@ -63,8 +63,14 @@ public sealed class BedrockEndpointTests
                     .GetString()
             )
             .IsEqualTo("blue whale");
+        var usage = payload.GetProperty("usage");
+        var inputTokens = usage.GetProperty("inputTokens").GetInt32();
+
+        await Assert.That(inputTokens).IsGreaterThan(0);
         await Assert.That(payload.GetProperty("usage").GetProperty("outputTokens").GetInt32())
             .IsEqualTo(2);
+        await Assert.That(payload.GetProperty("usage").GetProperty("totalTokens").GetInt32())
+            .IsEqualTo(inputTokens + 2);
         await Assert.That(payload.GetProperty("metrics").GetProperty("latencyMs").GetInt32())
             .IsEqualTo(0);
     }
@@ -128,8 +134,13 @@ public sealed class BedrockEndpointTests
             .IsEqualTo(0);
         await Assert.That(lines[5].GetProperty("messageStop").GetProperty("stopReason").GetString())
             .IsEqualTo("end_turn");
-        await Assert.That(lines[6].GetProperty("metadata").GetProperty("usage").GetProperty("totalTokens").GetInt32())
-            .IsEqualTo(2);
+        var streamUsage = lines[6].GetProperty("metadata").GetProperty("usage");
+        var streamInputTokens = streamUsage.GetProperty("inputTokens").GetInt32();
+
+        await Assert.That(streamInputTokens).IsGreaterThan(0);
+        await Assert.That(streamUsage.GetProperty("outputTokens").GetInt32()).IsEqualTo(2);
+        await Assert.That(streamUsage.GetProperty("totalTokens").GetInt32())
+            .IsEqualTo(streamInputTokens + 2);
     }
 
     [Test]
