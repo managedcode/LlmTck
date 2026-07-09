@@ -31,7 +31,7 @@ public static class OpenRouterCompatibility
                 [
                     new()
                     {
-                        Id = "chat.completions.create",
+                        Id = LlmTckProviderOperationIds.OpenRouter.ChatCompletionsCreate,
                         Method = "POST",
                         Path = "/openrouter/api/v1/chat/completions",
                         DocumentationUrl = "https://openrouter.ai/docs/api/reference/overview",
@@ -47,7 +47,7 @@ public static class OpenRouterCompatibility
                     },
                     new()
                     {
-                        Id = "responses.create",
+                        Id = LlmTckProviderOperationIds.OpenRouter.ResponsesCreate,
                         Method = "POST",
                         Path = "/openrouter/api/v1/responses",
                         DocumentationUrl =
@@ -62,7 +62,7 @@ public static class OpenRouterCompatibility
                     },
                     new()
                     {
-                        Id = "models.list",
+                        Id = LlmTckProviderOperationIds.OpenRouter.ModelsList,
                         Method = "GET",
                         Path = "/openrouter/api/v1/models",
                         DocumentationUrl =

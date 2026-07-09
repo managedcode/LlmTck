@@ -7,6 +7,49 @@ namespace ManagedCode.LlmTck.Tests.Configuration;
 public sealed class LlmTckConfigurationBuilderTests
 {
     [Test]
+    public async Task CreateDefault_UsesOfficialOpenAiFixtureModelIdsAsync()
+    {
+        var configuration = LlmTckConfiguration.CreateDefault();
+
+        await Assert.That(configuration.Models.Select(model => (model.Id, model.Kind)))
+            .IsEquivalentTo(
+                [
+                    (LlmTckKnownModelIds.Gpt41Mini, LlmTckModelKind.Chat),
+                    (LlmTckKnownModelIds.TextEmbedding3Small, LlmTckModelKind.Embedding),
+                    (LlmTckKnownModelIds.GptImage1, LlmTckModelKind.Image),
+                    (LlmTckKnownModelIds.Gpt4OMiniTts, LlmTckModelKind.Audio),
+                    (LlmTckKnownModelIds.Sora2, LlmTckModelKind.Video),
+                ]
+            );
+    }
+
+    [Test]
+    public async Task ConvenienceMethods_AddOfficialFixtureModelsAsync()
+    {
+        var configuration = new LlmTckConfigurationBuilder()
+            .AddGpt41Mini()
+            .AddTextEmbedding3Small()
+            .AddGptImage1()
+            .AddGpt4OMiniTts()
+            .AddSora2()
+            .AddReasoningChatModel("gpt-5-nano", 13)
+            .Build();
+
+        await Assert.That(configuration.Models.Single(model => model.Id == LlmTckKnownModelIds.Gpt41Mini).Kind)
+            .IsEqualTo(LlmTckModelKind.Chat);
+        await Assert.That(configuration.Models.Single(model => model.Id == LlmTckKnownModelIds.TextEmbedding3Small).Kind)
+            .IsEqualTo(LlmTckModelKind.Embedding);
+        await Assert.That(configuration.Models.Single(model => model.Id == LlmTckKnownModelIds.GptImage1).Kind)
+            .IsEqualTo(LlmTckModelKind.Image);
+        await Assert.That(configuration.Models.Single(model => model.Id == LlmTckKnownModelIds.Gpt4OMiniTts).Kind)
+            .IsEqualTo(LlmTckModelKind.Audio);
+        await Assert.That(configuration.Models.Single(model => model.Id == LlmTckKnownModelIds.Sora2).Kind)
+            .IsEqualTo(LlmTckModelKind.Video);
+        await Assert.That(configuration.Models.Single(model => model.Id == "gpt-5-nano").ReasoningTokens)
+            .IsEqualTo(13);
+    }
+
+    [Test]
     public async Task Build_ReplacesDuplicateModelsAndScenariosAndSnapshotsNestedStateAsync()
     {
         var builder = new LlmTckConfigurationBuilder()
@@ -18,13 +61,15 @@ public sealed class LlmTckConfigurationBuilderTests
             .WithDefaultVideo([4, 5, 6], "video/test")
             .WithDefaultTranscriptionText("fixture transcript")
             .WithDefaultTranslationText("fixture translation")
+            .SimulateRateLimitAfter(2)
+            .SimulateContentFilter("blocked", " BLOCKED ", "forbidden")
             .AddDataset(
                 "docs-dataset",
                 dataset => dataset
                     .AddChatScenario(
                         "dataset-scenario",
                         scenario => scenario
-                            .ForModel("llm-tck-chat")
+                            .ForModel(LlmTckKnownModelIds.Gpt41Mini)
                             .WhenUserContains("dataset")
                             .Responds("dataset response")
                     )
@@ -32,14 +77,14 @@ public sealed class LlmTckConfigurationBuilderTests
             .AddChatScenario(
                 "duplicate-scenario",
                 scenario => scenario
-                    .ForModel("llm-tck-chat")
+                    .ForModel(LlmTckKnownModelIds.Gpt41Mini)
                     .WhenUserContains("old")
                     .Responds("old")
             )
             .AddChatScenario(
                 "duplicate-scenario",
                 scenario => scenario
-                    .ForModel("llm-tck-chat")
+                    .ForModel(LlmTckKnownModelIds.Gpt41Mini)
                     .WhenUserContains("new")
                     .Fails(418, "teapot", "Short and stout.")
                     .DelaysBy(25)
@@ -54,6 +99,7 @@ public sealed class LlmTckConfigurationBuilderTests
         configuration.DefaultEmbeddingVector.Clear();
         configuration.DefaultAudioBytes[0] = 99;
         configuration.DefaultVideoBytes[0] = 99;
+        configuration.FaultSimulation.ContentFilterTerms.Clear();
 
         var rebuilt = builder.Build();
 
@@ -74,6 +120,9 @@ public sealed class LlmTckConfigurationBuilderTests
         await Assert.That(rebuilt.DefaultVideoMediaType).IsEqualTo("video/test");
         await Assert.That(rebuilt.DefaultTranscriptionText).IsEqualTo("fixture transcript");
         await Assert.That(rebuilt.DefaultTranslationText).IsEqualTo("fixture translation");
+        await Assert.That(rebuilt.FaultSimulation.MaxRequestsBeforeRateLimit).IsEqualTo(2);
+        await Assert.That(rebuilt.FaultSimulation.ContentFilterTerms)
+            .IsEquivalentTo(["blocked", "forbidden"]);
     }
 
     [Test]
@@ -81,6 +130,12 @@ public sealed class LlmTckConfigurationBuilderTests
     {
         await ShouldThrowAsync<ArgumentException>(
             () => new LlmTckConfigurationBuilder().AddModel("", LlmTckModelKind.Chat)
+        );
+        await ShouldThrowAsync<ArgumentOutOfRangeException>(
+            () => new LlmTckConfigurationBuilder().AddModel("gpt-5-nano", LlmTckModelKind.Chat, -1)
+        );
+        await ShouldThrowAsync<ArgumentOutOfRangeException>(
+            () => new LlmTckConfigurationBuilder().AddReasoningChatModel("gpt-5-nano", 0)
         );
         await ShouldThrowAsync<ArgumentException>(
             () => new LlmTckConfigurationBuilder().RequireBearerToken(" ")
@@ -111,6 +166,15 @@ public sealed class LlmTckConfigurationBuilderTests
         );
         await ShouldThrowAsync<ArgumentException>(
             () => new LlmTckConfigurationBuilder().WithDefaultTranslationText("")
+        );
+        await ShouldThrowAsync<ArgumentOutOfRangeException>(
+            () => new LlmTckConfigurationBuilder().SimulateRateLimitAfter(-1)
+        );
+        await ShouldThrowAsync<ArgumentException>(
+            () => new LlmTckConfigurationBuilder().SimulateContentFilter()
+        );
+        await ShouldThrowAsync<ArgumentException>(
+            () => new LlmTckConfigurationBuilder().SimulateContentFilter(" ")
         );
 
         await ShouldThrowAsync<ArgumentException>(() => new LlmTckScenarioBuilder("id").ForModel(""));

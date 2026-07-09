@@ -1,3 +1,5 @@
+using ManagedCode.LlmTck.Models;
+
 namespace ManagedCode.LlmTck.Runtime;
 
 public sealed record LlmTckChatResult
@@ -6,7 +8,7 @@ public sealed record LlmTckChatResult
 
     public int StatusCode { get; init; } = 200;
 
-    public string ModelId { get; init; } = "llm-tck-chat";
+    public string ModelId { get; init; } = LlmTckKnownModelIds.Gpt41Mini;
 
     public string? ScenarioId { get; init; }
 
@@ -67,7 +69,7 @@ public sealed record LlmTckEmbeddingResult
 
     public int StatusCode { get; init; } = 200;
 
-    public string ModelId { get; init; } = "llm-tck-embedding";
+    public string ModelId { get; init; } = LlmTckKnownModelIds.TextEmbedding3Small;
 
     public List<List<float>> Vectors { get; init; } = [];
 
@@ -82,7 +84,7 @@ public sealed record LlmTckImageResult
 
     public int StatusCode { get; init; } = 200;
 
-    public string ModelId { get; init; } = "llm-tck-image";
+    public string ModelId { get; init; } = LlmTckKnownModelIds.GptImage1;
 
     public string DataUri { get; init; } = string.Empty;
 
@@ -97,7 +99,7 @@ public sealed record LlmTckAudioResult
 
     public int StatusCode { get; init; } = 200;
 
-    public string ModelId { get; init; } = "llm-tck-audio";
+    public string ModelId { get; init; } = LlmTckKnownModelIds.Gpt4OMiniTts;
 
     public byte[] Bytes { get; init; } = [];
 
@@ -114,7 +116,7 @@ public sealed record LlmTckTranscriptionResult
 
     public int StatusCode { get; init; } = 200;
 
-    public string ModelId { get; init; } = "llm-tck-audio";
+    public string ModelId { get; init; } = LlmTckKnownModelIds.Gpt4OMiniTts;
 
     public string Text { get; init; } = string.Empty;
 
@@ -129,7 +131,7 @@ public sealed record LlmTckVideoResult
 
     public int StatusCode { get; init; } = 200;
 
-    public string ModelId { get; init; } = "llm-tck-video";
+    public string ModelId { get; init; } = LlmTckKnownModelIds.Sora2;
 
     public string Prompt { get; init; } = string.Empty;
 

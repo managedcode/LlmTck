@@ -13,6 +13,8 @@ public sealed record LlmTckConfiguration
 
     public string? RequiredBearerToken { get; init; }
 
+    public LlmTckFaultSimulation FaultSimulation { get; init; } = new();
+
     public List<float> DefaultEmbeddingVector { get; init; } = [0.125f, 0.25f, 0.5f];
 
     public string DefaultImageDataUri { get; init; } =
@@ -73,11 +75,11 @@ public sealed record LlmTckConfiguration
         {
             Models =
             [
-                new LlmTckModel { Id = "llm-tck-chat", Kind = LlmTckModelKind.Chat },
-                new LlmTckModel { Id = "llm-tck-embedding", Kind = LlmTckModelKind.Embedding },
-                new LlmTckModel { Id = "llm-tck-image", Kind = LlmTckModelKind.Image },
-                new LlmTckModel { Id = "llm-tck-audio", Kind = LlmTckModelKind.Audio },
-                new LlmTckModel { Id = "llm-tck-video", Kind = LlmTckModelKind.Video },
+                new LlmTckModel { Id = LlmTckKnownModelIds.Gpt41Mini, Kind = LlmTckModelKind.Chat },
+                new LlmTckModel { Id = LlmTckKnownModelIds.TextEmbedding3Small, Kind = LlmTckModelKind.Embedding },
+                new LlmTckModel { Id = LlmTckKnownModelIds.GptImage1, Kind = LlmTckModelKind.Image },
+                new LlmTckModel { Id = LlmTckKnownModelIds.Gpt4OMiniTts, Kind = LlmTckModelKind.Audio },
+                new LlmTckModel { Id = LlmTckKnownModelIds.Sora2, Kind = LlmTckModelKind.Video },
             ],
         };
     }

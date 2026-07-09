@@ -1,12 +1,13 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using ManagedCode.LlmTck.Models;
 
 namespace ManagedCode.LlmTck.OpenAI;
 
 public sealed record OpenAiChatCompletionRequest
 {
     [JsonPropertyName("model")]
-    public string Model { get; init; } = "llm-tck-chat";
+    public string Model { get; init; } = LlmTckKnownModelIds.Gpt41Mini;
 
     [JsonPropertyName("messages")]
     public List<OpenAiChatMessage> Messages { get; init; } = [];
@@ -122,4 +123,14 @@ public sealed record OpenAiUsage
 
     [JsonPropertyName("total_tokens")]
     public int TotalTokens { get; init; }
+
+    [JsonPropertyName("completion_tokens_details")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public OpenAiCompletionTokensDetails? CompletionTokensDetails { get; init; }
+}
+
+public sealed record OpenAiCompletionTokensDetails
+{
+    [JsonPropertyName("reasoning_tokens")]
+    public int ReasoningTokens { get; init; }
 }

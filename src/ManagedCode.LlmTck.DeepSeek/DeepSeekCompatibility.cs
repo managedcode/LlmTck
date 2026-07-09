@@ -31,7 +31,7 @@ public static class DeepSeekCompatibility
                 [
                     new()
                     {
-                        Id = "chat.completions.create",
+                        Id = LlmTckProviderOperationIds.DeepSeek.ChatCompletionsCreate,
                         Method = "POST",
                         Path = "/deepseek/v1/chat/completions",
                         DocumentationUrl =
@@ -48,7 +48,7 @@ public static class DeepSeekCompatibility
                     },
                     new()
                     {
-                        Id = "models.list",
+                        Id = LlmTckProviderOperationIds.DeepSeek.ModelsList,
                         Method = "GET",
                         Path = "/deepseek/models",
                         DocumentationUrl = "https://api-docs.deepseek.com/api/list-models",

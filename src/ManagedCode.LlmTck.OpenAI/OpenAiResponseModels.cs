@@ -82,4 +82,14 @@ public sealed record OpenAiResponseUsage
 
     [JsonPropertyName("total_tokens")]
     public int TotalTokens { get; init; }
+
+    [JsonPropertyName("output_tokens_details")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public OpenAiOutputTokensDetails? OutputTokensDetails { get; init; }
+}
+
+public sealed record OpenAiOutputTokensDetails
+{
+    [JsonPropertyName("reasoning_tokens")]
+    public int ReasoningTokens { get; init; }
 }

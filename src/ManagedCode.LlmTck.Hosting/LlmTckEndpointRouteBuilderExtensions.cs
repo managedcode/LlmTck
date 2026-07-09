@@ -2054,7 +2054,7 @@ public static class LlmTckEndpointRouteBuilderExtensions
         var modelId = runtime
             .GetModels()
             .FirstOrDefault(model => model.Kind == LlmTckModelKind.Video)
-            ?.Id ?? "llm-tck-video";
+            ?.Id ?? LlmTckKnownModelIds.Sora2;
         var result = await runtime
             .GenerateVideoAsync(modelId, prompt, ReadAccessToken(context), cancellationToken)
             .ConfigureAwait(false);
@@ -3027,7 +3027,7 @@ public static class LlmTckEndpointRouteBuilderExtensions
         return new(
             new OpenAiImageEditRequest
             {
-                Model = string.IsNullOrWhiteSpace(model) ? "llm-tck-image" : model,
+                Model = string.IsNullOrWhiteSpace(model) ? LlmTckKnownModelIds.GptImage1 : model,
                 Prompt = form["prompt"].ToString(),
                 Images = ReadImageReferences(form),
                 Stream = bool.TryParse(form["stream"].ToString(), out var stream) && stream,

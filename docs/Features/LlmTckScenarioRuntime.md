@@ -15,6 +15,7 @@ The scenario runtime lets tests emulate LLM provider responses without calling a
 - Global bearer-token enforcement.
 - Optional bearer-token enforcement for control endpoints when a token is configured.
 - Explicit unknown-model errors for requests that use missing models or the wrong modality.
+- Provider-neutral fault simulation for configured `429 too_many_requests` and `400 content_filter` responses across all provider families.
 - OpenAI-style bad request envelopes for malformed provider request bodies.
 - Control endpoints for configure, reset, and assertion summary.
 - Deterministic tiktoken-compatible usage for runtime events and provider response envelopes.

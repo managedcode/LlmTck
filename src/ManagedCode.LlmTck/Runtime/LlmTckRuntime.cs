@@ -6,10 +6,14 @@ namespace ManagedCode.LlmTck.Runtime;
 
 public sealed class LlmTckRuntime : ILlmTckRuntime
 {
+    private const string _tooManyRequestsCode = "too_many_requests";
+    private const string _contentFilterCode = "content_filter";
+
     private readonly object _gate = new();
     private readonly Dictionary<string, int> _scenarioPositions = new(StringComparer.OrdinalIgnoreCase);
     private readonly List<LlmTckRuntimeEvent> _events = [];
     private LlmTckConfiguration _configuration = LlmTckConfiguration.CreateDefault();
+    private int _requestCount;
 
     public Task ConfigureAsync(
         LlmTckConfiguration configuration,
@@ -24,6 +28,7 @@ public sealed class LlmTckRuntime : ILlmTckRuntime
             _configuration = LlmTckConfigurationBuilder.Snapshot(configuration);
             _scenarioPositions.Clear();
             _events.Clear();
+            _requestCount = 0;
         }
 
         return Task.CompletedTask;
@@ -37,6 +42,7 @@ public sealed class LlmTckRuntime : ILlmTckRuntime
         {
             _scenarioPositions.Clear();
             _events.Clear();
+            _requestCount = 0;
         }
 
         return Task.CompletedTask;
@@ -102,6 +108,23 @@ public sealed class LlmTckRuntime : ILlmTckRuntime
                     usage
                 );
                 return UnknownModel(request.ModelId, LlmTckModelKind.Chat, usage);
+            }
+
+            var fault = TryCreateFault(
+                request.ModelId,
+                request.Messages.Select(message => message.Content),
+                FormatChatRequest(request),
+                CreateChatUsage(request)
+            );
+            if (fault is not null)
+            {
+                return LlmTckChatResult.Failure(
+                    request.ModelId,
+                    fault.StatusCode,
+                    fault.Code,
+                    fault.Message,
+                    usage: fault.Usage
+                );
             }
 
             scenario = GetChatScenarios(_configuration)
@@ -262,6 +285,21 @@ public sealed class LlmTckRuntime : ILlmTckRuntime
                 return Task.FromResult(UnknownEmbeddingModel(modelId));
             }
 
+            var fault = TryCreateFault(modelId, inputs, request: string.Join("\n", inputs));
+            if (fault is not null)
+            {
+                return Task.FromResult(
+                    new LlmTckEmbeddingResult
+                    {
+                        IsSuccess = false,
+                        StatusCode = fault.StatusCode,
+                        ModelId = modelId,
+                        ErrorCode = fault.Code,
+                        ErrorMessage = fault.Message,
+                    }
+                );
+            }
+
             AddEvent(
                 LlmTckEventKind.Matched,
                 null,
@@ -314,6 +352,21 @@ public sealed class LlmTckRuntime : ILlmTckRuntime
                 return Task.FromResult(UnknownImageModel(modelId));
             }
 
+            var fault = TryCreateFault(modelId, [prompt], request: prompt);
+            if (fault is not null)
+            {
+                return Task.FromResult(
+                    new LlmTckImageResult
+                    {
+                        IsSuccess = false,
+                        StatusCode = fault.StatusCode,
+                        ModelId = modelId,
+                        ErrorCode = fault.Code,
+                        ErrorMessage = fault.Message,
+                    }
+                );
+            }
+
             AddEvent(LlmTckEventKind.Matched, null, modelId, $"Generated image for '{prompt}'.");
             return Task.FromResult(
                 new LlmTckImageResult
@@ -358,6 +411,21 @@ public sealed class LlmTckRuntime : ILlmTckRuntime
             {
                 AddModelNotFoundEvent(modelId, LlmTckModelKind.Audio);
                 return Task.FromResult(UnknownAudioModel(modelId));
+            }
+
+            var fault = TryCreateFault(modelId, [input], request: input);
+            if (fault is not null)
+            {
+                return Task.FromResult(
+                    new LlmTckAudioResult
+                    {
+                        IsSuccess = false,
+                        StatusCode = fault.StatusCode,
+                        ModelId = modelId,
+                        ErrorCode = fault.Code,
+                        ErrorMessage = fault.Message,
+                    }
+                );
             }
 
             AddEvent(LlmTckEventKind.Matched, null, modelId, $"Generated audio for '{input}'.");
@@ -406,6 +474,25 @@ public sealed class LlmTckRuntime : ILlmTckRuntime
             {
                 AddModelNotFoundEvent(modelId, LlmTckModelKind.Audio);
                 return Task.FromResult(UnknownTranscriptionModel(modelId));
+            }
+
+            var fault = TryCreateFault(
+                modelId,
+                [fileName, prompt ?? string.Empty],
+                request: FormatAudioRequest(fileName, prompt)
+            );
+            if (fault is not null)
+            {
+                return Task.FromResult(
+                    new LlmTckTranscriptionResult
+                    {
+                        IsSuccess = false,
+                        StatusCode = fault.StatusCode,
+                        ModelId = modelId,
+                        ErrorCode = fault.Code,
+                        ErrorMessage = fault.Message,
+                    }
+                );
             }
 
             AddEvent(
@@ -460,6 +547,25 @@ public sealed class LlmTckRuntime : ILlmTckRuntime
             {
                 AddModelNotFoundEvent(modelId, LlmTckModelKind.Audio);
                 return Task.FromResult(UnknownTranscriptionModel(modelId));
+            }
+
+            var fault = TryCreateFault(
+                modelId,
+                [fileName, prompt ?? string.Empty],
+                request: FormatAudioRequest(fileName, prompt)
+            );
+            if (fault is not null)
+            {
+                return Task.FromResult(
+                    new LlmTckTranscriptionResult
+                    {
+                        IsSuccess = false,
+                        StatusCode = fault.StatusCode,
+                        ModelId = modelId,
+                        ErrorCode = fault.Code,
+                        ErrorMessage = fault.Message,
+                    }
+                );
             }
 
             AddEvent(
@@ -523,6 +629,22 @@ public sealed class LlmTckRuntime : ILlmTckRuntime
                 return Task.FromResult(UnknownVideoModel(modelId, usage));
             }
 
+            var fault = TryCreateFault(modelId, [prompt], request: prompt, usage: usage);
+            if (fault is not null)
+            {
+                return Task.FromResult(
+                    new LlmTckVideoResult
+                    {
+                        IsSuccess = false,
+                        StatusCode = fault.StatusCode,
+                        ModelId = modelId,
+                        ErrorCode = fault.Code,
+                        ErrorMessage = fault.Message,
+                        Usage = fault.Usage ?? usage,
+                    }
+                );
+            }
+
             AddEvent(
                 LlmTckEventKind.Matched,
                 null,
@@ -564,6 +686,7 @@ public sealed class LlmTckRuntime : ILlmTckRuntime
                 ErrorsReturned = _events.Count(item => item.Kind == LlmTckEventKind.ErrorReturned),
                 InputTokens = _events.Sum(item => item.Usage?.InputTokens ?? 0),
                 OutputTokens = _events.Sum(item => item.Usage?.OutputTokens ?? 0),
+                ReasoningTokens = _events.Sum(item => item.Usage?.ReasoningTokens ?? 0),
                 TotalTokens = _events.Sum(item => item.Usage?.TotalTokens ?? 0),
                 Events = [.. _events],
             };
@@ -587,6 +710,99 @@ public sealed class LlmTckRuntime : ILlmTckRuntime
         return _configuration.Models.Any(model =>
             model.Kind == kind && string.Equals(model.Id, modelId, StringComparison.OrdinalIgnoreCase)
         );
+    }
+
+    private int GetReasoningTokens(string modelId)
+    {
+        return _configuration
+            .Models
+            .FirstOrDefault(model =>
+                model.Kind == LlmTckModelKind.Chat
+                && string.Equals(model.Id, modelId, StringComparison.OrdinalIgnoreCase)
+            )
+            ?.ReasoningTokens ?? 0;
+    }
+
+    private LlmTckRuntimeFault? TryCreateFault(
+        string modelId,
+        IEnumerable<string?> requestContent,
+        string? request = null,
+        LlmTckTokenUsage? usage = null
+    )
+    {
+        var faultSimulation = _configuration.FaultSimulation;
+
+        if (
+            faultSimulation.MaxRequestsBeforeRateLimit is int allowedRequests
+            && allowedRequests >= 0
+            && _requestCount >= allowedRequests
+        )
+        {
+            var message = $"{_tooManyRequestsCode}: configured LLM TCK request limit was exceeded.";
+            AddEvent(
+                LlmTckEventKind.ErrorReturned,
+                null,
+                modelId,
+                message,
+                request,
+                message,
+                usage
+            );
+            return new LlmTckRuntimeFault(429, _tooManyRequestsCode, message, usage);
+        }
+
+        _requestCount++;
+
+        var filteredTerm = FindContentFilterTerm(
+            requestContent,
+            faultSimulation.ContentFilterTerms
+        );
+        if (filteredTerm is null)
+        {
+            return null;
+        }
+
+        var filterMessage =
+            $"{_contentFilterCode}: request matched configured LLM TCK content filter term '{filteredTerm}'.";
+        AddEvent(
+            LlmTckEventKind.ErrorReturned,
+            null,
+            modelId,
+            filterMessage,
+            request,
+            filterMessage,
+            usage
+        );
+        return new LlmTckRuntimeFault(400, _contentFilterCode, filterMessage, usage);
+    }
+
+    private static string? FindContentFilterTerm(
+        IEnumerable<string?> requestContent,
+        IReadOnlyList<string> contentFilterTerms
+    )
+    {
+        if (contentFilterTerms.Count == 0)
+        {
+            return null;
+        }
+
+        foreach (var value in requestContent)
+        {
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                continue;
+            }
+
+            var matchedTerm = contentFilterTerms.FirstOrDefault(term =>
+                value.Contains(term, StringComparison.OrdinalIgnoreCase)
+            );
+            if (matchedTerm is not null)
+            {
+                return matchedTerm;
+            }
+        }
+
+        return null;
     }
 
     private static LlmTckChatResult UnknownModel(
@@ -786,7 +1002,7 @@ public sealed class LlmTckRuntime : ILlmTckRuntime
         );
     }
 
-    private static LlmTckTokenUsage CreateChatUsage(
+    private LlmTckTokenUsage CreateChatUsage(
         LlmTckChatRequest request,
         string? response = null
     )
@@ -794,11 +1010,14 @@ public sealed class LlmTckRuntime : ILlmTckRuntime
         var inputTokens = request.Messages.Sum(message =>
             LlmTckTokenCounter.CountTextTokens(message.Content)
         );
-        var outputTokens = LlmTckTokenCounter.CountTextTokens(response);
+        var visibleOutputTokens = LlmTckTokenCounter.CountTextTokens(response);
+        var reasoningTokens = GetReasoningTokens(request.ModelId);
+        var outputTokens = visibleOutputTokens + reasoningTokens;
         return new LlmTckTokenUsage
         {
             InputTokens = inputTokens,
             OutputTokens = outputTokens,
+            ReasoningTokens = reasoningTokens,
             TotalTokens = inputTokens + outputTokens,
         };
     }
@@ -826,10 +1045,23 @@ public sealed class LlmTckRuntime : ILlmTckRuntime
         );
     }
 
+    private static string FormatAudioRequest(string fileName, string? prompt)
+    {
+        return string.IsNullOrWhiteSpace(prompt)
+            ? $"file: {fileName}"
+            : $"file: {fileName}\nprompt: {Truncate(prompt, 800)}";
+    }
+
     private static string Truncate(string value, int maxLength)
     {
         var trimmed = (value ?? string.Empty).Trim();
         return trimmed.Length <= maxLength ? trimmed : trimmed[..maxLength] + "…";
     }
 
+    private sealed record LlmTckRuntimeFault(
+        int StatusCode,
+        string Code,
+        string Message,
+        LlmTckTokenUsage? Usage = null
+    );
 }

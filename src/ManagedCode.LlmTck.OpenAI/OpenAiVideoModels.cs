@@ -1,4 +1,5 @@
 using System.Text.Json.Serialization;
+using ManagedCode.LlmTck.Models;
 
 namespace ManagedCode.LlmTck.OpenAI;
 
@@ -149,7 +150,7 @@ public sealed record OpenAiVideoCharacterResponse
 public sealed record AzureVideoGenerationJobRequest
 {
     [JsonPropertyName("model")]
-    public string Model { get; init; } = "llm-tck-video";
+    public string Model { get; init; } = LlmTckKnownModelIds.Sora2;
 
     [JsonPropertyName("prompt")]
     public string Prompt { get; init; } = string.Empty;

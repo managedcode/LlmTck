@@ -35,7 +35,7 @@ public static class OllamaCompatibility
                 [
                     new()
                     {
-                        Id = "chat.create",
+                        Id = LlmTckProviderOperationIds.Ollama.ChatCreate,
                         Method = "POST",
                         Path = "/ollama/api/chat",
                         DocumentationUrl = "https://docs.ollama.com/api/chat",
@@ -50,7 +50,7 @@ public static class OllamaCompatibility
                     },
                     new()
                     {
-                        Id = "embeddings.create",
+                        Id = LlmTckProviderOperationIds.Ollama.EmbeddingsCreate,
                         Method = "POST",
                         Path = "/ollama/api/embed",
                         DocumentationUrl = "https://docs.ollama.com/api/embed",

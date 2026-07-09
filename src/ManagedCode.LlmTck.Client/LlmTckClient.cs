@@ -3,6 +3,7 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using ManagedCode.LlmTck.Configuration;
 using ManagedCode.LlmTck.Control;
+using ManagedCode.LlmTck.Models;
 using ManagedCode.LlmTck.OpenAI;
 using ManagedCode.LlmTck.Runtime;
 using Microsoft.Extensions.AI;
@@ -86,19 +87,19 @@ public sealed class LlmTckClient(HttpClient httpClient, string? bearerToken = nu
             ?? new LlmTckAssertionSummary();
     }
 
-    public IChatClient CreateChatClient(string defaultModelId = "llm-tck-chat")
+    public IChatClient CreateChatClient(string defaultModelId = LlmTckKnownModelIds.Gpt41Mini)
     {
         return new LlmTckChatClient(httpClient, defaultModelId, bearerToken);
     }
 
     public IEmbeddingGenerator<string, Embedding<float>> CreateEmbeddingGenerator(
-        string defaultModelId = "llm-tck-embedding"
+        string defaultModelId = LlmTckKnownModelIds.TextEmbedding3Small
     )
     {
         return new LlmTckEmbeddingGenerator(httpClient, defaultModelId, bearerToken);
     }
 
-    public IImageGenerator CreateImageGenerator(string defaultModelId = "llm-tck-image")
+    public IImageGenerator CreateImageGenerator(string defaultModelId = LlmTckKnownModelIds.GptImage1)
     {
         return new LlmTckImageGenerator(httpClient, defaultModelId, bearerToken);
     }

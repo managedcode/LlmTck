@@ -31,7 +31,7 @@ public static class CohereCompatibility
                 [
                     new()
                     {
-                        Id = "chat.create",
+                        Id = LlmTckProviderOperationIds.Cohere.ChatCreate,
                         Method = "POST",
                         Path = "/cohere/v2/chat",
                         DocumentationUrl = "https://docs.cohere.com/reference/chat",
@@ -47,7 +47,7 @@ public static class CohereCompatibility
                     },
                     new()
                     {
-                        Id = "embed.create",
+                        Id = LlmTckProviderOperationIds.Cohere.EmbedCreate,
                         Method = "POST",
                         Path = "/cohere/v2/embed",
                         DocumentationUrl = "https://docs.cohere.com/reference/embed",

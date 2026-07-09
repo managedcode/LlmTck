@@ -1,12 +1,13 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using ManagedCode.LlmTck.Models;
 
 namespace ManagedCode.LlmTck.OpenAI;
 
 public sealed record OpenAiEmbeddingRequest
 {
     [JsonPropertyName("model")]
-    public string Model { get; init; } = "llm-tck-embedding";
+    public string Model { get; init; } = LlmTckKnownModelIds.TextEmbedding3Small;
 
     [JsonPropertyName("input")]
     public JsonElement Input { get; init; }
@@ -28,7 +29,7 @@ public sealed record OpenAiEmbeddingResponse
     public string ObjectType { get; init; } = "list";
 
     [JsonPropertyName("model")]
-    public string Model { get; init; } = "llm-tck-embedding";
+    public string Model { get; init; } = LlmTckKnownModelIds.TextEmbedding3Small;
 
     [JsonPropertyName("data")]
     public List<OpenAiEmbeddingData> Data { get; init; } = [];

@@ -1,12 +1,13 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using ManagedCode.LlmTck.Models;
 
 namespace ManagedCode.LlmTck.OpenAI;
 
 public sealed record OpenAiImageGenerationRequest
 {
     [JsonPropertyName("model")]
-    public string Model { get; init; } = "llm-tck-image";
+    public string Model { get; init; } = LlmTckKnownModelIds.GptImage1;
 
     [JsonPropertyName("prompt")]
     public string Prompt { get; init; } = string.Empty;
@@ -78,7 +79,7 @@ public sealed record OpenAiImageReference
 public sealed record OpenAiImageEditRequest
 {
     [JsonPropertyName("model")]
-    public string Model { get; init; } = "llm-tck-image";
+    public string Model { get; init; } = LlmTckKnownModelIds.GptImage1;
 
     [JsonPropertyName("prompt")]
     public string Prompt { get; init; } = string.Empty;

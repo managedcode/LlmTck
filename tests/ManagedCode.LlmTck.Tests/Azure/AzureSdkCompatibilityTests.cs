@@ -32,6 +32,7 @@ public sealed class AzureSdkCompatibilityTests
                         .ForModel("azure-chat")
                         .WhenUserContains("azure sdk")
                         .Responds("azure blue whale")
+                        .Responds("azure blue whale")
                 ));
         using var httpClient = host.GetTestClient();
         var azureClient = new AzureOpenAIClient(
@@ -50,6 +51,17 @@ public sealed class AzureSdkCompatibilityTests
             [new OpenAiUserChatMessage("hello from azure sdk")],
             cancellationToken: CancellationToken.None
         );
+        var streamedContent = new List<string>();
+        await foreach (
+            var update in chatClient.CompleteChatStreamingAsync(
+                    [new OpenAiUserChatMessage("stream from azure sdk")],
+                    cancellationToken: CancellationToken.None
+                )
+        )
+        {
+            streamedContent.AddRange(update.ContentUpdate.Select(part => part.Text));
+        }
+
         var embedding = await embeddingClient.GenerateEmbeddingAsync(
             "embedding input",
             cancellationToken: CancellationToken.None
@@ -57,6 +69,7 @@ public sealed class AzureSdkCompatibilityTests
         var embeddingValues = embedding.Value.ToFloats().ToArray();
 
         await Assert.That(chat.Value.Content[0].Text).IsEqualTo("azure blue whale");
+        await Assert.That(string.Concat(streamedContent)).IsEqualTo("azure blue whale");
         await Assert.That(embeddingValues).IsEquivalentTo(new[] { 0.25f, 0.5f });
     }
 

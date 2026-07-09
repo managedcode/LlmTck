@@ -13,6 +13,13 @@ using ManagedCode.LlmTck.OpenAI;
 using ManagedCode.LlmTck.OpenRouter;
 using ManagedCode.LlmTck.Perplexity;
 using ManagedCode.LlmTck.Providers;
+using ManagedCode.LlmTck.Tests.Anthropic;
+using ManagedCode.LlmTck.Tests.Azure;
+using ManagedCode.LlmTck.Tests.Bedrock;
+using ManagedCode.LlmTck.Tests.Cohere;
+using ManagedCode.LlmTck.Tests.Gemini;
+using ManagedCode.LlmTck.Tests.Ollama;
+using ManagedCode.LlmTck.Tests.OpenAI;
 using ManagedCode.LlmTck.Tests.TestSupport;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.DependencyInjection;
@@ -160,6 +167,73 @@ public sealed class ProviderApiContractTests
         }
     }
 
+    [Test]
+    public async Task ProviderBehaviorEvidence_CoversEveryImplementedOperationAsync()
+    {
+        var implementedOperations = GetImplementedOperations();
+        var implementedOperationKeys = implementedOperations
+            .Select(item => item.Key)
+            .Distinct()
+            .ToArray();
+        var streamingOperationKeys = implementedOperations
+            .Where(item => item.Operation.SupportsStreaming)
+            .Select(item => item.Key)
+            .Distinct()
+            .ToArray();
+        var evidence = GetBehaviorEvidence();
+        var evidenceKeys = evidence
+            .Select(item => new OperationKey(item.ProviderId, item.OperationId))
+            .Distinct()
+            .ToArray();
+        var streamingEvidenceKeys = evidence
+            .Where(item => item.CoversStreaming)
+            .Select(item => new OperationKey(item.ProviderId, item.OperationId))
+            .Distinct()
+            .ToArray();
+        var duplicateEvidence = evidence
+            .GroupBy(item => new OperationKey(item.ProviderId, item.OperationId))
+            .Where(group => group.Count() > 1)
+            .Select(group => group.Key.ToString())
+            .ToArray();
+        var missingEvidence = implementedOperationKeys
+            .Except(evidenceKeys)
+            .Select(key => key.ToString())
+            .ToArray();
+        var staleEvidence = evidenceKeys
+            .Except(implementedOperationKeys)
+            .Select(key => key.ToString())
+            .ToArray();
+        var missingStreamingEvidence = streamingOperationKeys
+            .Except(streamingEvidenceKeys)
+            .Select(key => key.ToString())
+            .ToArray();
+        var missingTestMethods = evidence
+            .SelectMany(item => item.TestMethods.Select(method => new { item.TestType, Method = method }))
+            .Where(item => item.TestType.GetMethod(item.Method) is null)
+            .Select(item => $"{item.TestType.Name}.{item.Method}")
+            .ToArray();
+        var inventory = await File.ReadAllTextAsync(
+            Path.Combine(
+                FindRepositoryRoot(),
+                "docs",
+                "Testing",
+                "AcceptanceCriteriaTestInventory.md"
+            )
+        );
+        var undocumentedTestMethods = evidence
+            .SelectMany(item => item.TestMethods)
+            .Distinct()
+            .Where(method => !inventory.Contains(method, StringComparison.Ordinal))
+            .ToArray();
+
+        await Assert.That(duplicateEvidence).IsEmpty();
+        await Assert.That(missingEvidence).IsEmpty();
+        await Assert.That(staleEvidence).IsEmpty();
+        await Assert.That(missingStreamingEvidence).IsEmpty();
+        await Assert.That(missingTestMethods).IsEmpty();
+        await Assert.That(undocumentedTestMethods).IsEmpty();
+    }
+
     private static bool IsFreshDocumentationReview(DateOnly retrievedOn)
     {
         var today = DateOnly.FromDateTime(DateTimeOffset.UtcNow.UtcDateTime);
@@ -202,6 +276,534 @@ public sealed class ProviderApiContractTests
         };
     }
 
+    private static (OperationKey Key, LlmTckProviderOperation Operation)[] GetImplementedOperations()
+    {
+        return GetProfiles()
+            .SelectMany(profile => profile
+                .ApiContract
+                .Operations
+                .Where(operation => operation.ImplementedByHosting)
+                .Select(operation => (
+                    new OperationKey(profile.Id, operation.Id),
+                    Operation: operation
+                )))
+            .ToArray();
+    }
+
+    private static ProviderOperationEvidence[] GetBehaviorEvidence()
+    {
+        return
+        [
+            Evidence(
+                LlmTckCompatibilityTags.OpenAI,
+                LlmTckProviderOperationIds.OpenAI.ModelsList,
+                typeof(OpenAiEndpointTests),
+                [nameof(OpenAiEndpointTests.OpenAiEndpoints_ExposeModelsAndAllModalitiesAsync)]
+            ),
+            Evidence(
+                LlmTckCompatibilityTags.OpenAI,
+                LlmTckProviderOperationIds.OpenAI.ChatCompletionsCreate,
+                typeof(OpenAiEndpointTests),
+                [nameof(OpenAiEndpointTests.StreamingChatCompletion_ReturnsServerSentChunksAsync)],
+                coversStreaming: true
+            ),
+            Evidence(
+                LlmTckCompatibilityTags.OpenAI,
+                LlmTckProviderOperationIds.OpenAI.ResponsesCreate,
+                typeof(OpenAiCompatibleProviderRouteTests),
+                [
+                    nameof(OpenAiCompatibleProviderRouteTests.OpenAiCompatibleResponsesRoutes_ReturnResponseShapeAsync),
+                    nameof(OpenAiCompatibleProviderRouteTests.OpenAiCompatibleResponsesRoutes_StreamResponseServerSentEventsAsync),
+                ],
+                coversStreaming: true
+            ),
+            Evidence(
+                LlmTckCompatibilityTags.OpenAI,
+                LlmTckProviderOperationIds.OpenAI.EmbeddingsCreate,
+                typeof(OpenAiEndpointTests),
+                [nameof(OpenAiEndpointTests.OpenAiEndpoints_ExposeModelsAndAllModalitiesAsync)]
+            ),
+            Evidence(
+                LlmTckCompatibilityTags.OpenAI,
+                LlmTckProviderOperationIds.OpenAI.ImagesCreate,
+                typeof(OpenAiEndpointTests),
+                [nameof(OpenAiEndpointTests.ImageRoutes_ReturnDocumentedEditVariationAndStreamingShapesAsync)],
+                coversStreaming: true
+            ),
+            Evidence(
+                LlmTckCompatibilityTags.OpenAI,
+                LlmTckProviderOperationIds.OpenAI.ImagesEditsCreate,
+                typeof(OpenAiEndpointTests),
+                [nameof(OpenAiEndpointTests.ImageRoutes_ReturnDocumentedEditVariationAndStreamingShapesAsync)],
+                coversStreaming: true
+            ),
+            Evidence(
+                LlmTckCompatibilityTags.OpenAI,
+                LlmTckProviderOperationIds.OpenAI.ImagesVariationsCreate,
+                typeof(OpenAiEndpointTests),
+                [nameof(OpenAiEndpointTests.ImageRoutes_ReturnDocumentedEditVariationAndStreamingShapesAsync)]
+            ),
+            Evidence(
+                LlmTckCompatibilityTags.OpenAI,
+                LlmTckProviderOperationIds.OpenAI.AudioSpeechCreate,
+                typeof(OpenAiEndpointTests),
+                [nameof(OpenAiEndpointTests.AudioSpeech_ReturnsTruthfulWavFixtureAsync)]
+            ),
+            Evidence(
+                LlmTckCompatibilityTags.OpenAI,
+                LlmTckProviderOperationIds.OpenAI.AudioTranscriptionsCreate,
+                typeof(OpenAiEndpointTests),
+                [nameof(OpenAiEndpointTests.AudioTranscription_ReturnsJsonTextAndStreamingShapesAsync)],
+                coversStreaming: true
+            ),
+            Evidence(
+                LlmTckCompatibilityTags.OpenAI,
+                LlmTckProviderOperationIds.OpenAI.AudioTranslationsCreate,
+                typeof(OpenAiEndpointTests),
+                [nameof(OpenAiEndpointTests.AudioTranslation_ReturnsJsonTextAndRejectsStreamingAsync)]
+            ),
+            Evidence(
+                LlmTckCompatibilityTags.OpenAI,
+                LlmTckProviderOperationIds.OpenAI.VideosCreate,
+                typeof(OpenAiEndpointTests),
+                [nameof(OpenAiEndpointTests.VideoRoutes_ReturnDocumentedOpenAiShapesAndValidateEnumsAsync)]
+            ),
+            Evidence(
+                LlmTckCompatibilityTags.OpenAI,
+                LlmTckProviderOperationIds.OpenAI.VideosList,
+                typeof(OpenAiEndpointTests),
+                [nameof(OpenAiEndpointTests.VideoRoutes_ReturnDocumentedOpenAiShapesAndValidateEnumsAsync)]
+            ),
+            Evidence(
+                LlmTckCompatibilityTags.OpenAI,
+                LlmTckProviderOperationIds.OpenAI.VideosRetrieve,
+                typeof(OpenAiEndpointTests),
+                [nameof(OpenAiEndpointTests.VideoRoutes_ReturnDocumentedOpenAiShapesAndValidateEnumsAsync)]
+            ),
+            Evidence(
+                LlmTckCompatibilityTags.OpenAI,
+                LlmTckProviderOperationIds.OpenAI.VideosDelete,
+                typeof(OpenAiEndpointTests),
+                [nameof(OpenAiEndpointTests.VideoRoutes_ReturnDocumentedOpenAiShapesAndValidateEnumsAsync)]
+            ),
+            Evidence(
+                LlmTckCompatibilityTags.OpenAI,
+                LlmTckProviderOperationIds.OpenAI.VideosContentRetrieve,
+                typeof(OpenAiEndpointTests),
+                [nameof(OpenAiEndpointTests.VideoRoutes_ReturnDocumentedOpenAiShapesAndValidateEnumsAsync)]
+            ),
+            Evidence(
+                LlmTckCompatibilityTags.OpenAI,
+                LlmTckProviderOperationIds.OpenAI.VideosEditsCreate,
+                typeof(OpenAiEndpointTests),
+                [nameof(OpenAiEndpointTests.VideoRoutes_ReturnDocumentedOpenAiShapesAndValidateEnumsAsync)]
+            ),
+            Evidence(
+                LlmTckCompatibilityTags.OpenAI,
+                LlmTckProviderOperationIds.OpenAI.VideosExtensionsCreate,
+                typeof(OpenAiEndpointTests),
+                [nameof(OpenAiEndpointTests.VideoRoutes_ReturnDocumentedOpenAiShapesAndValidateEnumsAsync)]
+            ),
+            Evidence(
+                LlmTckCompatibilityTags.OpenAI,
+                LlmTckProviderOperationIds.OpenAI.VideosRemix,
+                typeof(OpenAiEndpointTests),
+                [nameof(OpenAiEndpointTests.VideoRoutes_ReturnDocumentedOpenAiShapesAndValidateEnumsAsync)]
+            ),
+            Evidence(
+                LlmTckCompatibilityTags.OpenAI,
+                LlmTckProviderOperationIds.OpenAI.VideosCharactersCreate,
+                typeof(OpenAiEndpointTests),
+                [nameof(OpenAiEndpointTests.VideoRoutes_ReturnDocumentedOpenAiShapesAndValidateEnumsAsync)]
+            ),
+            Evidence(
+                LlmTckCompatibilityTags.OpenAI,
+                LlmTckProviderOperationIds.OpenAI.VideosCharactersRetrieve,
+                typeof(OpenAiEndpointTests),
+                [nameof(OpenAiEndpointTests.VideoRoutes_ReturnDocumentedOpenAiShapesAndValidateEnumsAsync)]
+            ),
+            Evidence(
+                LlmTckCompatibilityTags.AzureOpenAI,
+                LlmTckProviderOperationIds.AzureOpenAI.ChatCompletionsCreate,
+                typeof(AzureSdkCompatibilityTests),
+                [nameof(AzureSdkCompatibilityTests.AzureOpenAiClient_CanUseDeploymentChatAndEmbeddingsAsync)],
+                coversStreaming: true
+            ),
+            Evidence(
+                LlmTckCompatibilityTags.AzureOpenAI,
+                LlmTckProviderOperationIds.AzureOpenAI.EmbeddingsCreate,
+                typeof(AzureSdkCompatibilityTests),
+                [nameof(AzureSdkCompatibilityTests.AzureOpenAiClient_CanUseDeploymentChatAndEmbeddingsAsync)]
+            ),
+            Evidence(
+                LlmTckCompatibilityTags.AzureOpenAI,
+                LlmTckProviderOperationIds.AzureOpenAI.ImagesCreate,
+                typeof(AzureSdkCompatibilityTests),
+                [nameof(AzureSdkCompatibilityTests.AzureOpenAiDeploymentRoutes_UseApiKeyAndDeploymentModelForModalitiesAsync)]
+            ),
+            Evidence(
+                LlmTckCompatibilityTags.AzureOpenAI,
+                LlmTckProviderOperationIds.AzureOpenAI.AudioSpeechCreate,
+                typeof(AzureSdkCompatibilityTests),
+                [nameof(AzureSdkCompatibilityTests.AzureOpenAiDeploymentRoutes_UseApiKeyAndDeploymentModelForModalitiesAsync)]
+            ),
+            Evidence(
+                LlmTckCompatibilityTags.AzureOpenAI,
+                LlmTckProviderOperationIds.AzureOpenAI.AudioTranscriptionsCreate,
+                typeof(OpenAiCompatibleProviderRouteTests),
+                [
+                    nameof(OpenAiCompatibleProviderRouteTests.AzureOpenAiAudioTranscriptionRoute_UsesDeploymentModelAndApiKeyAsync),
+                ]
+            ),
+            Evidence(
+                LlmTckCompatibilityTags.AzureOpenAI,
+                LlmTckProviderOperationIds.AzureOpenAI.AudioTranslationsCreate,
+                typeof(OpenAiCompatibleProviderRouteTests),
+                [
+                    nameof(OpenAiCompatibleProviderRouteTests.AzureOpenAiAudioTranslationRoute_UsesDeploymentModelAndApiKeyAsync),
+                ]
+            ),
+            Evidence(
+                LlmTckCompatibilityTags.AzureOpenAI,
+                LlmTckProviderOperationIds.AzureOpenAI.VideoGenerationJobsCreate,
+                typeof(OpenAiCompatibleProviderRouteTests),
+                [nameof(OpenAiCompatibleProviderRouteTests.AzureOpenAiVideoRoutes_FollowPreviewJobAndContentShapesAsync)]
+            ),
+            Evidence(
+                LlmTckCompatibilityTags.AzureOpenAI,
+                LlmTckProviderOperationIds.AzureOpenAI.VideoGenerationJobsList,
+                typeof(OpenAiCompatibleProviderRouteTests),
+                [nameof(OpenAiCompatibleProviderRouteTests.AzureOpenAiVideoRoutes_FollowPreviewJobAndContentShapesAsync)]
+            ),
+            Evidence(
+                LlmTckCompatibilityTags.AzureOpenAI,
+                LlmTckProviderOperationIds.AzureOpenAI.VideoGenerationJobsRetrieve,
+                typeof(OpenAiCompatibleProviderRouteTests),
+                [nameof(OpenAiCompatibleProviderRouteTests.AzureOpenAiVideoRoutes_FollowPreviewJobAndContentShapesAsync)]
+            ),
+            Evidence(
+                LlmTckCompatibilityTags.AzureOpenAI,
+                LlmTckProviderOperationIds.AzureOpenAI.VideoGenerationJobsDelete,
+                typeof(OpenAiCompatibleProviderRouteTests),
+                [nameof(OpenAiCompatibleProviderRouteTests.AzureOpenAiVideoRoutes_FollowPreviewJobAndContentShapesAsync)]
+            ),
+            Evidence(
+                LlmTckCompatibilityTags.AzureOpenAI,
+                LlmTckProviderOperationIds.AzureOpenAI.VideoGenerationsRetrieve,
+                typeof(OpenAiCompatibleProviderRouteTests),
+                [nameof(OpenAiCompatibleProviderRouteTests.AzureOpenAiVideoRoutes_FollowPreviewJobAndContentShapesAsync)]
+            ),
+            Evidence(
+                LlmTckCompatibilityTags.AzureOpenAI,
+                LlmTckProviderOperationIds.AzureOpenAI.VideoGenerationsThumbnailRetrieve,
+                typeof(OpenAiCompatibleProviderRouteTests),
+                [nameof(OpenAiCompatibleProviderRouteTests.AzureOpenAiVideoRoutes_FollowPreviewJobAndContentShapesAsync)]
+            ),
+            Evidence(
+                LlmTckCompatibilityTags.AzureOpenAI,
+                LlmTckProviderOperationIds.AzureOpenAI.VideoGenerationsContentRetrieve,
+                typeof(OpenAiCompatibleProviderRouteTests),
+                [nameof(OpenAiCompatibleProviderRouteTests.AzureOpenAiVideoRoutes_FollowPreviewJobAndContentShapesAsync)]
+            ),
+            Evidence(
+                LlmTckCompatibilityTags.AzureOpenAI,
+                LlmTckProviderOperationIds.AzureOpenAI.VideoGenerationsContentHead,
+                typeof(OpenAiCompatibleProviderRouteTests),
+                [nameof(OpenAiCompatibleProviderRouteTests.AzureOpenAiVideoRoutes_FollowPreviewJobAndContentShapesAsync)]
+            ),
+            Evidence(
+                LlmTckCompatibilityTags.MicrosoftFoundry,
+                LlmTckProviderOperationIds.MicrosoftFoundry.ChatCompletionsCreate,
+                typeof(OpenAiCompatibleProviderRouteTests),
+                [
+                    nameof(OpenAiCompatibleProviderRouteTests.OpenAiCompatibleChatRoutes_ReturnChatCompletionShapeAsync),
+                    nameof(OpenAiCompatibleProviderRouteTests.OpenAiCompatibleChatRoutes_StreamServerSentChunksAsync),
+                ],
+                coversStreaming: true
+            ),
+            Evidence(
+                LlmTckCompatibilityTags.MicrosoftFoundry,
+                LlmTckProviderOperationIds.MicrosoftFoundry.EmbeddingsCreate,
+                typeof(AzureSdkCompatibilityTests),
+                [nameof(AzureSdkCompatibilityTests.AzureAiInferenceClients_CanUseFoundryChatAndEmbeddingsAsync)]
+            ),
+            Evidence(
+                LlmTckCompatibilityTags.MicrosoftFoundry,
+                LlmTckProviderOperationIds.MicrosoftFoundry.ModelsChatCompletionsCreate,
+                typeof(OpenAiCompatibleProviderRouteTests),
+                [
+                    nameof(OpenAiCompatibleProviderRouteTests.OpenAiCompatibleChatRoutes_ReturnChatCompletionShapeAsync),
+                    nameof(OpenAiCompatibleProviderRouteTests.OpenAiCompatibleChatRoutes_StreamServerSentChunksAsync),
+                ],
+                coversStreaming: true
+            ),
+            Evidence(
+                LlmTckCompatibilityTags.MicrosoftFoundry,
+                LlmTckProviderOperationIds.MicrosoftFoundry.ModelsEmbeddingsCreate,
+                typeof(OpenAiCompatibleProviderRouteTests),
+                [nameof(OpenAiCompatibleProviderRouteTests.FoundryEmbeddingRoutes_ReturnEmbeddingShapeAsync)]
+            ),
+            Evidence(
+                LlmTckCompatibilityTags.Anthropic,
+                LlmTckProviderOperationIds.Anthropic.MessagesCreate,
+                typeof(AnthropicEndpointTests),
+                [
+                    nameof(AnthropicEndpointTests.MessagesEndpoint_ReturnsAnthropicMessageShapeAsync),
+                    nameof(AnthropicEndpointTests.MessagesEndpoint_StreamsAnthropicServerSentEventsAsync),
+                ],
+                coversStreaming: true
+            ),
+            Evidence(
+                LlmTckCompatibilityTags.Gemini,
+                LlmTckProviderOperationIds.Gemini.ModelsGenerateContent,
+                typeof(GeminiEndpointTests),
+                [nameof(GeminiEndpointTests.GenerateContentEndpoint_ReturnsGeminiCandidateShapeAsync)]
+            ),
+            Evidence(
+                LlmTckCompatibilityTags.Gemini,
+                LlmTckProviderOperationIds.Gemini.ModelsStreamGenerateContent,
+                typeof(GeminiEndpointTests),
+                [nameof(GeminiEndpointTests.StreamGenerateContentEndpoint_ReturnsGeminiServerSentEventsAsync)],
+                coversStreaming: true
+            ),
+            Evidence(
+                LlmTckCompatibilityTags.Gemini,
+                LlmTckProviderOperationIds.Gemini.ModelsEmbedContent,
+                typeof(GeminiEndpointTests),
+                [nameof(GeminiEndpointTests.EmbedContentEndpoint_ReturnsGeminiEmbeddingShapeAsync)]
+            ),
+            Evidence(
+                LlmTckCompatibilityTags.Gemini,
+                LlmTckProviderOperationIds.Gemini.ModelsPredictLongRunningVideo,
+                typeof(GeminiEndpointTests),
+                [nameof(GeminiEndpointTests.PredictLongRunningVideoEndpoint_ReturnsGeminiOperationAndGeneratedFileAsync)]
+            ),
+            Evidence(
+                LlmTckCompatibilityTags.Gemini,
+                LlmTckProviderOperationIds.Gemini.ModelsOperationsGetVideo,
+                typeof(GeminiEndpointTests),
+                [nameof(GeminiEndpointTests.PredictLongRunningVideoEndpoint_ReturnsGeminiOperationAndGeneratedFileAsync)]
+            ),
+            Evidence(
+                LlmTckCompatibilityTags.Gemini,
+                LlmTckProviderOperationIds.Gemini.FilesGetGeneratedVideo,
+                typeof(GeminiEndpointTests),
+                [nameof(GeminiEndpointTests.PredictLongRunningVideoEndpoint_ReturnsGeminiOperationAndGeneratedFileAsync)]
+            ),
+            Evidence(
+                LlmTckCompatibilityTags.Groq,
+                LlmTckProviderOperationIds.Groq.ChatCompletionsCreate,
+                typeof(OpenAiCompatibleProviderRouteTests),
+                [
+                    nameof(OpenAiCompatibleProviderRouteTests.OpenAiCompatibleChatRoutes_ReturnChatCompletionShapeAsync),
+                    nameof(OpenAiCompatibleProviderRouteTests.OpenAiCompatibleChatRoutes_StreamServerSentChunksAsync),
+                ],
+                coversStreaming: true
+            ),
+            Evidence(
+                LlmTckCompatibilityTags.Groq,
+                LlmTckProviderOperationIds.Groq.ResponsesCreate,
+                typeof(OpenAiCompatibleProviderRouteTests),
+                [
+                    nameof(OpenAiCompatibleProviderRouteTests.OpenAiCompatibleResponsesRoutes_ReturnResponseShapeAsync),
+                    nameof(OpenAiCompatibleProviderRouteTests.OpenAiCompatibleResponsesRoutes_StreamResponseServerSentEventsAsync),
+                ],
+                coversStreaming: true
+            ),
+            Evidence(
+                LlmTckCompatibilityTags.Groq,
+                LlmTckProviderOperationIds.Groq.AudioSpeechCreate,
+                typeof(OpenAiCompatibleProviderRouteTests),
+                [nameof(OpenAiCompatibleProviderRouteTests.GroqAudioSpeechRoute_ReturnsAudioAndValidatesDocumentedRequestAsync)]
+            ),
+            Evidence(
+                LlmTckCompatibilityTags.Groq,
+                LlmTckProviderOperationIds.Groq.AudioTranscriptionsCreate,
+                typeof(OpenAiCompatibleProviderRouteTests),
+                [nameof(OpenAiCompatibleProviderRouteTests.GroqAudioTranscriptionRoute_ReturnsGroqTranscriptionShapeAsync)]
+            ),
+            Evidence(
+                LlmTckCompatibilityTags.Groq,
+                LlmTckProviderOperationIds.Groq.AudioTranslationsCreate,
+                typeof(OpenAiCompatibleProviderRouteTests),
+                [nameof(OpenAiCompatibleProviderRouteTests.GroqAudioTranslationRoute_ReturnsGroqTranslationShapeAsync)]
+            ),
+            Evidence(
+                LlmTckCompatibilityTags.Groq,
+                LlmTckProviderOperationIds.Groq.ModelsList,
+                typeof(OpenAiCompatibleProviderRouteTests),
+                [nameof(OpenAiCompatibleProviderRouteTests.OpenAiCompatibleModelRoutes_ReturnModelListShapeAsync)]
+            ),
+            Evidence(
+                LlmTckCompatibilityTags.Mistral,
+                LlmTckProviderOperationIds.Mistral.ChatComplete,
+                typeof(OpenAiCompatibleProviderRouteTests),
+                [
+                    nameof(OpenAiCompatibleProviderRouteTests.OpenAiCompatibleChatRoutes_ReturnChatCompletionShapeAsync),
+                    nameof(OpenAiCompatibleProviderRouteTests.OpenAiCompatibleChatRoutes_StreamServerSentChunksAsync),
+                ],
+                coversStreaming: true
+            ),
+            Evidence(
+                LlmTckCompatibilityTags.Mistral,
+                LlmTckProviderOperationIds.Mistral.EmbeddingsCreate,
+                typeof(OpenAiCompatibleProviderRouteTests),
+                [nameof(OpenAiCompatibleProviderRouteTests.MistralEmbeddingRoute_ReturnsEmbeddingShapeAsync)]
+            ),
+            Evidence(
+                LlmTckCompatibilityTags.Ollama,
+                LlmTckProviderOperationIds.Ollama.ChatCreate,
+                typeof(OllamaEndpointTests),
+                [
+                    nameof(OllamaEndpointTests.ChatEndpoint_WithStreamFalse_ReturnsOllamaChatShapeAsync),
+                    nameof(OllamaEndpointTests.ChatEndpoint_DefaultStreamsOllamaJsonLinesAsync),
+                ],
+                coversStreaming: true
+            ),
+            Evidence(
+                LlmTckCompatibilityTags.Ollama,
+                LlmTckProviderOperationIds.Ollama.EmbeddingsCreate,
+                typeof(OllamaEndpointTests),
+                [nameof(OllamaEndpointTests.EmbedEndpoint_ReturnsOllamaEmbeddingShapeAsync)]
+            ),
+            Evidence(
+                LlmTckCompatibilityTags.Cohere,
+                LlmTckProviderOperationIds.Cohere.ChatCreate,
+                typeof(CohereEndpointTests),
+                [
+                    nameof(CohereEndpointTests.ChatEndpoint_ReturnsCohereChatShapeAsync),
+                    nameof(CohereEndpointTests.ChatEndpoint_StreamsCohereServerSentEventsAsync),
+                ],
+                coversStreaming: true
+            ),
+            Evidence(
+                LlmTckCompatibilityTags.Cohere,
+                LlmTckProviderOperationIds.Cohere.EmbedCreate,
+                typeof(CohereEndpointTests),
+                [
+                    nameof(CohereEndpointTests.EmbedEndpoint_ReturnsCohereEmbeddingShapeForTextsAsync),
+                    nameof(CohereEndpointTests.EmbedEndpoint_ReturnsCohereEmbeddingShapeForInputsAsync),
+                ]
+            ),
+            Evidence(
+                LlmTckCompatibilityTags.Bedrock,
+                LlmTckProviderOperationIds.Bedrock.Converse,
+                typeof(BedrockEndpointTests),
+                [nameof(BedrockEndpointTests.ConverseEndpoint_ReturnsBedrockConverseShapeAsync)]
+            ),
+            Evidence(
+                LlmTckCompatibilityTags.Bedrock,
+                LlmTckProviderOperationIds.Bedrock.ConverseStream,
+                typeof(BedrockEndpointTests),
+                [nameof(BedrockEndpointTests.ConverseStreamEndpoint_ReturnsBedrockEventStreamShapeAsync)],
+                coversStreaming: true
+            ),
+            Evidence(
+                LlmTckCompatibilityTags.Bedrock,
+                LlmTckProviderOperationIds.Bedrock.InvokeModel,
+                typeof(BedrockEndpointTests),
+                [
+                    nameof(BedrockEndpointTests.InvokeEndpoint_ReturnsTitanTextShapeForChatModelAsync),
+                    nameof(BedrockEndpointTests.InvokeEndpoint_ReturnsTitanEmbeddingShapeForEmbeddingModelAsync),
+                    nameof(BedrockEndpointTests.InvokeEndpoint_ReturnsImageShapeForImageModelAsync),
+                ]
+            ),
+            Evidence(
+                LlmTckCompatibilityTags.Bedrock,
+                LlmTckProviderOperationIds.Bedrock.InvokeModelWithResponseStream,
+                typeof(BedrockEndpointTests),
+                [nameof(BedrockEndpointTests.InvokeModelWithResponseStreamEndpoint_ReturnsChunkBytesAsync)],
+                coversStreaming: true
+            ),
+            Evidence(
+                LlmTckCompatibilityTags.OpenRouter,
+                LlmTckProviderOperationIds.OpenRouter.ChatCompletionsCreate,
+                typeof(OpenAiCompatibleProviderRouteTests),
+                [
+                    nameof(OpenAiCompatibleProviderRouteTests.OpenAiCompatibleChatRoutes_ReturnChatCompletionShapeAsync),
+                    nameof(OpenAiCompatibleProviderRouteTests.OpenAiCompatibleChatRoutes_StreamServerSentChunksAsync),
+                ],
+                coversStreaming: true
+            ),
+            Evidence(
+                LlmTckCompatibilityTags.OpenRouter,
+                LlmTckProviderOperationIds.OpenRouter.ResponsesCreate,
+                typeof(OpenAiCompatibleProviderRouteTests),
+                [
+                    nameof(OpenAiCompatibleProviderRouteTests.OpenAiCompatibleResponsesRoutes_ReturnResponseShapeAsync),
+                    nameof(OpenAiCompatibleProviderRouteTests.OpenAiCompatibleResponsesRoutes_StreamResponseServerSentEventsAsync),
+                ],
+                coversStreaming: true
+            ),
+            Evidence(
+                LlmTckCompatibilityTags.OpenRouter,
+                LlmTckProviderOperationIds.OpenRouter.ModelsList,
+                typeof(OpenAiCompatibleProviderRouteTests),
+                [nameof(OpenAiCompatibleProviderRouteTests.OpenAiCompatibleModelRoutes_ReturnModelListShapeAsync)]
+            ),
+            Evidence(
+                LlmTckCompatibilityTags.DeepSeek,
+                LlmTckProviderOperationIds.DeepSeek.ChatCompletionsCreate,
+                typeof(OpenAiCompatibleProviderRouteTests),
+                [
+                    nameof(OpenAiCompatibleProviderRouteTests.OpenAiCompatibleChatRoutes_ReturnChatCompletionShapeAsync),
+                    nameof(OpenAiCompatibleProviderRouteTests.OpenAiCompatibleChatRoutes_StreamServerSentChunksAsync),
+                ],
+                coversStreaming: true
+            ),
+            Evidence(
+                LlmTckCompatibilityTags.DeepSeek,
+                LlmTckProviderOperationIds.DeepSeek.ModelsList,
+                typeof(OpenAiCompatibleProviderRouteTests),
+                [nameof(OpenAiCompatibleProviderRouteTests.OpenAiCompatibleModelRoutes_ReturnModelListShapeAsync)]
+            ),
+            Evidence(
+                LlmTckCompatibilityTags.Perplexity,
+                LlmTckProviderOperationIds.Perplexity.SonarCreate,
+                typeof(OpenAiCompatibleProviderRouteTests),
+                [
+                    nameof(OpenAiCompatibleProviderRouteTests.OpenAiCompatibleChatRoutes_ReturnChatCompletionShapeAsync),
+                    nameof(OpenAiCompatibleProviderRouteTests.OpenAiCompatibleChatRoutes_StreamServerSentChunksAsync),
+                ],
+                coversStreaming: true
+            ),
+        ];
+    }
+
+    private static ProviderOperationEvidence Evidence(
+        string providerId,
+        string operationId,
+        Type testType,
+        IReadOnlyList<string> testMethods,
+        bool coversStreaming = false
+    )
+    {
+        return new ProviderOperationEvidence(
+            providerId,
+            operationId,
+            testType,
+            testMethods,
+            coversStreaming
+        );
+    }
+
+    private static string FindRepositoryRoot()
+    {
+        var directory = new DirectoryInfo(AppContext.BaseDirectory);
+
+        while (directory is not null)
+        {
+            if (File.Exists(Path.Combine(directory.FullName, "ManagedCode.LlmTck.slnx")))
+            {
+                return directory.FullName;
+            }
+
+            directory = directory.Parent;
+        }
+
+        throw new DirectoryNotFoundException("Could not find ManagedCode.LlmTck.slnx.");
+    }
+
     private static LlmTckProviderProfile[] GetProfiles()
     {
         return
@@ -221,6 +823,22 @@ public sealed class ProviderApiContractTests
             PerplexityCompatibility.Profile,
         ];
     }
+
+    private sealed record OperationKey(string ProviderId, string OperationId)
+    {
+        public override string ToString()
+        {
+            return $"{ProviderId}:{OperationId}";
+        }
+    }
+
+    private sealed record ProviderOperationEvidence(
+        string ProviderId,
+        string OperationId,
+        Type TestType,
+        IReadOnlyList<string> TestMethods,
+        bool CoversStreaming
+    );
 
     private sealed record ProviderRoute(string Method, string Path);
 }

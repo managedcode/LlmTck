@@ -7,16 +7,81 @@ public sealed class LlmTckConfigurationBuilder
 {
     private LlmTckConfiguration _configuration = LlmTckConfiguration.CreateDefault();
 
-    public LlmTckConfigurationBuilder AddModel(string id, LlmTckModelKind kind)
+    public LlmTckConfigurationBuilder AddModel(
+        string id,
+        LlmTckModelKind kind,
+        int reasoningTokens = 0
+    )
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(id);
+        if (reasoningTokens < 0)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(reasoningTokens),
+                "Reasoning token count must be zero or greater."
+            );
+        }
 
         _configuration.Models.RemoveAll(model =>
             string.Equals(model.Id, id, StringComparison.OrdinalIgnoreCase)
         );
-        _configuration.Models.Add(new LlmTckModel { Id = id, Kind = kind });
+        _configuration.Models.Add(
+            new LlmTckModel
+            {
+                Id = id,
+                Kind = kind,
+                ReasoningTokens = kind == LlmTckModelKind.Chat ? reasoningTokens : 0,
+            }
+        );
 
         return this;
+    }
+
+    public LlmTckConfigurationBuilder AddReasoningChatModel(string id, int reasoningTokens)
+    {
+        if (reasoningTokens <= 0)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(reasoningTokens),
+                "Reasoning chat models must declare at least one reasoning token."
+            );
+        }
+
+        return AddModel(id, LlmTckModelKind.Chat, reasoningTokens);
+    }
+
+    public LlmTckConfigurationBuilder AddGpt41Mini()
+    {
+        return AddModel(LlmTckKnownModelIds.Gpt41Mini, LlmTckModelKind.Chat);
+    }
+
+    public LlmTckConfigurationBuilder AddTextEmbedding3Small()
+    {
+        return AddModel(LlmTckKnownModelIds.TextEmbedding3Small, LlmTckModelKind.Embedding);
+    }
+
+    public LlmTckConfigurationBuilder AddGptImage1()
+    {
+        return AddModel(LlmTckKnownModelIds.GptImage1, LlmTckModelKind.Image);
+    }
+
+    public LlmTckConfigurationBuilder AddGpt4OMiniTts()
+    {
+        return AddModel(LlmTckKnownModelIds.Gpt4OMiniTts, LlmTckModelKind.Audio);
+    }
+
+    public LlmTckConfigurationBuilder AddSora2()
+    {
+        return AddModel(LlmTckKnownModelIds.Sora2, LlmTckModelKind.Video);
+    }
+
+    public LlmTckConfigurationBuilder AddDefaultOpenAiModels()
+    {
+        return AddGpt41Mini()
+            .AddTextEmbedding3Small()
+            .AddGptImage1()
+            .AddGpt4OMiniTts()
+            .AddSora2();
     }
 
     public LlmTckConfigurationBuilder RequireBearerToken(string token)
@@ -24,6 +89,56 @@ public sealed class LlmTckConfigurationBuilder
         ArgumentException.ThrowIfNullOrWhiteSpace(token);
 
         _configuration = _configuration with { RequiredBearerToken = token };
+        return this;
+    }
+
+    public LlmTckConfigurationBuilder SimulateRateLimitAfter(int allowedRequests)
+    {
+        if (allowedRequests < 0)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(allowedRequests),
+                "Allowed request count must be zero or greater."
+            );
+        }
+
+        _configuration = _configuration with
+        {
+            FaultSimulation = _configuration.FaultSimulation with
+            {
+                MaxRequestsBeforeRateLimit = allowedRequests,
+            },
+        };
+        return this;
+    }
+
+    public LlmTckConfigurationBuilder SimulateContentFilter(params string[] blockedTerms)
+    {
+        ArgumentNullException.ThrowIfNull(blockedTerms);
+        if (blockedTerms.Length == 0)
+        {
+            throw new ArgumentException(
+                "At least one content filter term is required.",
+                nameof(blockedTerms)
+            );
+        }
+
+        var terms = blockedTerms
+            .Select(term =>
+            {
+                ArgumentException.ThrowIfNullOrWhiteSpace(term);
+                return term.Trim();
+            })
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        _configuration = _configuration with
+        {
+            FaultSimulation = _configuration.FaultSimulation with
+            {
+                ContentFilterTerms = terms,
+            },
+        };
         return this;
     }
 
@@ -156,12 +271,31 @@ public sealed class LlmTckConfigurationBuilder
 
         return configuration with
         {
-            Models = [.. configuration.Models],
+            Models = [.. configuration.Models.Select(SnapshotModel)],
             ChatScenarios = [.. configuration.ChatScenarios.Select(SnapshotScenario)],
             Datasets = [.. configuration.Datasets.Select(SnapshotDataset)],
+            FaultSimulation = SnapshotFaultSimulation(configuration.FaultSimulation),
             DefaultEmbeddingVector = [.. configuration.DefaultEmbeddingVector],
             DefaultAudioBytes = [.. configuration.DefaultAudioBytes],
             DefaultVideoBytes = [.. configuration.DefaultVideoBytes],
+        };
+    }
+
+    private static LlmTckModel SnapshotModel(LlmTckModel model)
+    {
+        ArgumentNullException.ThrowIfNull(model);
+        ArgumentException.ThrowIfNullOrWhiteSpace(model.Id);
+        if (model.ReasoningTokens < 0)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(model),
+                "Model reasoning token count must be zero or greater."
+            );
+        }
+
+        return model with
+        {
+            ReasoningTokens = model.Kind == LlmTckModelKind.Chat ? model.ReasoningTokens : 0,
         };
     }
 
@@ -185,6 +319,23 @@ public sealed class LlmTckConfigurationBuilder
         return dataset with
         {
             ChatScenarios = [.. dataset.ChatScenarios.Select(SnapshotScenario)],
+        };
+    }
+
+    private static LlmTckFaultSimulation SnapshotFaultSimulation(
+        LlmTckFaultSimulation faultSimulation
+    )
+    {
+        return faultSimulation with
+        {
+            ContentFilterTerms =
+            [
+                .. faultSimulation
+                    .ContentFilterTerms
+                    .Where(term => !string.IsNullOrWhiteSpace(term))
+                    .Select(term => term.Trim())
+                    .Distinct(StringComparer.OrdinalIgnoreCase),
+            ],
         };
     }
 }

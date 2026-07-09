@@ -118,7 +118,7 @@ public sealed class AnthropicEndpointTests
             "/anthropic/v1/messages",
             new
             {
-                model = "llm-tck-chat",
+                model = "gpt-4.1-mini",
                 max_tokens = 256,
                 messages = new[] { new { role = "user", content = "hello" } },
             },
@@ -140,7 +140,7 @@ public sealed class AnthropicEndpointTests
                 .AddChatScenario(
                     "anthropic-api-key",
                     scenario => scenario
-                        .ForModel("llm-tck-chat")
+                        .ForModel("gpt-4.1-mini")
                         .WhenUserContains("api key")
                         .Responds("accepted")
                 ));
@@ -152,7 +152,7 @@ public sealed class AnthropicEndpointTests
             "/anthropic/v1/messages",
             new
             {
-                model = "llm-tck-chat",
+                model = "gpt-4.1-mini",
                 max_tokens = 256,
                 messages = new[] { new { role = "user", content = "api key" } },
             },

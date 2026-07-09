@@ -1,4 +1,5 @@
 using ManagedCode.LlmTck.Client;
+using ManagedCode.LlmTck.Models;
 using ManagedCode.LlmTck.Tests.TestSupport;
 using Microsoft.Extensions.AI;
 
@@ -6,6 +7,26 @@ namespace ManagedCode.LlmTck.Tests.Client;
 
 public sealed class LlmTckClientConfigurationTests
 {
+    [Test]
+    public async Task ClientBuilder_ExposesOfficialModelConvenienceMethodsAsync()
+    {
+        var configuration = new LlmTckClientConfigurationBuilder()
+            .UseDefaultOpenAiModels()
+            .UseReasoningChatModel("gpt-5-nano", 11)
+            .Build();
+
+        await Assert.That(configuration.Models.Any(model => model.Id == LlmTckKnownModelIds.Gpt41Mini))
+            .IsTrue();
+        await Assert.That(configuration.Models.Any(model => model.Id == LlmTckKnownModelIds.TextEmbedding3Small))
+            .IsTrue();
+        await Assert.That(configuration.Models.Any(model => model.Id == LlmTckKnownModelIds.GptImage1))
+            .IsTrue();
+        await Assert.That(configuration.Models.Any(model => model.Id == LlmTckKnownModelIds.Gpt4OMiniTts))
+            .IsTrue();
+        await Assert.That(configuration.Models.Single(model => model.Id == "gpt-5-nano").ReasoningTokens)
+            .IsEqualTo(11);
+    }
+
     [Test]
     public async Task ConfigureAsync_WithFluentClientApi_LoadsDatasetAndFixturesAsync()
     {

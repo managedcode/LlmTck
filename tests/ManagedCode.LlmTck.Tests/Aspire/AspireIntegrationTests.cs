@@ -1,5 +1,6 @@
 using System.ClientModel;
 using System.ClientModel.Primitives;
+using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 using Azure;
@@ -10,10 +11,12 @@ using ManagedCode.LlmTck.Aspire;
 using ManagedCode.LlmTck.Client;
 using ManagedCode.LlmTck.Control;
 using Microsoft.Extensions.AI;
+using OpenAI;
 using ExtensionsChatMessage = Microsoft.Extensions.AI.ChatMessage;
 using ExtensionsChatRole = Microsoft.Extensions.AI.ChatRole;
 using FoundryChatClient = Azure.AI.Inference.ChatCompletionsClient;
 using FoundryEmbeddingClient = Azure.AI.Inference.EmbeddingsClient;
+using OpenAiChatClient = OpenAI.Chat.ChatClient;
 using OpenAiUserChatMessage = OpenAI.Chat.UserChatMessage;
 using ProviderRoutes = ManagedCode.LlmTck.Providers.LlmTckProviderRouteNamespaces;
 
@@ -23,10 +26,11 @@ public sealed class AspireIntegrationTests
 {
     private const string _resourceName = "llm-tck";
     private const string _apiKey = "test-key";
-    private const string _chatModel = "llm-tck-chat";
-    private const string _embeddingModel = "llm-tck-embedding";
-    private const string _imageModel = "llm-tck-image";
-    private const string _audioModel = "llm-tck-audio";
+    private const string _chatModel = "gpt-4.1-mini";
+    private const string _embeddingModel = "text-embedding-3-small";
+    private const string _imageModel = "gpt-image-1";
+    private const string _audioModel = "gpt-4o-mini-tts";
+    private const int _parallelResourceCount = 10;
 
     [Test]
     public async Task AddLlmTckContainer_RemainsExplicitContainerOptInAsync()
@@ -52,6 +56,7 @@ public sealed class AspireIntegrationTests
             .AddLlmTck()
             .WithApiKey(_apiKey);
         var llmTckEndpointExpression = llmTck.GetHttpEndpoint().ToString();
+        var openAiEndpointExpression = llmTck.GetOpenAiEndpoint();
 
         await using var app = await builder.BuildAsync(timeout.Token);
         await app.StartAsync(timeout.Token);
@@ -79,6 +84,7 @@ public sealed class AspireIntegrationTests
                         .Responds("aspire blue whale", "aspire ", "blue ", "whale")
                         .Responds("aspire blue whale", "aspire ", "blue ", "whale")
                         .Responds("aspire blue whale", "aspire ", "blue ", "whale")
+                        .Responds("aspire blue whale", "aspire ", "blue ", "whale")
                 ),
             timeout.Token
         );
@@ -87,7 +93,7 @@ public sealed class AspireIntegrationTests
         using var embeddingGenerator = controlClient.CreateEmbeddingGenerator(_embeddingModel);
         using var imageGenerator = controlClient.CreateImageGenerator(_imageModel);
 
-        var root = await httpClient.GetFromJsonAsync<JsonElement>("/", timeout.Token);
+        var root = await httpClient.GetAsync("/", timeout.Token);
         var adminPage = await httpClient.GetStringAsync(LlmTckControlRoutes.Admin, timeout.Token);
         var models = await httpClient.GetFromJsonAsync<JsonElement>("/openai/v1/models", timeout.Token);
         var adminModels = await httpClient.GetFromJsonAsync<JsonElement>(
@@ -114,6 +120,29 @@ public sealed class AspireIntegrationTests
             ["first", "second"],
             cancellationToken: timeout.Token
         );
+        var openAiEndpointValue =
+            await openAiEndpointExpression.GetValueAsync(timeout.Token)
+            ?? throw new InvalidOperationException("LLM TCK OpenAI endpoint was not allocated.");
+        var openAiEndpoint = new Uri(openAiEndpointValue);
+        var openAiChatClient = new OpenAiChatClient(
+            _chatModel,
+            new ApiKeyCredential(_apiKey),
+            new OpenAIClientOptions
+            {
+                Endpoint = openAiEndpoint,
+            }
+        );
+        var openAiStreamChunks = new List<string>();
+        await foreach (
+            var update in openAiChatClient.CompleteChatStreamingAsync(
+                    [new OpenAiUserChatMessage("stream from openai aspire sdk")],
+                    cancellationToken: timeout.Token
+                )
+        )
+        {
+            openAiStreamChunks.AddRange(update.ContentUpdate.Select(part => part.Text));
+        }
+
         var azureClient = new AzureOpenAIClient(
             ProviderEndpoint(httpClient, ProviderRoutes.AzureOpenAI, includeTrailingSlash: true),
             new ApiKeyCredential(_apiKey),
@@ -186,7 +215,7 @@ public sealed class AspireIntegrationTests
         );
 
         await Assert.That(llmTckEndpointExpression).IsNotEmpty();
-        await Assert.That(root.GetProperty("admin").GetString()).IsEqualTo(LlmTckControlRoutes.Admin);
+        await Assert.That(root.StatusCode).IsEqualTo(HttpStatusCode.NotFound);
         await Assert.That(adminPage).Contains("LLM&nbsp;TCK");
         await Assert.That(adminPage).Contains(LlmTckControlRoutes.Models);
         await Assert.That(adminPage).Contains(LlmTckControlRoutes.Assertions);
@@ -197,6 +226,8 @@ public sealed class AspireIntegrationTests
         await Assert.That(string.Concat(streamChunks)).IsEqualTo("aspire blue whale");
         await Assert.That(embeddings).Count().IsEqualTo(2);
         await Assert.That(embeddings[0].Vector.ToArray()).IsEquivalentTo(new[] { 0.25f, 0.5f });
+        await Assert.That(openAiEndpoint.AbsolutePath).IsEqualTo("/openai/v1");
+        await Assert.That(string.Concat(openAiStreamChunks)).IsEqualTo("aspire blue whale");
         await Assert.That(azureChat.Value.Content[0].Text).IsEqualTo("aspire blue whale");
         await Assert.That(azureEmbeddingValues).IsEquivalentTo(new[] { 0.25f, 0.5f });
         await Assert.That(foundryChat.Value.Content).IsEqualTo("aspire blue whale");
@@ -205,9 +236,75 @@ public sealed class AspireIntegrationTests
         await Assert.That(image.Contents).Count().IsEqualTo(1);
         await Assert.That(audio.Bytes).Count().IsGreaterThan(0);
         await Assert.That(audio.MediaType).IsEqualTo("audio/wav");
-        await Assert.That(assertions.Matched).IsGreaterThanOrEqualTo(8);
-        await Assert.That(adminAssertions.GetProperty("matched").GetInt32()).IsGreaterThanOrEqualTo(8);
+        await Assert.That(assertions.Matched).IsGreaterThanOrEqualTo(9);
+        await Assert.That(adminAssertions.GetProperty("matched").GetInt32()).IsGreaterThanOrEqualTo(9);
         await Assert.That(adminAssertions.GetProperty("totalTokens").GetInt32()).IsGreaterThan(0);
+    }
+
+    [Test]
+    [Timeout(600_000)]
+    public async Task AddLlmTck_StartsTenDistinctResourcesAndHealthEndpointsStayAliveAsync(
+        CancellationToken cancellationToken
+    )
+    {
+        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        timeout.CancelAfter(TimeSpan.FromMinutes(9));
+
+        var builder = DistributedApplicationTestingBuilder.Create([]);
+        var resourceNames = Enumerable
+            .Range(1, _parallelResourceCount)
+            .Select(index => $"{_resourceName}-{index:00}")
+            .ToArray();
+
+        foreach (var resourceName in resourceNames)
+        {
+            builder
+                .AddLlmTck(resourceName)
+                .WithApiKey($"{_apiKey}-{resourceName}");
+        }
+
+        await using var app = await builder.BuildAsync(timeout.Token);
+        await app.StartAsync(timeout.Token);
+
+        await Task.WhenAll(
+            resourceNames.Select(
+                async resourceName =>
+                    await app.ResourceNotifications.WaitForResourceHealthyAsync(
+                        resourceName,
+                        timeout.Token
+                    )
+            )
+        );
+
+        var healthResults = await Task.WhenAll(
+            resourceNames.Select(resourceName => ProbeHealthAsync(resourceName))
+        );
+        var baseAddresses = healthResults
+            .Select(result => result.BaseAddress)
+            .ToArray();
+
+        await Assert.That(resourceNames.Distinct()).Count().IsEqualTo(_parallelResourceCount);
+        await Assert.That(healthResults).Count().IsEqualTo(_parallelResourceCount);
+        await Assert.That(healthResults.Select(result => result.ResourceName)).IsEquivalentTo(resourceNames);
+        await Assert.That(baseAddresses.Distinct()).Count().IsEqualTo(_parallelResourceCount);
+
+        foreach (var result in healthResults)
+        {
+            await Assert.That(result.StatusCode).IsEqualTo(HttpStatusCode.OK);
+            await Assert.That(result.BaseAddress).IsNotEmpty();
+        }
+
+        async Task<HealthProbeResult> ProbeHealthAsync(string resourceName)
+        {
+            using var httpClient = app.CreateHttpClient(resourceName, LlmTckResource.HttpEndpointName);
+            var health = await httpClient.GetAsync("/health", timeout.Token);
+
+            return new HealthProbeResult(
+                resourceName,
+                httpClient.BaseAddress?.ToString() ?? string.Empty,
+                health.StatusCode
+            );
+        }
     }
 
     private static Uri ProviderEndpoint(
@@ -224,4 +321,10 @@ public sealed class AspireIntegrationTests
 
         return new Uri(httpClient.BaseAddress!, path);
     }
+
+    private sealed record HealthProbeResult(
+        string ResourceName,
+        string BaseAddress,
+        HttpStatusCode StatusCode
+    );
 }

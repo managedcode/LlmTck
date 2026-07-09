@@ -37,7 +37,7 @@ public static class OpenAiCompatibility
                 [
                     new()
                     {
-                        Id = "models.list",
+                        Id = LlmTckProviderOperationIds.OpenAI.ModelsList,
                         Method = "GET",
                         Path = "/openai/v1/models",
                         DocumentationUrl =
@@ -47,7 +47,7 @@ public static class OpenAiCompatibility
                     },
                     new()
                     {
-                        Id = "chat.completions.create",
+                        Id = LlmTckProviderOperationIds.OpenAI.ChatCompletionsCreate,
                         Method = "POST",
                         Path = "/openai/v1/chat/completions",
                         DocumentationUrl =
@@ -64,7 +64,7 @@ public static class OpenAiCompatibility
                     },
                     new()
                     {
-                        Id = "responses.create",
+                        Id = LlmTckProviderOperationIds.OpenAI.ResponsesCreate,
                         Method = "POST",
                         Path = "/openai/v1/responses",
                         DocumentationUrl =
@@ -82,7 +82,7 @@ public static class OpenAiCompatibility
                     },
                     new()
                     {
-                        Id = "embeddings.create",
+                        Id = LlmTckProviderOperationIds.OpenAI.EmbeddingsCreate,
                         Method = "POST",
                         Path = "/openai/v1/embeddings",
                         DocumentationUrl =
@@ -92,7 +92,7 @@ public static class OpenAiCompatibility
                     },
                     new()
                     {
-                        Id = "images.create",
+                        Id = LlmTckProviderOperationIds.OpenAI.ImagesCreate,
                         Method = "POST",
                         Path = "/openai/v1/images/generations",
                         DocumentationUrl =
@@ -107,7 +107,7 @@ public static class OpenAiCompatibility
                     },
                     new()
                     {
-                        Id = "images.edits.create",
+                        Id = LlmTckProviderOperationIds.OpenAI.ImagesEditsCreate,
                         Method = "POST",
                         Path = "/openai/v1/images/edits",
                         DocumentationUrl =
@@ -122,7 +122,7 @@ public static class OpenAiCompatibility
                     },
                     new()
                     {
-                        Id = "images.variations.create",
+                        Id = LlmTckProviderOperationIds.OpenAI.ImagesVariationsCreate,
                         Method = "POST",
                         Path = "/openai/v1/images/variations",
                         DocumentationUrl =
@@ -132,7 +132,7 @@ public static class OpenAiCompatibility
                     },
                     new()
                     {
-                        Id = "audio.speech.create",
+                        Id = LlmTckProviderOperationIds.OpenAI.AudioSpeechCreate,
                         Method = "POST",
                         Path = "/openai/v1/audio/speech",
                         DocumentationUrl =
@@ -142,7 +142,7 @@ public static class OpenAiCompatibility
                     },
                     new()
                     {
-                        Id = "audio.transcriptions.create",
+                        Id = LlmTckProviderOperationIds.OpenAI.AudioTranscriptionsCreate,
                         Method = "POST",
                         Path = "/openai/v1/audio/transcriptions",
                         DocumentationUrl =
@@ -157,7 +157,7 @@ public static class OpenAiCompatibility
                     },
                     new()
                     {
-                        Id = "audio.translations.create",
+                        Id = LlmTckProviderOperationIds.OpenAI.AudioTranslationsCreate,
                         Method = "POST",
                         Path = "/openai/v1/audio/translations",
                         DocumentationUrl =
@@ -167,7 +167,7 @@ public static class OpenAiCompatibility
                     },
                     new()
                     {
-                        Id = "videos.create",
+                        Id = LlmTckProviderOperationIds.OpenAI.VideosCreate,
                         Method = "POST",
                         Path = "/openai/v1/videos",
                         DocumentationUrl =
@@ -177,7 +177,7 @@ public static class OpenAiCompatibility
                     },
                     new()
                     {
-                        Id = "videos.list",
+                        Id = LlmTckProviderOperationIds.OpenAI.VideosList,
                         Method = "GET",
                         Path = "/openai/v1/videos",
                         DocumentationUrl =
@@ -187,7 +187,7 @@ public static class OpenAiCompatibility
                     },
                     new()
                     {
-                        Id = "videos.retrieve",
+                        Id = LlmTckProviderOperationIds.OpenAI.VideosRetrieve,
                         Method = "GET",
                         Path = "/openai/v1/videos/{videoId}",
                         DocumentationUrl =
@@ -197,7 +197,7 @@ public static class OpenAiCompatibility
                     },
                     new()
                     {
-                        Id = "videos.delete",
+                        Id = LlmTckProviderOperationIds.OpenAI.VideosDelete,
                         Method = "DELETE",
                         Path = "/openai/v1/videos/{videoId}",
                         DocumentationUrl =
@@ -207,7 +207,7 @@ public static class OpenAiCompatibility
                     },
                     new()
                     {
-                        Id = "videos.content.retrieve",
+                        Id = LlmTckProviderOperationIds.OpenAI.VideosContentRetrieve,
                         Method = "GET",
                         Path = "/openai/v1/videos/{videoId}/content",
                         DocumentationUrl =
@@ -217,7 +217,7 @@ public static class OpenAiCompatibility
                     },
                     new()
                     {
-                        Id = "videos.edits.create",
+                        Id = LlmTckProviderOperationIds.OpenAI.VideosEditsCreate,
                         Method = "POST",
                         Path = "/openai/v1/videos/edits",
                         DocumentationUrl =
@@ -227,7 +227,7 @@ public static class OpenAiCompatibility
                     },
                     new()
                     {
-                        Id = "videos.extensions.create",
+                        Id = LlmTckProviderOperationIds.OpenAI.VideosExtensionsCreate,
                         Method = "POST",
                         Path = "/openai/v1/videos/extensions",
                         DocumentationUrl =
@@ -237,7 +237,7 @@ public static class OpenAiCompatibility
                     },
                     new()
                     {
-                        Id = "videos.remix",
+                        Id = LlmTckProviderOperationIds.OpenAI.VideosRemix,
                         Method = "POST",
                         Path = "/openai/v1/videos/{videoId}/remix",
                         DocumentationUrl =
@@ -247,7 +247,7 @@ public static class OpenAiCompatibility
                     },
                     new()
                     {
-                        Id = "videos.characters.create",
+                        Id = LlmTckProviderOperationIds.OpenAI.VideosCharactersCreate,
                         Method = "POST",
                         Path = "/openai/v1/videos/characters",
                         DocumentationUrl =
@@ -257,7 +257,7 @@ public static class OpenAiCompatibility
                     },
                     new()
                     {
-                        Id = "videos.characters.retrieve",
+                        Id = LlmTckProviderOperationIds.OpenAI.VideosCharactersRetrieve,
                         Method = "GET",
                         Path = "/openai/v1/videos/characters/{characterId}",
                         DocumentationUrl =

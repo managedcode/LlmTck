@@ -19,6 +19,8 @@ public sealed class OpenAiCompatibleProviderRouteTests
     [Arguments("/mistral/v1/chat/completions")]
     [Arguments("/deepseek/v1/chat/completions")]
     [Arguments("/perplexity/v1/sonar")]
+    [Arguments("/microsoft-foundry/chat/completions")]
+    [Arguments("/microsoft-foundry/models/chat/completions")]
     public async Task OpenAiCompatibleChatRoutes_ReturnChatCompletionShapeAsync(string path)
     {
         using var host = await LlmTckTestHost.StartAsync(options => options
@@ -60,6 +62,50 @@ public sealed class OpenAiCompatibleProviderRouteTests
         await Assert.That(usage.GetProperty("completion_tokens").GetInt32()).IsEqualTo(2);
         await Assert.That(usage.GetProperty("total_tokens").GetInt32())
             .IsEqualTo(promptTokens + 2);
+    }
+
+    [Test]
+    [Arguments("/openai/v1/chat/completions")]
+    [Arguments("/groq/openai/v1/chat/completions")]
+    [Arguments("/openrouter/api/v1/chat/completions")]
+    [Arguments("/mistral/v1/chat/completions")]
+    [Arguments("/deepseek/v1/chat/completions")]
+    [Arguments("/perplexity/v1/sonar")]
+    [Arguments("/microsoft-foundry/chat/completions")]
+    [Arguments("/microsoft-foundry/models/chat/completions")]
+    public async Task OpenAiCompatibleChatRoutes_StreamServerSentChunksAsync(string path)
+    {
+        using var host = await LlmTckTestHost.StartAsync(options => options
+                .AddModel("compat-stream-chat", LlmTckModelKind.Chat)
+                .AddChatScenario(
+                    "compat-route-stream",
+                    scenario => scenario
+                        .ForModel("compat-stream-chat")
+                        .WhenUserContains("stream compat route")
+                        .Responds("blue whale", "blue ", "whale")
+                ));
+        using var client = host.GetTestClient();
+
+        var response = await client.PostAsJsonAsync(
+            path,
+            new
+            {
+                model = "compat-stream-chat",
+                stream = true,
+                messages = new[] { new { role = "user", content = "stream compat route" } },
+            },
+            _jsonOptions
+        );
+
+        response.EnsureSuccessStatusCode();
+        var body = await response.Content.ReadAsStringAsync();
+
+        await Assert.That(response.Content.Headers.ContentType?.MediaType)
+            .IsEqualTo("text/event-stream");
+        await Assert.That(body).Contains("data: ");
+        await Assert.That(body).Contains("blue ");
+        await Assert.That(body).Contains("whale");
+        await Assert.That(body).Contains("[DONE]");
     }
 
     [Test]
@@ -172,7 +218,10 @@ public sealed class OpenAiCompatibleProviderRouteTests
     }
 
     [Test]
-    public async Task OpenAiCompatibleResponsesRoute_StreamsResponseServerSentEventsAsync()
+    [Arguments("/openai/v1/responses")]
+    [Arguments("/groq/openai/v1/responses")]
+    [Arguments("/openrouter/api/v1/responses")]
+    public async Task OpenAiCompatibleResponsesRoutes_StreamResponseServerSentEventsAsync(string path)
     {
         using var host = await LlmTckTestHost.StartAsync(options => options
                 .AddModel("compat-responses", LlmTckModelKind.Chat)
@@ -186,7 +235,7 @@ public sealed class OpenAiCompatibleProviderRouteTests
         using var client = host.GetTestClient();
 
         var response = await client.PostAsJsonAsync(
-            "/openrouter/api/v1/responses",
+            path,
             new
             {
                 model = "compat-responses",
@@ -211,6 +260,30 @@ public sealed class OpenAiCompatibleProviderRouteTests
         await Assert.That(body).Contains("\"type\":\"response.done\"");
         await Assert.That(body).Contains("\"input_tokens\":");
         await Assert.That(body).Contains("\"output_tokens\":2");
+    }
+
+    [Test]
+    [Arguments("/microsoft-foundry/embeddings")]
+    [Arguments("/microsoft-foundry/models/embeddings")]
+    public async Task FoundryEmbeddingRoutes_ReturnEmbeddingShapeAsync(string path)
+    {
+        using var host = await LlmTckTestHost.StartAsync(options => options
+                .AddModel("foundry-embedding", LlmTckModelKind.Embedding)
+                .WithDefaultEmbeddingVector(0.25f, 0.5f));
+        using var client = host.GetTestClient();
+
+        var response = await client.PostAsJsonAsync(
+            path,
+            new { model = "foundry-embedding", input = new[] { "alpha", "beta" } },
+            _jsonOptions
+        );
+
+        response.EnsureSuccessStatusCode();
+        var payload = await response.Content.ReadFromJsonAsync<JsonElement>(_jsonOptions);
+
+        await Assert.That(payload.GetProperty("data").GetArrayLength()).IsEqualTo(2);
+        await Assert.That(payload.GetProperty("data")[0].GetProperty("embedding").GetArrayLength())
+            .IsEqualTo(2);
     }
 
     [Test]

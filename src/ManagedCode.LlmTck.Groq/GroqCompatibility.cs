@@ -32,7 +32,7 @@ public static class GroqCompatibility
                 [
                     new()
                     {
-                        Id = "chat.completions.create",
+                        Id = LlmTckProviderOperationIds.Groq.ChatCompletionsCreate,
                         Method = "POST",
                         Path = "/groq/openai/v1/chat/completions",
                         DocumentationUrl = "https://console.groq.com/docs/api-reference",
@@ -48,7 +48,7 @@ public static class GroqCompatibility
                     },
                     new()
                     {
-                        Id = "responses.create",
+                        Id = LlmTckProviderOperationIds.Groq.ResponsesCreate,
                         Method = "POST",
                         Path = "/groq/openai/v1/responses",
                         DocumentationUrl = "https://console.groq.com/docs/api-reference",
@@ -62,7 +62,7 @@ public static class GroqCompatibility
                     },
                     new()
                     {
-                        Id = "audio.speech.create",
+                        Id = LlmTckProviderOperationIds.Groq.AudioSpeechCreate,
                         Method = "POST",
                         Path = "/groq/openai/v1/audio/speech",
                         DocumentationUrl = "https://console.groq.com/docs/api-reference",
@@ -71,7 +71,7 @@ public static class GroqCompatibility
                     },
                     new()
                     {
-                        Id = "audio.transcriptions.create",
+                        Id = LlmTckProviderOperationIds.Groq.AudioTranscriptionsCreate,
                         Method = "POST",
                         Path = "/groq/openai/v1/audio/transcriptions",
                         DocumentationUrl = "https://console.groq.com/docs/api-reference",
@@ -80,7 +80,7 @@ public static class GroqCompatibility
                     },
                     new()
                     {
-                        Id = "audio.translations.create",
+                        Id = LlmTckProviderOperationIds.Groq.AudioTranslationsCreate,
                         Method = "POST",
                         Path = "/groq/openai/v1/audio/translations",
                         DocumentationUrl = "https://console.groq.com/docs/api-reference",
@@ -89,7 +89,7 @@ public static class GroqCompatibility
                     },
                     new()
                     {
-                        Id = "models.list",
+                        Id = LlmTckProviderOperationIds.Groq.ModelsList,
                         Method = "GET",
                         Path = "/groq/openai/v1/models",
                         DocumentationUrl = "https://console.groq.com/docs/models",

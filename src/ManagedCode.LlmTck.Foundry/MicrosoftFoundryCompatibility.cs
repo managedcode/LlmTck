@@ -37,7 +37,7 @@ public static class MicrosoftFoundryCompatibility
                 [
                     new()
                     {
-                        Id = "chat.completions.create",
+                        Id = LlmTckProviderOperationIds.MicrosoftFoundry.ChatCompletionsCreate,
                         Method = "POST",
                         Path = "/microsoft-foundry/chat/completions",
                         DocumentationUrl =
@@ -54,7 +54,7 @@ public static class MicrosoftFoundryCompatibility
                     },
                     new()
                     {
-                        Id = "embeddings.create",
+                        Id = LlmTckProviderOperationIds.MicrosoftFoundry.EmbeddingsCreate,
                         Method = "POST",
                         Path = "/microsoft-foundry/embeddings",
                         DocumentationUrl =
@@ -64,7 +64,7 @@ public static class MicrosoftFoundryCompatibility
                     },
                     new()
                     {
-                        Id = "models.chat.completions.create",
+                        Id = LlmTckProviderOperationIds.MicrosoftFoundry.ModelsChatCompletionsCreate,
                         Method = "POST",
                         Path = "/microsoft-foundry/models/chat/completions",
                         DocumentationUrl =
@@ -79,7 +79,7 @@ public static class MicrosoftFoundryCompatibility
                     },
                     new()
                     {
-                        Id = "models.embeddings.create",
+                        Id = LlmTckProviderOperationIds.MicrosoftFoundry.ModelsEmbeddingsCreate,
                         Method = "POST",
                         Path = "/microsoft-foundry/models/embeddings",
                         DocumentationUrl =

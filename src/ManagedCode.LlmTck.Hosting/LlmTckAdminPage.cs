@@ -215,6 +215,7 @@ internal static class LlmTckAdminPage
     { key: "totalTokens", label: "Total tokens", accent: "var(--teal)" },
     { key: "inputTokens", label: "Input tokens", accent: "var(--blue)" },
     { key: "outputTokens", label: "Output tokens", accent: "var(--green)" },
+    { key: "reasoningTokens", label: "Reasoning tokens", accent: "var(--amber)" },
     { key: "matched", label: "Matched", accent: "var(--green)" },
     { key: "unmatched", label: "Unmatched", accent: "var(--amber)" },
     { key: "modelNotFound", label: "Model not found", accent: "var(--blue)" },
@@ -251,7 +252,9 @@ internal static class LlmTckAdminPage
   function formatUsage(usage) {
     if (!usage) { return ""; }
     return "tokens: " + esc(usage.inputTokens || 0) + " in / " +
-      esc(usage.outputTokens || 0) + " out / " + esc(usage.totalTokens || 0) + " total";
+      esc(usage.outputTokens || 0) + " out / " +
+      esc(usage.reasoningTokens || 0) + " reasoning / " +
+      esc(usage.totalTokens || 0) + " total";
   }
 
   function relTime(iso) {

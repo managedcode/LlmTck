@@ -29,7 +29,7 @@ public static class PerplexityCompatibility
                 [
                     new()
                     {
-                        Id = "sonar.create",
+                        Id = LlmTckProviderOperationIds.Perplexity.SonarCreate,
                         Method = "POST",
                         Path = "/perplexity/v1/sonar",
                         DocumentationUrl = "https://docs.perplexity.ai/api-reference/sonar-post",

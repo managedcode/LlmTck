@@ -102,11 +102,16 @@ Rule format:
 - Keep provider wire formats in provider packages such as `ManagedCode.LlmTck.OpenAI`; keep deterministic scenario behavior in `ManagedCode.LlmTck`.
 - Keep the provider package matrix explicit. Do not ship the TCK as only OpenAI-compatible; maintain package surfaces for OpenAI, Azure OpenAI, Microsoft Foundry, Anthropic, Gemini, Groq, Mistral, Ollama, Cohere, Amazon Bedrock, OpenRouter, DeepSeek, and Perplexity.
 - Azure OpenAI and Microsoft Foundry compatibility must be proven with official Azure SDK clients, not only raw HTTP requests.
+- Built-in defaults, samples, and scenario examples must use official provider model IDs such as `gpt-4.1-mini`, `text-embedding-3-small`, `gpt-image-1`, and `gpt-4o-mini-tts`; do not use synthetic `llm-tck-*` model IDs for normal fixtures.
+- Keep custom `AddModel(...)` support, but expose typed convenience APIs for common official fixture models so callers do not have to hand-type model IDs for standard chat, embedding, image, and audio setup.
+- Reasoning-capable models must carry deterministic reasoning-token usage through runtime summaries and provider response usage details; do not flatten reasoning usage into ordinary visible output tokens only.
 - Compatibility tag values in C# code must come from named constants everywhere they are assigned or asserted, so `CompatibilityTags` cannot drift through inline string literals.
+- Provider `ApiContract` operation id values and behavior-evidence operation ids in C# must come from `LlmTckProviderOperationIds`; do not type raw operation-id strings such as `videos.content.retrieve`.
 - The client package must expose a universal pre-test configuration API so tests can spawn a client, reset or configure the hosted TCK, load models, auth, datasets, scenarios, scripted errors, embeddings, images, and audio fixtures without hand-authoring raw DTOs.
 - Control APIs and the browser admin panel must live under the explicit `/admin/llm-tck` namespace; do not add `__llm-tck`-style hidden root routes for reset, configure, models, assertions, or operator UI.
 - Provider APIs must be explicitly namespaced by provider, such as `/openai`, `/anthropic`, `/gemini`, or `/azure-openai`; do not expose generic root `/v1/*` provider routes that make the TCK look like only the OpenAI API.
 - Aspire examples must show endpoint retrieval from the Aspire resource (`GetEndpoint("http")` or `CreateHttpClient(...)`) and API key wiring so users see the complete integration path.
+- Aspire sample services must use `ManagedCode.LlmTck.Hosting` service-defaults methods such as `AddServiceDefaults()` and `MapDefaultEndpoints()` for health/liveness wiring; do not create a separate ServiceDefaults sample project, and do not hand-roll `app.MapGet("/health", ...)` or placeholder root status endpoints in sample `Program.cs` files.
 - Aspire integration must expose a package-owned `builder.AddLlmTck()` entry point so consumers can install the Aspire NuGet package and add the TCK without caller-supplied project paths or `Projects.*` metadata types.
 - `builder.AddLlmTck()` must be .NET/Aspire-first and must not require Docker or a container runtime by default; container-backed hosting may exist only as an explicit opt-in API.
 - Aspire integration must start an Aspire AppHost in tests before a change is considered covered, with the AppHost model built directly in test code or a test fixture.
@@ -115,6 +120,8 @@ Rule format:
 - Do not add an Aspire provider-endpoint setter to `ManagedCode.LlmTck.Aspire`; consumers must use the endpoint exposed by the `LlmTckResource`.
 - Do not add Aspire compatibility environment flags, sample-service config echoes, or fluent compatibility methods unless they drive real route/runtime behavior; prove compatibility through actual provider clients instead.
 - Provider API compatibility must be doc-backed: every claimed provider method, route, streaming mode, modality, and API-version constraint must be represented in a checked-in contract with official documentation links and covered by tests before the provider package claims support.
+- Provider API verification must cover the full claimed provider matrix: every implemented `ApiContract` operation for every provider needs behavior-test evidence, and fixes that touch provider compatibility must rerun the provider contract/evidence tests plus the full quality gate before closeout.
+- Provider fault simulation must be provider-neutral and always available across the full claimed provider matrix: configurable rate-limit (`too_many_requests`/429) and content-filter (`content_filter`) behavior must flow through runtime configuration and be proven on all provider families, not only OpenAI-compatible routes.
 - Do not hide nondeterminism behind retries. Model responses, stream chunks, errors, auth requirements, embeddings, images, and audio fixtures should be explicit.
 
 ## Ownership Map

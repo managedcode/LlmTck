@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 using ManagedCode.LlmTck.Control;
+using ManagedCode.LlmTck.Models;
 using ManagedCode.LlmTck.Tests.TestSupport;
 
 namespace ManagedCode.LlmTck.Tests.Hosting;
@@ -26,6 +27,7 @@ public sealed class AdminPanelTests
         await Assert.That(body).Contains(LlmTckControlRoutes.Models);
         await Assert.That(body).Contains(LlmTckControlRoutes.Assertions);
         await Assert.That(body).Contains("Total tokens");
+        await Assert.That(body).Contains("Reasoning tokens");
         await Assert.That(body).Contains("tokens:");
     }
 
@@ -67,7 +69,7 @@ public sealed class AdminPanelTests
         using var host = await LlmTckTestHost.StartAsync(options => options.AddChatScenario(
                 "capture-scenario",
                 scenario => scenario
-                    .ForModel("llm-tck-chat")
+                    .ForModel(LlmTckKnownModelIds.Gpt41Mini)
                     .WhenUserContains("color")
                     .Responds("blue whale")
             ));
@@ -77,7 +79,7 @@ public sealed class AdminPanelTests
             "/openai/v1/chat/completions",
             new
             {
-                model = "llm-tck-chat",
+                model = LlmTckKnownModelIds.Gpt41Mini,
                 messages = new[] { new { role = "user", content = "what color is the whale" } },
             },
             _jsonOptions
@@ -97,11 +99,14 @@ public sealed class AdminPanelTests
         await Assert.That(lastEvent.GetProperty("response").GetString()).IsEqualTo("blue whale");
         await Assert.That(summary.GetProperty("inputTokens").GetInt32()).IsEqualTo(5);
         await Assert.That(summary.GetProperty("outputTokens").GetInt32()).IsEqualTo(2);
+        await Assert.That(summary.GetProperty("reasoningTokens").GetInt32()).IsEqualTo(0);
         await Assert.That(summary.GetProperty("totalTokens").GetInt32()).IsEqualTo(7);
         await Assert.That(lastEvent.GetProperty("usage").GetProperty("inputTokens").GetInt32())
             .IsEqualTo(5);
         await Assert.That(lastEvent.GetProperty("usage").GetProperty("outputTokens").GetInt32())
             .IsEqualTo(2);
+        await Assert.That(lastEvent.GetProperty("usage").GetProperty("reasoningTokens").GetInt32())
+            .IsEqualTo(0);
         await Assert.That(lastEvent.GetProperty("usage").GetProperty("totalTokens").GetInt32())
             .IsEqualTo(7);
     }

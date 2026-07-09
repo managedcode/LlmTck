@@ -1,4 +1,5 @@
 using ManagedCode.LlmTck.Client;
+using ManagedCode.LlmTck.Models;
 using ManagedCode.LlmTck.Tests.TestSupport;
 using Microsoft.Extensions.AI;
 
@@ -29,12 +30,12 @@ public sealed class MicrosoftExtensionsAiClientTests
 
         var response = await innerClient.GetResponseAsync(
             [new ChatMessage(ChatRole.User, "What is the largest animal?")],
-            new ChatOptions { ModelId = "llm-tck-chat" },
+            new ChatOptions { ModelId = LlmTckKnownModelIds.Gpt41Mini },
             cts.Token
         );
 
         await Assert.That(capturedMessage?.Text).IsEqualTo("What is the largest animal?");
-        await Assert.That(capturedOptions?.ModelId).IsEqualTo("llm-tck-chat");
+        await Assert.That(capturedOptions?.ModelId).IsEqualTo(LlmTckKnownModelIds.Gpt41Mini);
         await Assert.That(capturedToken.CanBeCanceled).IsTrue();
         await Assert.That(response.Text).IsEqualTo("blue whale");
     }
@@ -62,7 +63,7 @@ public sealed class MicrosoftExtensionsAiClientTests
         await foreach (
             var update in innerClient.GetStreamingResponseAsync(
                 [new ChatMessage(ChatRole.User, "stream")],
-                new ChatOptions { ModelId = "llm-tck-chat" },
+                new ChatOptions { ModelId = LlmTckKnownModelIds.Gpt41Mini },
                 cts.Token
             )
         )
@@ -71,7 +72,7 @@ public sealed class MicrosoftExtensionsAiClientTests
         }
 
         await Assert.That(capturedMessage?.Text).IsEqualTo("stream");
-        await Assert.That(capturedOptions?.ModelId).IsEqualTo("llm-tck-chat");
+        await Assert.That(capturedOptions?.ModelId).IsEqualTo(LlmTckKnownModelIds.Gpt41Mini);
         await Assert.That(capturedToken.CanBeCanceled).IsTrue();
         await Assert.That(string.Concat(updates)).IsEqualTo("blue whale");
 
@@ -91,7 +92,7 @@ public sealed class MicrosoftExtensionsAiClientTests
                 .AddChatScenario(
                     "extensions-ai-blue-whale",
                     scenario => scenario
-                        .ForModel("llm-tck-chat")
+                        .ForModel(LlmTckKnownModelIds.Gpt41Mini)
                         .WhenUserContains("largest animal")
                         .Responds("blue whale", "blue ", "whale")
                         .Responds("blue whale", "blue ", "whale")

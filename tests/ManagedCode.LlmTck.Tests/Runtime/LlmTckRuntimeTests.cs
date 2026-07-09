@@ -9,7 +9,7 @@ public sealed class LlmTckRuntimeTests
 {
     private static readonly LlmTckChatRequest _largestAnimalRequest = new()
     {
-        ModelId = "llm-tck-chat",
+        ModelId = LlmTckKnownModelIds.Gpt41Mini,
         Messages = [new LlmTckMessage { Role = "user", Content = "What is the largest animal?" }],
     };
 
@@ -27,7 +27,7 @@ public sealed class LlmTckRuntimeTests
                 .AddChatScenario(
                     "blue-whale",
                     scenario => scenario
-                        .ForModel("llm-tck-chat")
+                        .ForModel(LlmTckKnownModelIds.Gpt41Mini)
                         .WhenUserContains("largest animal")
                         .Responds(assistantMessage, "blue ", "whale")
                 )
@@ -37,7 +37,7 @@ public sealed class LlmTckRuntimeTests
         var result = await runtime.CompleteChatAsync(
             new LlmTckChatRequest
             {
-                ModelId = "llm-tck-chat",
+                ModelId = LlmTckKnownModelIds.Gpt41Mini,
                 Messages =
                 [
                     new LlmTckMessage
@@ -71,6 +71,52 @@ public sealed class LlmTckRuntimeTests
     }
 
     [Test]
+    public async Task CompleteChatAsync_CarriesConfiguredReasoningTokensAsync()
+    {
+        const string reasoningModel = "gpt-5-nano";
+        const string userMessage = "Use reasoning.";
+        const string assistantMessage = "reasoned answer";
+        const int reasoningTokens = 17;
+        var inputTokens = LlmTckTokenCounter.CountTextTokens(userMessage);
+        var visibleOutputTokens = LlmTckTokenCounter.CountTextTokens(assistantMessage);
+
+        var runtime = new LlmTckRuntime();
+        await runtime.ConfigureAsync(
+            new LlmTckConfigurationBuilder()
+                .AddReasoningChatModel(reasoningModel, reasoningTokens)
+                .AddChatScenario(
+                    "reasoning-answer",
+                    scenario => scenario
+                        .ForModel(reasoningModel)
+                        .WhenUserContains("reasoning")
+                        .Responds(assistantMessage)
+                )
+                .Build()
+        );
+
+        var result = await runtime.CompleteChatAsync(
+            new LlmTckChatRequest
+            {
+                ModelId = reasoningModel,
+                Messages = [new LlmTckMessage { Role = "user", Content = userMessage }],
+            }
+        );
+
+        await Assert.That(result.IsSuccess).IsTrue();
+        await Assert.That(result.Usage.InputTokens).IsEqualTo(inputTokens);
+        await Assert.That(result.Usage.OutputTokens)
+            .IsEqualTo(visibleOutputTokens + reasoningTokens);
+        await Assert.That(result.Usage.ReasoningTokens).IsEqualTo(reasoningTokens);
+        await Assert.That(result.Usage.TotalTokens)
+            .IsEqualTo(inputTokens + visibleOutputTokens + reasoningTokens);
+
+        var summary = runtime.GetAssertionSummary();
+        await Assert.That(summary.OutputTokens).IsEqualTo(visibleOutputTokens + reasoningTokens);
+        await Assert.That(summary.ReasoningTokens).IsEqualTo(reasoningTokens);
+        await Assert.That(summary.Events[0].Usage?.ReasoningTokens).IsEqualTo(reasoningTokens);
+    }
+
+    [Test]
     public async Task CompleteChatAsync_ReportsUnmatchedRequestAsync()
     {
         var runtime = new LlmTckRuntime();
@@ -79,7 +125,7 @@ public sealed class LlmTckRuntimeTests
         var result = await runtime.CompleteChatAsync(
             new LlmTckChatRequest
             {
-                ModelId = "llm-tck-chat",
+                ModelId = LlmTckKnownModelIds.Gpt41Mini,
                 Messages =
                 [
                     new LlmTckMessage
@@ -117,7 +163,7 @@ public sealed class LlmTckRuntimeTests
                 .AddChatScenario(
                     "tenant-only",
                     scenario => scenario
-                        .ForModel("llm-tck-chat")
+                        .ForModel(LlmTckKnownModelIds.Gpt41Mini)
                         .RequireBearerToken("test-key")
                         .WhenUserContains("tenant")
                         .Responds("tenant response")
@@ -125,14 +171,14 @@ public sealed class LlmTckRuntimeTests
                 .AddChatScenario(
                     "single-use",
                     scenario => scenario
-                        .ForModel("llm-tck-chat")
+                        .ForModel(LlmTckKnownModelIds.Gpt41Mini)
                         .WhenUserContains("largest animal")
                         .Responds("blue whale")
                 )
                 .AddChatScenario(
                     "scripted-error",
                     scenario => scenario
-                        .ForModel("llm-tck-chat")
+                        .ForModel(LlmTckKnownModelIds.Gpt41Mini)
                         .WhenUserContains("blocked fixture")
                         .Fails(400, "content_filter", "Scripted refusal.")
                 )
@@ -187,7 +233,7 @@ public sealed class LlmTckRuntimeTests
                 .AddChatScenario(
                     "exact-contract",
                     scenario => scenario
-                        .ForModel("llm-tck-chat")
+                        .ForModel(LlmTckKnownModelIds.Gpt41Mini)
                         .WithExactMatch(
                             new LlmTckMessage { Role = "system", Content = "Return JSON only." },
                             new LlmTckMessage { Role = "user", Content = "Give me the invoice total." }
@@ -200,7 +246,7 @@ public sealed class LlmTckRuntimeTests
         var roleDrift = await runtime.CompleteChatAsync(
             new LlmTckChatRequest
             {
-                ModelId = "llm-tck-chat",
+                ModelId = LlmTckKnownModelIds.Gpt41Mini,
                 Messages =
                 [
                     new LlmTckMessage { Role = "user", Content = "Return JSON only." },
@@ -211,14 +257,14 @@ public sealed class LlmTckRuntimeTests
         var countDrift = await runtime.CompleteChatAsync(
             new LlmTckChatRequest
             {
-                ModelId = "llm-tck-chat",
+                ModelId = LlmTckKnownModelIds.Gpt41Mini,
                 Messages = [new LlmTckMessage { Role = "system", Content = "Return JSON only." }],
             }
         );
         var exact = await runtime.CompleteChatAsync(
             new LlmTckChatRequest
             {
-                ModelId = "llm-tck-chat",
+                ModelId = LlmTckKnownModelIds.Gpt41Mini,
                 Messages =
                 [
                     new LlmTckMessage { Role = "system", Content = "Return JSON only." },
@@ -249,37 +295,37 @@ public sealed class LlmTckRuntimeTests
         );
 
         var unauthorized = await runtime.CreateEmbeddingAsync(
-            "llm-tck-embedding",
+            LlmTckKnownModelIds.TextEmbedding3Small,
             ["input"],
             bearerToken: "wrong-key"
         );
         var embeddings = await runtime.CreateEmbeddingAsync(
-            "llm-tck-embedding",
+            LlmTckKnownModelIds.TextEmbedding3Small,
             ["first", "second"],
             bearerToken: "test-key"
         );
         var image = await runtime.GenerateImageAsync(
-            "llm-tck-image",
+            LlmTckKnownModelIds.GptImage1,
             "a compatibility test image",
             bearerToken: "test-key"
         );
         var audio = await runtime.GenerateAudioAsync(
-            "llm-tck-audio",
+            LlmTckKnownModelIds.Gpt4OMiniTts,
             "hello",
             bearerToken: "test-key"
         );
         var video = await runtime.GenerateVideoAsync(
-            "llm-tck-video",
+            LlmTckKnownModelIds.Sora2,
             "generate a compatibility clip",
             bearerToken: "test-key"
         );
         var transcription = await runtime.TranscribeAudioAsync(
-            "llm-tck-audio",
+            LlmTckKnownModelIds.Gpt4OMiniTts,
             "fixture.wav",
             bearerToken: "test-key"
         );
         var translation = await runtime.TranslateAudioAsync(
-            "llm-tck-audio",
+            LlmTckKnownModelIds.Gpt4OMiniTts,
             "fixture.wav",
             bearerToken: "test-key"
         );
@@ -309,11 +355,11 @@ public sealed class LlmTckRuntimeTests
         await runtime.ConfigureAsync(LlmTckConfiguration.CreateDefault());
 
         var missingEmbedding = await runtime.CreateEmbeddingAsync("missing-embedding", ["input"]);
-        var wrongKindImage = await runtime.GenerateImageAsync("llm-tck-chat", "prompt");
+        var wrongKindImage = await runtime.GenerateImageAsync(LlmTckKnownModelIds.Gpt41Mini, "prompt");
         var missingAudio = await runtime.GenerateAudioAsync("missing-audio", "input");
-        var wrongKindTranscription = await runtime.TranscribeAudioAsync("llm-tck-chat", "fixture.wav");
-        var wrongKindTranslation = await runtime.TranslateAudioAsync("llm-tck-chat", "fixture.wav");
-        var wrongKindVideo = await runtime.GenerateVideoAsync("llm-tck-chat", "prompt");
+        var wrongKindTranscription = await runtime.TranscribeAudioAsync(LlmTckKnownModelIds.Gpt41Mini, "fixture.wav");
+        var wrongKindTranslation = await runtime.TranslateAudioAsync(LlmTckKnownModelIds.Gpt41Mini, "fixture.wav");
+        var wrongKindVideo = await runtime.GenerateVideoAsync(LlmTckKnownModelIds.Gpt41Mini, "prompt");
 
         await Assert.That(missingEmbedding.IsSuccess).IsFalse();
         await Assert.That(missingEmbedding.StatusCode).IsEqualTo(404);
@@ -344,20 +390,20 @@ public sealed class LlmTckRuntimeTests
                 .Build()
         );
 
-        var image = await runtime.GenerateImageAsync("llm-tck-image", "prompt", bearerToken: "wrong-key");
-        var audio = await runtime.GenerateAudioAsync("llm-tck-audio", "input", bearerToken: "wrong-key");
+        var image = await runtime.GenerateImageAsync(LlmTckKnownModelIds.GptImage1, "prompt", bearerToken: "wrong-key");
+        var audio = await runtime.GenerateAudioAsync(LlmTckKnownModelIds.Gpt4OMiniTts, "input", bearerToken: "wrong-key");
         var transcription = await runtime.TranscribeAudioAsync(
-            "llm-tck-audio",
+            LlmTckKnownModelIds.Gpt4OMiniTts,
             "fixture.wav",
             bearerToken: "wrong-key"
         );
         var translation = await runtime.TranslateAudioAsync(
-            "llm-tck-audio",
+            LlmTckKnownModelIds.Gpt4OMiniTts,
             "fixture.wav",
             bearerToken: "wrong-key"
         );
         var video = await runtime.GenerateVideoAsync(
-            "llm-tck-video",
+            LlmTckKnownModelIds.Sora2,
             "prompt",
             bearerToken: "wrong-key"
         );
@@ -376,6 +422,101 @@ public sealed class LlmTckRuntimeTests
     }
 
     [Test]
+    public async Task FaultSimulation_ReturnsContentFilterAcrossRuntimeModalitiesAsync()
+    {
+        var runtime = new LlmTckRuntime();
+        await runtime.ConfigureAsync(
+            new LlmTckConfigurationBuilder()
+                .SimulateContentFilter("blocked-term")
+                .Build()
+        );
+
+        var chat = await runtime.CompleteChatAsync(
+            _largestAnimalRequest with
+            {
+                Messages = [new LlmTckMessage { Role = "user", Content = "blocked-term" }],
+            }
+        );
+        var embeddings = await runtime.CreateEmbeddingAsync(LlmTckKnownModelIds.TextEmbedding3Small, ["blocked-term"]);
+        var image = await runtime.GenerateImageAsync(LlmTckKnownModelIds.GptImage1, "blocked-term");
+        var audio = await runtime.GenerateAudioAsync(LlmTckKnownModelIds.Gpt4OMiniTts, "blocked-term");
+        var transcription = await runtime.TranscribeAudioAsync(
+            LlmTckKnownModelIds.Gpt4OMiniTts,
+            "fixture.wav",
+            prompt: "blocked-term"
+        );
+        var translation = await runtime.TranslateAudioAsync(
+            LlmTckKnownModelIds.Gpt4OMiniTts,
+            "fixture.wav",
+            prompt: "blocked-term"
+        );
+        var video = await runtime.GenerateVideoAsync(LlmTckKnownModelIds.Sora2, "blocked-term");
+
+        await AssertFaultAsync(chat.StatusCode, chat.ErrorCode, chat.ErrorMessage, "content_filter");
+        await AssertFaultAsync(
+            embeddings.StatusCode,
+            embeddings.ErrorCode,
+            embeddings.ErrorMessage,
+            "content_filter"
+        );
+        await AssertFaultAsync(image.StatusCode, image.ErrorCode, image.ErrorMessage, "content_filter");
+        await AssertFaultAsync(audio.StatusCode, audio.ErrorCode, audio.ErrorMessage, "content_filter");
+        await AssertFaultAsync(
+            transcription.StatusCode,
+            transcription.ErrorCode,
+            transcription.ErrorMessage,
+            "content_filter"
+        );
+        await AssertFaultAsync(
+            translation.StatusCode,
+            translation.ErrorCode,
+            translation.ErrorMessage,
+            "content_filter"
+        );
+        await AssertFaultAsync(video.StatusCode, video.ErrorCode, video.ErrorMessage, "content_filter");
+        await Assert.That(runtime.GetAssertionSummary().ErrorsReturned).IsEqualTo(7);
+    }
+
+    [Test]
+    public async Task FaultSimulation_RateLimitCountsRequestsAcrossModalitiesAndResetAsync()
+    {
+        var runtime = new LlmTckRuntime();
+        await runtime.ConfigureAsync(
+            new LlmTckConfigurationBuilder()
+                .SimulateRateLimitAfter(2)
+                .AddChatScenario(
+                    "rate-limit-reset",
+                    scenario => scenario
+                        .ForModel(LlmTckKnownModelIds.Gpt41Mini)
+                        .WhenUserContains("largest animal")
+                        .Responds("blue whale")
+                )
+                .Build()
+        );
+
+        var first = await runtime.CompleteChatAsync(_largestAnimalRequest);
+        var second = await runtime.CreateEmbeddingAsync(LlmTckKnownModelIds.TextEmbedding3Small, ["first"]);
+        var third = await runtime.GenerateImageAsync(LlmTckKnownModelIds.GptImage1, "after limit");
+
+        await Assert.That(first.IsSuccess).IsTrue();
+        await Assert.That(second.IsSuccess).IsTrue();
+        await AssertFaultAsync(
+            third.StatusCode,
+            third.ErrorCode,
+            third.ErrorMessage,
+            "too_many_requests"
+        );
+        await Assert.That(runtime.GetAssertionSummary().ErrorsReturned).IsEqualTo(1);
+
+        await runtime.ResetAsync();
+        var afterReset = await runtime.CompleteChatAsync(_largestAnimalRequest);
+
+        await Assert.That(afterReset.IsSuccess).IsTrue();
+        await Assert.That(runtime.GetAssertionSummary().Matched).IsEqualTo(1);
+        await Assert.That(runtime.GetAssertionSummary().ErrorsReturned).IsEqualTo(0);
+    }
+
+    [Test]
     public async Task ConfigureAsync_SnapshotsMutableConfigurationAsync()
     {
         var runtime = new LlmTckRuntime();
@@ -383,7 +524,7 @@ public sealed class LlmTckRuntimeTests
             .AddChatScenario(
                 "snapshot-blue-whale",
                 scenario => scenario
-                    .ForModel("llm-tck-chat")
+                    .ForModel(LlmTckKnownModelIds.Gpt41Mini)
                     .WhenUserContains("largest animal")
                     .Responds("blue whale", "blue ", "whale")
             )
@@ -399,11 +540,11 @@ public sealed class LlmTckRuntimeTests
         var chat = await runtime.CompleteChatAsync(
             new LlmTckChatRequest
             {
-                ModelId = "llm-tck-chat",
+                ModelId = LlmTckKnownModelIds.Gpt41Mini,
                 Messages = [new LlmTckMessage { Role = "user", Content = "largest animal" }],
             }
         );
-        var embeddings = await runtime.CreateEmbeddingAsync("llm-tck-embedding", ["input"]);
+        var embeddings = await runtime.CreateEmbeddingAsync(LlmTckKnownModelIds.TextEmbedding3Small, ["input"]);
 
         await Assert.That(chat.IsSuccess).IsTrue();
         await Assert.That(chat.StreamChunks).IsEquivalentTo(["blue ", "whale"]);
@@ -419,7 +560,7 @@ public sealed class LlmTckRuntimeTests
                 .AddChatScenario(
                     "resettable",
                     scenario => scenario
-                        .ForModel("llm-tck-chat")
+                        .ForModel(LlmTckKnownModelIds.Gpt41Mini)
                         .WhenUserContains("largest animal")
                         .Responds("blue whale")
                 )
@@ -446,7 +587,7 @@ public sealed class LlmTckRuntimeTests
                 .AddChatScenario(
                     "delayed-blue-whale",
                     scenario => scenario
-                        .ForModel("llm-tck-chat")
+                        .ForModel(LlmTckKnownModelIds.Gpt41Mini)
                         .WhenUserContains("largest animal")
                         .Responds("blue whale")
                         .DelaysBy(500)
@@ -460,7 +601,7 @@ public sealed class LlmTckRuntimeTests
             await runtime.CompleteChatAsync(
                 new LlmTckChatRequest
                 {
-                    ModelId = "llm-tck-chat",
+                    ModelId = LlmTckKnownModelIds.Gpt41Mini,
                     Messages = [new LlmTckMessage { Role = "user", Content = "largest animal" }],
                 },
                 cancellationToken: cts.Token
@@ -473,7 +614,7 @@ public sealed class LlmTckRuntimeTests
         var result = await runtime.CompleteChatAsync(
             new LlmTckChatRequest
             {
-                ModelId = "llm-tck-chat",
+                ModelId = LlmTckKnownModelIds.Gpt41Mini,
                 Messages = [new LlmTckMessage { Role = "user", Content = "largest animal" }],
             }
         );
@@ -481,5 +622,21 @@ public sealed class LlmTckRuntimeTests
         await Assert.That(result.IsSuccess).IsTrue();
         await Assert.That(result.Content).IsEqualTo("blue whale");
         await Assert.That(runtime.GetAssertionSummary().Matched).IsEqualTo(1);
+    }
+
+    private static async Task AssertFaultAsync(
+        int statusCode,
+        string? errorCode,
+        string? errorMessage,
+        string expectedCode
+    )
+    {
+        await Assert.That(statusCode).IsEqualTo(
+            string.Equals(expectedCode, "too_many_requests", StringComparison.Ordinal)
+                ? 429
+                : 400
+        );
+        await Assert.That(errorCode).IsEqualTo(expectedCode);
+        await Assert.That(errorMessage).Contains(expectedCode);
     }
 }

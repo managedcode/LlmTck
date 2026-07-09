@@ -39,7 +39,7 @@ public static class AzureOpenAiCompatibility
                 [
                     new()
                     {
-                        Id = "chat.completions.create",
+                        Id = LlmTckProviderOperationIds.AzureOpenAI.ChatCompletionsCreate,
                         Method = "POST",
                         Path = "/azure-openai/openai/deployments/{deployment}/chat/completions",
                         DocumentationUrl =
@@ -57,7 +57,7 @@ public static class AzureOpenAiCompatibility
                     },
                     new()
                     {
-                        Id = "embeddings.create",
+                        Id = LlmTckProviderOperationIds.AzureOpenAI.EmbeddingsCreate,
                         Method = "POST",
                         Path = "/azure-openai/openai/deployments/{deployment}/embeddings",
                         DocumentationUrl =
@@ -68,7 +68,7 @@ public static class AzureOpenAiCompatibility
                     },
                     new()
                     {
-                        Id = "images.create",
+                        Id = LlmTckProviderOperationIds.AzureOpenAI.ImagesCreate,
                         Method = "POST",
                         Path = "/azure-openai/openai/deployments/{deployment}/images/generations",
                         DocumentationUrl = "https://learn.microsoft.com/en-us/azure/foundry/openai/reference",
@@ -78,7 +78,7 @@ public static class AzureOpenAiCompatibility
                     },
                     new()
                     {
-                        Id = "audio.speech.create",
+                        Id = LlmTckProviderOperationIds.AzureOpenAI.AudioSpeechCreate,
                         Method = "POST",
                         Path = "/azure-openai/openai/deployments/{deployment}/audio/speech",
                         DocumentationUrl = "https://learn.microsoft.com/en-us/azure/foundry/openai/reference",
@@ -88,7 +88,7 @@ public static class AzureOpenAiCompatibility
                     },
                     new()
                     {
-                        Id = "audio.transcriptions.create",
+                        Id = LlmTckProviderOperationIds.AzureOpenAI.AudioTranscriptionsCreate,
                         Method = "POST",
                         Path = "/azure-openai/openai/deployments/{deployment}/audio/transcriptions",
                         DocumentationUrl = "https://learn.microsoft.com/en-us/azure/foundry/openai/reference",
@@ -99,7 +99,7 @@ public static class AzureOpenAiCompatibility
                     },
                     new()
                     {
-                        Id = "audio.translations.create",
+                        Id = LlmTckProviderOperationIds.AzureOpenAI.AudioTranslationsCreate,
                         Method = "POST",
                         Path = "/azure-openai/openai/deployments/{deployment}/audio/translations",
                         DocumentationUrl = "https://learn.microsoft.com/en-us/azure/foundry/openai/reference",
@@ -110,7 +110,7 @@ public static class AzureOpenAiCompatibility
                     },
                     new()
                     {
-                        Id = "video.generation.jobs.create",
+                        Id = LlmTckProviderOperationIds.AzureOpenAI.VideoGenerationJobsCreate,
                         Method = "POST",
                         Path = "/azure-openai/openai/v1/video/generations/jobs",
                         DocumentationUrl =
@@ -122,7 +122,7 @@ public static class AzureOpenAiCompatibility
                     },
                     new()
                     {
-                        Id = "video.generation.jobs.list",
+                        Id = LlmTckProviderOperationIds.AzureOpenAI.VideoGenerationJobsList,
                         Method = "GET",
                         Path = "/azure-openai/openai/v1/video/generations/jobs",
                         DocumentationUrl =
@@ -134,7 +134,7 @@ public static class AzureOpenAiCompatibility
                     },
                     new()
                     {
-                        Id = "video.generation.jobs.retrieve",
+                        Id = LlmTckProviderOperationIds.AzureOpenAI.VideoGenerationJobsRetrieve,
                         Method = "GET",
                         Path = "/azure-openai/openai/v1/video/generations/jobs/{jobId}",
                         DocumentationUrl =
@@ -146,7 +146,7 @@ public static class AzureOpenAiCompatibility
                     },
                     new()
                     {
-                        Id = "video.generation.jobs.delete",
+                        Id = LlmTckProviderOperationIds.AzureOpenAI.VideoGenerationJobsDelete,
                         Method = "DELETE",
                         Path = "/azure-openai/openai/v1/video/generations/jobs/{jobId}",
                         DocumentationUrl =
@@ -158,7 +158,7 @@ public static class AzureOpenAiCompatibility
                     },
                     new()
                     {
-                        Id = "video.generations.retrieve",
+                        Id = LlmTckProviderOperationIds.AzureOpenAI.VideoGenerationsRetrieve,
                         Method = "GET",
                         Path = "/azure-openai/openai/v1/video/generations/{generationId}",
                         DocumentationUrl =
@@ -170,7 +170,7 @@ public static class AzureOpenAiCompatibility
                     },
                     new()
                     {
-                        Id = "video.generations.thumbnail.retrieve",
+                        Id = LlmTckProviderOperationIds.AzureOpenAI.VideoGenerationsThumbnailRetrieve,
                         Method = "GET",
                         Path = "/azure-openai/openai/v1/video/generations/{generationId}/content/thumbnail",
                         DocumentationUrl =
@@ -182,7 +182,7 @@ public static class AzureOpenAiCompatibility
                     },
                     new()
                     {
-                        Id = "video.generations.content.retrieve",
+                        Id = LlmTckProviderOperationIds.AzureOpenAI.VideoGenerationsContentRetrieve,
                         Method = "GET",
                         Path = "/azure-openai/openai/v1/video/generations/{generationId}/content/video",
                         DocumentationUrl =
@@ -194,7 +194,7 @@ public static class AzureOpenAiCompatibility
                     },
                     new()
                     {
-                        Id = "video.generations.content.head",
+                        Id = LlmTckProviderOperationIds.AzureOpenAI.VideoGenerationsContentHead,
                         Method = "HEAD",
                         Path = "/azure-openai/openai/v1/video/generations/{generationId}/content/video",
                         DocumentationUrl =

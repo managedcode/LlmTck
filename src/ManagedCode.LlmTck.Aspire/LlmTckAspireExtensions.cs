@@ -19,7 +19,7 @@ public static class LlmTckAspireExtensions
         return builder.AddResource(resource)
             .WithArgs("ManagedCode.LlmTck.Service.dll")
             .WithHttpEndpoint(name: LlmTckResource.HttpEndpointName, env: "PORT")
-            .WithHttpHealthCheck("/");
+            .WithHttpHealthCheck("/health");
     }
 
     public static IResourceBuilder<LlmTckContainerResource> AddLlmTckContainer(
@@ -39,7 +39,7 @@ public static class LlmTckAspireExtensions
                 targetPort: LlmTckContainerResource.HttpPort,
                 name: LlmTckResource.HttpEndpointName
             )
-            .WithHttpHealthCheck("/");
+            .WithHttpHealthCheck("/health");
     }
 
     public static EndpointReference GetHttpEndpoint(
@@ -51,6 +51,15 @@ public static class LlmTckAspireExtensions
         return builder.GetEndpoint(LlmTckResource.HttpEndpointName);
     }
 
+    public static ReferenceExpression GetOpenAiEndpoint(
+        this IResourceBuilder<LlmTckResource> builder
+    )
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+
+        return ReferenceExpression.Create($"{builder.GetHttpEndpoint()}/openai/v1");
+    }
+
     public static EndpointReference GetHttpEndpoint(
         this IResourceBuilder<LlmTckContainerResource> builder
     )
@@ -58,6 +67,15 @@ public static class LlmTckAspireExtensions
         ArgumentNullException.ThrowIfNull(builder);
 
         return builder.GetEndpoint(LlmTckResource.HttpEndpointName);
+    }
+
+    public static ReferenceExpression GetOpenAiEndpoint(
+        this IResourceBuilder<LlmTckContainerResource> builder
+    )
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+
+        return ReferenceExpression.Create($"{builder.GetHttpEndpoint()}/openai/v1");
     }
 
     public static IResourceBuilder<TResource> WithApiKey<TResource>(

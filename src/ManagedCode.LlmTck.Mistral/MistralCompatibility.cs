@@ -31,7 +31,7 @@ public static class MistralCompatibility
                 [
                     new()
                     {
-                        Id = "chat.complete",
+                        Id = LlmTckProviderOperationIds.Mistral.ChatComplete,
                         Method = "POST",
                         Path = "/mistral/v1/chat/completions",
                         DocumentationUrl = "https://docs.mistral.ai/api/endpoint/chat",
@@ -47,7 +47,7 @@ public static class MistralCompatibility
                     },
                     new()
                     {
-                        Id = "embeddings.create",
+                        Id = LlmTckProviderOperationIds.Mistral.EmbeddingsCreate,
                         Method = "POST",
                         Path = "/mistral/v1/embeddings",
                         DocumentationUrl = "https://docs.mistral.ai/api/endpoint/embeddings",

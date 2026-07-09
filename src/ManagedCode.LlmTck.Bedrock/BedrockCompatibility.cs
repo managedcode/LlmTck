@@ -38,7 +38,7 @@ public static class BedrockCompatibility
                 [
                     new()
                     {
-                        Id = "converse",
+                        Id = LlmTckProviderOperationIds.Bedrock.Converse,
                         Method = "POST",
                         Path = "/bedrock/model/{modelId}/converse",
                         DocumentationUrl =
@@ -53,7 +53,7 @@ public static class BedrockCompatibility
                     },
                     new()
                     {
-                        Id = "converseStream",
+                        Id = LlmTckProviderOperationIds.Bedrock.ConverseStream,
                         Method = "POST",
                         Path = "/bedrock/model/{modelId}/converse-stream",
                         DocumentationUrl =
@@ -64,7 +64,7 @@ public static class BedrockCompatibility
                     },
                     new()
                     {
-                        Id = "invokeModel",
+                        Id = LlmTckProviderOperationIds.Bedrock.InvokeModel,
                         Method = "POST",
                         Path = "/bedrock/model/{modelId}/invoke",
                         DocumentationUrl =
@@ -78,7 +78,7 @@ public static class BedrockCompatibility
                     },
                     new()
                     {
-                        Id = "invokeModelWithResponseStream",
+                        Id = LlmTckProviderOperationIds.Bedrock.InvokeModelWithResponseStream,
                         Method = "POST",
                         Path = "/bedrock/model/{modelId}/invoke-with-response-stream",
                         DocumentationUrl =

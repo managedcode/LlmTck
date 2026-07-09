@@ -35,7 +35,7 @@ public static class AnthropicCompatibility
                 [
                     new()
                     {
-                        Id = "messages.create",
+                        Id = LlmTckProviderOperationIds.Anthropic.MessagesCreate,
                         Method = "POST",
                         Path = "/anthropic/v1/messages",
                         DocumentationUrl = "https://docs.anthropic.com/en/api/messages",

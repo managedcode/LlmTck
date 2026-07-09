@@ -20,6 +20,8 @@ public sealed record LlmTckAssertionSummary
 
     public int OutputTokens { get; init; }
 
+    public int ReasoningTokens { get; init; }
+
     public int TotalTokens { get; init; }
 
     public List<LlmTckRuntimeEvent> Events { get; init; } = [];

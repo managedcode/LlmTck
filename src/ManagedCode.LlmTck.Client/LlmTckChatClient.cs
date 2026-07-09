@@ -3,6 +3,7 @@ using System.Net.Http.Json;
 using System.Runtime.CompilerServices;
 using System.Text;
 using System.Text.Json;
+using ManagedCode.LlmTck.Models;
 using ManagedCode.LlmTck.OpenAI;
 using Microsoft.Extensions.AI;
 using ProviderRoutes = ManagedCode.LlmTck.Providers.LlmTckProviderRouteNamespaces;
@@ -11,7 +12,7 @@ namespace ManagedCode.LlmTck.Client;
 
 public sealed class LlmTckChatClient(
     HttpClient httpClient,
-    string defaultModelId = "llm-tck-chat",
+    string defaultModelId = LlmTckKnownModelIds.Gpt41Mini,
     string? bearerToken = null
 ) : IChatClient
 {

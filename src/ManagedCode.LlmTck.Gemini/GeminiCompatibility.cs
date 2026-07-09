@@ -39,7 +39,7 @@ public static class GeminiCompatibility
                 [
                     new()
                     {
-                        Id = "models.generateContent",
+                        Id = LlmTckProviderOperationIds.Gemini.ModelsGenerateContent,
                         Method = "POST",
                         Path = "/gemini/v1beta/models/{model}:generateContent",
                         DocumentationUrl = "https://ai.google.dev/api/generate-content",
@@ -55,7 +55,7 @@ public static class GeminiCompatibility
                     },
                     new()
                     {
-                        Id = "models.streamGenerateContent",
+                        Id = LlmTckProviderOperationIds.Gemini.ModelsStreamGenerateContent,
                         Method = "POST",
                         Path = "/gemini/v1beta/models/{model}:streamGenerateContent",
                         DocumentationUrl = "https://ai.google.dev/api/generate-content",
@@ -65,7 +65,7 @@ public static class GeminiCompatibility
                     },
                     new()
                     {
-                        Id = "models.embedContent",
+                        Id = LlmTckProviderOperationIds.Gemini.ModelsEmbedContent,
                         Method = "POST",
                         Path = "/gemini/v1beta/models/{model}:embedContent",
                         DocumentationUrl = "https://ai.google.dev/api/embeddings",
@@ -74,7 +74,7 @@ public static class GeminiCompatibility
                     },
                     new()
                     {
-                        Id = "models.predictLongRunning.video",
+                        Id = LlmTckProviderOperationIds.Gemini.ModelsPredictLongRunningVideo,
                         Method = "POST",
                         Path = "/gemini/v1beta/models/{model}:predictLongRunning",
                         DocumentationUrl = "https://ai.google.dev/gemini-api/docs/video",
@@ -83,7 +83,7 @@ public static class GeminiCompatibility
                     },
                     new()
                     {
-                        Id = "models.operations.get.video",
+                        Id = LlmTckProviderOperationIds.Gemini.ModelsOperationsGetVideo,
                         Method = "GET",
                         Path = "/gemini/v1beta/models/{model}/operations/{operationId}",
                         DocumentationUrl = "https://ai.google.dev/gemini-api/docs/video",
@@ -92,7 +92,7 @@ public static class GeminiCompatibility
                     },
                     new()
                     {
-                        Id = "files.get.generatedVideo",
+                        Id = LlmTckProviderOperationIds.Gemini.FilesGetGeneratedVideo,
                         Method = "GET",
                         Path = "/gemini/v1beta/files/{fileId}",
                         DocumentationUrl = "https://ai.google.dev/api/files",

@@ -6,5 +6,7 @@ public sealed record LlmTckTokenUsage
 
     public int OutputTokens { get; init; }
 
+    public int ReasoningTokens { get; init; }
+
     public int TotalTokens { get; init; }
 }

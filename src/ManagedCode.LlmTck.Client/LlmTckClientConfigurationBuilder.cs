@@ -14,9 +14,65 @@ public sealed class LlmTckClientConfigurationBuilder
         return this;
     }
 
-    public LlmTckClientConfigurationBuilder UseModel(string id, LlmTckModelKind kind)
+    public LlmTckClientConfigurationBuilder SimulateRateLimitAfter(int allowedRequests)
     {
-        _builder.AddModel(id, kind);
+        _builder.SimulateRateLimitAfter(allowedRequests);
+        return this;
+    }
+
+    public LlmTckClientConfigurationBuilder SimulateContentFilter(params string[] blockedTerms)
+    {
+        _builder.SimulateContentFilter(blockedTerms);
+        return this;
+    }
+
+    public LlmTckClientConfigurationBuilder UseModel(
+        string id,
+        LlmTckModelKind kind,
+        int reasoningTokens = 0
+    )
+    {
+        _builder.AddModel(id, kind, reasoningTokens);
+        return this;
+    }
+
+    public LlmTckClientConfigurationBuilder UseReasoningChatModel(
+        string id,
+        int reasoningTokens
+    )
+    {
+        _builder.AddReasoningChatModel(id, reasoningTokens);
+        return this;
+    }
+
+    public LlmTckClientConfigurationBuilder UseGpt41Mini()
+    {
+        return UseChatModel(LlmTckKnownModelIds.Gpt41Mini);
+    }
+
+    public LlmTckClientConfigurationBuilder UseTextEmbedding3Small()
+    {
+        return UseEmbeddingModel(LlmTckKnownModelIds.TextEmbedding3Small);
+    }
+
+    public LlmTckClientConfigurationBuilder UseGptImage1()
+    {
+        return UseImageModel(LlmTckKnownModelIds.GptImage1);
+    }
+
+    public LlmTckClientConfigurationBuilder UseGpt4OMiniTts()
+    {
+        return UseAudioModel(LlmTckKnownModelIds.Gpt4OMiniTts);
+    }
+
+    public LlmTckClientConfigurationBuilder UseSora2()
+    {
+        return UseVideoModel(LlmTckKnownModelIds.Sora2);
+    }
+
+    public LlmTckClientConfigurationBuilder UseDefaultOpenAiModels()
+    {
+        _builder.AddDefaultOpenAiModels();
         return this;
     }
 

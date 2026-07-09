@@ -1,8 +1,8 @@
-using ManagedCode.LlmTck.Control;
 using ManagedCode.LlmTck.Hosting;
 using ManagedCode.LlmTck.Models;
 
 var builder = WebApplication.CreateBuilder(args);
+builder.AddServiceDefaults();
 
 var aspirePort = builder.Configuration["PORT"];
 if (!string.IsNullOrWhiteSpace(aspirePort)
@@ -20,10 +20,7 @@ if (!string.IsNullOrWhiteSpace(aspirePort)
 var requiredBearerToken = builder.Configuration["LlmTck:RequiredBearerToken"];
 builder.Services.AddLlmTck(options =>
 {
-    options.AddModel("llm-tck-chat", LlmTckModelKind.Chat);
-    options.AddModel("llm-tck-embedding", LlmTckModelKind.Embedding);
-    options.AddModel("llm-tck-image", LlmTckModelKind.Image);
-    options.AddModel("llm-tck-audio", LlmTckModelKind.Audio);
+    options.AddDefaultOpenAiModels();
 
     if (!string.IsNullOrWhiteSpace(requiredBearerToken))
     {
@@ -33,7 +30,7 @@ builder.Services.AddLlmTck(options =>
     options.AddChatScenario(
         "default-blue-whale",
         scenario => scenario
-            .ForModel("llm-tck-chat")
+            .ForModel(LlmTckKnownModelIds.Gpt41Mini)
             .WhenUserContains("color")
             .Responds("blue whale", "blue ", "whale")
             .Responds("blue whale", "blue ", "whale")
@@ -42,17 +39,6 @@ builder.Services.AddLlmTck(options =>
 
 var app = builder.Build();
 
-app.MapGet(
-    "/",
-    () =>
-        Results.Ok(
-            new
-            {
-                name = "LLM TCK",
-                status = "ready",
-                admin = LlmTckControlRoutes.Admin,
-            }
-        )
-);
+app.MapDefaultEndpoints();
 app.MapLlmTck();
 app.Run();

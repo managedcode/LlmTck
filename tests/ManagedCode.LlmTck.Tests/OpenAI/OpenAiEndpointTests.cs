@@ -129,7 +129,7 @@ public sealed class OpenAiEndpointTests
         using var host = await LlmTckTestHost.StartAsync(options => options.AddChatScenario(
                 "streaming-blue-whale",
                 scenario => scenario
-                    .ForModel("llm-tck-chat")
+                    .ForModel(LlmTckKnownModelIds.Gpt41Mini)
                     .WhenUserContains("stream")
                     .Responds("blue whale", "blue ", "whale")
             ));
@@ -139,7 +139,7 @@ public sealed class OpenAiEndpointTests
             "/openai/v1/chat/completions",
             new
             {
-                model = "llm-tck-chat",
+                model = LlmTckKnownModelIds.Gpt41Mini,
                 stream = true,
                 messages = new[] { new { role = "user", content = "stream response" } },
             },
@@ -164,6 +164,77 @@ public sealed class OpenAiEndpointTests
     }
 
     [Test]
+    public async Task OpenAiUsage_IncludesReasoningTokenDetailsForReasoningModelsAsync()
+    {
+        const string reasoningModel = "gpt-5-nano";
+        const int reasoningTokens = 19;
+        using var host = await LlmTckTestHost.StartAsync(options => options
+                .AddReasoningChatModel(reasoningModel, reasoningTokens)
+                .AddChatScenario(
+                    "reasoning-usage",
+                    scenario => scenario
+                        .ForModel(reasoningModel)
+                        .WhenUserContains("reasoning usage")
+                        .Responds("reasoned response")
+                        .Responds("reasoned response")
+                ));
+        using var client = host.GetTestClient();
+
+        var chat = await client.PostAsJsonAsync(
+            "/openai/v1/chat/completions",
+            new
+            {
+                model = reasoningModel,
+                messages = new[] { new { role = "user", content = "reasoning usage" } },
+            },
+            _jsonOptions
+        );
+        var responses = await client.PostAsJsonAsync(
+            "/openai/v1/responses",
+            new
+            {
+                model = reasoningModel,
+                input = new[]
+                {
+                    new
+                    {
+                        role = "user",
+                        content = "reasoning usage",
+                    },
+                },
+            },
+            _jsonOptions
+        );
+
+        chat.EnsureSuccessStatusCode();
+        responses.EnsureSuccessStatusCode();
+
+        var chatPayload = await chat.Content.ReadFromJsonAsync<JsonElement>(_jsonOptions);
+        var responsePayload = await responses.Content.ReadFromJsonAsync<JsonElement>(_jsonOptions);
+        var chatUsage = chatPayload.GetProperty("usage");
+        var responseUsage = responsePayload.GetProperty("usage");
+
+        await Assert.That(
+                chatUsage
+                    .GetProperty("completion_tokens_details")
+                    .GetProperty("reasoning_tokens")
+                    .GetInt32()
+            )
+            .IsEqualTo(reasoningTokens);
+        await Assert.That(
+                responseUsage
+                    .GetProperty("output_tokens_details")
+                    .GetProperty("reasoning_tokens")
+                    .GetInt32()
+            )
+            .IsEqualTo(reasoningTokens);
+        await Assert.That(chatUsage.GetProperty("completion_tokens").GetInt32())
+            .IsGreaterThan(reasoningTokens);
+        await Assert.That(responseUsage.GetProperty("output_tokens").GetInt32())
+            .IsGreaterThan(reasoningTokens);
+    }
+
+    [Test]
     public async Task BearerTokenRequirement_ReturnsOpenAiErrorShapeAsync()
     {
         using var host = await LlmTckTestHost.StartAsync(options => options.RequireBearerToken("test-key"));
@@ -171,7 +242,7 @@ public sealed class OpenAiEndpointTests
 
         var response = await client.PostAsJsonAsync(
             "/openai/v1/embeddings",
-            new { model = "llm-tck-embedding", input = "hello" },
+            new { model = LlmTckKnownModelIds.TextEmbedding3Small, input = "hello" },
             _jsonOptions
         );
 
@@ -235,7 +306,7 @@ public sealed class OpenAiEndpointTests
         );
         var missingMessages = await client.PostAsJsonAsync(
             "/openai/v1/chat/completions",
-            new { model = "llm-tck-chat", messages = (object?)null },
+            new { model = LlmTckKnownModelIds.Gpt41Mini, messages = (object?)null },
             _jsonOptions
         );
 
@@ -326,7 +397,7 @@ public sealed class OpenAiEndpointTests
                 .AddChatScenario(
                     "control-client-blue-whale",
                     scenario => scenario
-                        .ForModel("llm-tck-chat")
+                        .ForModel(LlmTckKnownModelIds.Gpt41Mini)
                         .WhenUserContains("largest animal")
                         .Responds("blue whale")
                 )
@@ -336,7 +407,7 @@ public sealed class OpenAiEndpointTests
             "/openai/v1/chat/completions",
             new
             {
-                model = "llm-tck-chat",
+                model = LlmTckKnownModelIds.Gpt41Mini,
                 messages = new[] { new { role = "user", content = "largest animal" } },
             },
             _jsonOptions
@@ -366,7 +437,7 @@ public sealed class OpenAiEndpointTests
         );
         var missingEmbeddingInput = await client.PostAsJsonAsync(
             "/openai/v1/embeddings",
-            new { model = "llm-tck-embedding", input = (object?)null },
+            new { model = LlmTckKnownModelIds.TextEmbedding3Small, input = (object?)null },
             _jsonOptions
         );
         var missingImageModel = await client.PostAsJsonAsync(
@@ -376,7 +447,7 @@ public sealed class OpenAiEndpointTests
         );
         var missingImagePrompt = await client.PostAsJsonAsync(
             "/openai/v1/images/generations",
-            new { model = "llm-tck-image", prompt = "" },
+            new { model = LlmTckKnownModelIds.GptImage1, prompt = "" },
             _jsonOptions
         );
         var missingAudioModel = await client.PostAsJsonAsync(
@@ -386,12 +457,12 @@ public sealed class OpenAiEndpointTests
         );
         var missingAudioInput = await client.PostAsJsonAsync(
             "/openai/v1/audio/speech",
-            new { model = "llm-tck-audio", input = "", voice = "alloy" },
+            new { model = LlmTckKnownModelIds.Gpt4OMiniTts, input = "", voice = "alloy" },
             _jsonOptions
         );
         var missingAudioVoice = await client.PostAsJsonAsync(
             "/openai/v1/audio/speech",
-            new { model = "llm-tck-audio", input = "speak this", voice = "" },
+            new { model = LlmTckKnownModelIds.Gpt4OMiniTts, input = "speak this", voice = "" },
             _jsonOptions
         );
         var controlModels = await client.GetAsync(LlmTckControlRoutes.Models);
@@ -414,7 +485,7 @@ public sealed class OpenAiEndpointTests
 
         var response = await client.PostAsJsonAsync(
             "/openai/v1/audio/speech",
-            new { model = "llm-tck-audio", input = "audio fixture", voice = "alloy" },
+            new { model = LlmTckKnownModelIds.Gpt4OMiniTts, input = "audio fixture", voice = "alloy" },
             _jsonOptions
         );
 
@@ -526,15 +597,15 @@ public sealed class OpenAiEndpointTests
                 .WithDefaultTranscriptionText("deterministic transcript"));
         using var client = host.GetTestClient();
 
-        using var jsonContent = CreateTranscriptionContent("llm-tck-audio");
+        using var jsonContent = CreateTranscriptionContent(LlmTckKnownModelIds.Gpt4OMiniTts);
         var json = await client.PostAsync("/openai/v1/audio/transcriptions", jsonContent);
         using var textContent = CreateTranscriptionContent(
-            "llm-tck-audio",
+            LlmTckKnownModelIds.Gpt4OMiniTts,
             responseFormat: "text"
         );
         var text = await client.PostAsync("/openai/v1/audio/transcriptions", textContent);
         using var streamContent = CreateTranscriptionContent(
-            "llm-tck-audio",
+            LlmTckKnownModelIds.Gpt4OMiniTts,
             stream: true
         );
         var stream = await client.PostAsync("/openai/v1/audio/transcriptions", streamContent);
@@ -566,20 +637,20 @@ public sealed class OpenAiEndpointTests
                 .WithDefaultTranslationText("deterministic translation"));
         using var client = host.GetTestClient();
 
-        using var jsonContent = CreateTranscriptionContent("llm-tck-audio");
+        using var jsonContent = CreateTranscriptionContent(LlmTckKnownModelIds.Gpt4OMiniTts);
         var json = await client.PostAsync("/openai/v1/audio/translations", jsonContent);
         using var textContent = CreateTranscriptionContent(
-            "llm-tck-audio",
+            LlmTckKnownModelIds.Gpt4OMiniTts,
             responseFormat: "text"
         );
         var text = await client.PostAsync("/openai/v1/audio/translations", textContent);
         using var streamContent = CreateTranscriptionContent(
-            "llm-tck-audio",
+            LlmTckKnownModelIds.Gpt4OMiniTts,
             stream: true
         );
         var stream = await client.PostAsync("/openai/v1/audio/translations", streamContent);
         using var diarizedContent = CreateTranscriptionContent(
-            "llm-tck-audio",
+            LlmTckKnownModelIds.Gpt4OMiniTts,
             responseFormat: "diarized_json"
         );
         var diarized = await client.PostAsync("/openai/v1/audio/translations", diarizedContent);
@@ -608,11 +679,11 @@ public sealed class OpenAiEndpointTests
     public async Task VideoRoutes_ReturnDocumentedOpenAiShapesAndValidateEnumsAsync()
     {
         using var host = await LlmTckTestHost.StartAsync(options => options
-                .AddModel("sora-2", LlmTckModelKind.Video));
+                .AddModel(LlmTckKnownModelIds.Sora2, LlmTckModelKind.Video));
         using var client = host.GetTestClient();
 
         using var createContent = CreateVideoContent(
-            "sora-2",
+            LlmTckKnownModelIds.Sora2,
             "generate a deterministic clip",
             seconds: "8",
             size: "1280x720"
@@ -643,13 +714,13 @@ public sealed class OpenAiEndpointTests
         var delete = await client.DeleteAsync("/openai/v1/videos/video_custom");
 
         using var invalidSecondsContent = CreateVideoContent(
-            "sora-2",
+            LlmTckKnownModelIds.Sora2,
             "generate a deterministic clip",
             seconds: "16"
         );
         var invalidSeconds = await client.PostAsync("/openai/v1/videos", invalidSecondsContent);
         using var invalidSizeContent = CreateVideoContent(
-            "sora-2",
+            LlmTckKnownModelIds.Sora2,
             "generate a deterministic clip",
             size: "640x480"
         );
@@ -680,7 +751,7 @@ public sealed class OpenAiEndpointTests
         var deletePayload = await delete.Content.ReadFromJsonAsync<JsonElement>(_jsonOptions);
 
         await Assert.That(createPayload.GetProperty("object").GetString()).IsEqualTo("video");
-        await Assert.That(createPayload.GetProperty("model").GetString()).IsEqualTo("sora-2");
+        await Assert.That(createPayload.GetProperty("model").GetString()).IsEqualTo(LlmTckKnownModelIds.Sora2);
         await Assert.That(createPayload.GetProperty("seconds").GetString()).IsEqualTo("8");
         await Assert.That(createPayload.GetProperty("size").GetString()).IsEqualTo("1280x720");
         await Assert.That(listPayload.GetProperty("object").GetString()).IsEqualTo("list");

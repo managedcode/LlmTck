@@ -1,11 +1,21 @@
 # LLM TCK
 
-`ManagedCode.LlmTck` is a deterministic Technology Compatibility Kit for LLM APIs. It gives tests a local provider-compatible server that can be hosted by Aspire, scripted with explicit scenarios, and called through regular HTTP or `Microsoft.Extensions.AI`.
+`ManagedCode.LlmTck` is a deterministic Technology Compatibility Kit for LLM APIs.
+It gives tests a local provider-compatible server that can be hosted by Aspire,
+scripted with explicit scenarios, and called through regular HTTP, official SDKs,
+or `Microsoft.Extensions.AI`.
 
-The implemented OpenAI-compatible surface covers chat, streaming chat, models, embeddings, image generation, audio speech fixtures, bearer-token failures, scenario misses, and assertion summaries.
-Provider routes are explicitly namespaced by provider. For example, OpenAI-compatible routes live under `/openai`, Anthropic Messages lives under `/anthropic`, and Azure OpenAI lives under `/azure-openai`.
-The first implemented native non-OpenAI route is Anthropic Messages: `POST /anthropic/v1/messages`, including the `anthropic-version` header, `x-api-key` auth, text message responses, and Anthropic-named streaming events.
-When a bearer token is configured, both provider endpoints and control endpoints require it.
+The hosted surface is provider-namespaced. OpenAI-compatible routes live under
+`/openai`, Azure OpenAI under `/azure-openai`, Microsoft Foundry under
+`/microsoft-foundry`, Anthropic Messages under `/anthropic`, and every other
+provider family uses its own namespace. Provider packages carry doc-backed API
+contracts, and `ManagedCode.LlmTck.Hosting` only claims routes that are mapped by
+`MapLlmTck()` and covered by tests.
+
+Use it when a test needs to prove what an application sends to an LLM provider,
+script deterministic provider responses, exercise retry/error/model-routing paths,
+or assert that no unexpected LLM calls occurred. When a bearer token is configured,
+both provider endpoints and `/admin/llm-tck/*` control endpoints require it.
 
 ## Packages
 
@@ -33,7 +43,7 @@ When a bearer token is configured, both provider endpoints and control endpoints
 
 Provider packages keep vendor-specific protocol and compatibility metadata out of the provider-neutral runtime. The package surface exists now so applications can select a provider family explicitly; provider-specific DTOs and endpoint mappings are added inside each package as support grows.
 
-| Package | Provider ID | Protocol family | Default endpoint shape |
+| Package | Provider ID | Protocol family | Primary hosted route |
 | --- | --- | --- | --- |
 | `ManagedCode.LlmTck.OpenAI` | `openai` | OpenAI | `/openai/v1` |
 | `ManagedCode.LlmTck.AzureOpenAI` | `azure-openai` | Azure OpenAI | `/azure-openai/openai/deployments/{deployment}/chat/completions` |
@@ -58,6 +68,32 @@ using ManagedCode.LlmTck.AzureOpenAI;
 
 var profile = AzureOpenAiCompatibility.Profile;
 Console.WriteLine(profile.Id); // azure-openai
+```
+
+## OpenAI SDK
+
+The official OpenAI .NET SDK expects its `Endpoint` to be the API root. Use
+`/openai/v1` for this TCK, or `llmTck.GetOpenAiEndpoint()` from the Aspire
+package when wiring an AppHost resource.
+
+```csharp
+using OpenAI;
+using OpenAI.Chat;
+using System.ClientModel;
+
+var chat = new ChatClient(
+    "gpt-4.1-mini",
+    new ApiKeyCredential("test-key"),
+    new OpenAIClientOptions
+    {
+        Endpoint = new Uri("http://localhost:5000/openai/v1"),
+    });
+
+await foreach (var update in chat.CompleteChatStreamingAsync(
+                   [new UserChatMessage("What is the invoice total?")]))
+{
+    Console.Write(update.ContentUpdate.Count > 0 ? update.ContentUpdate[0].Text : string.Empty);
+}
 ```
 
 ## Azure OpenAI And Foundry SDKs
@@ -124,16 +160,34 @@ You can apply that configuration in two places:
 
 Runtime configuration is a replacement, not a merge. Applying a new configuration resets scenario positions and assertion events. The runtime snapshots the configuration, so later mutations to your builder/list objects do not change the running provider.
 
-The default configuration advertises four model IDs:
+The default configuration advertises official OpenAI fixture model IDs:
 
 | Model ID | Kind |
 | --- | --- |
-| `llm-tck-chat` | Chat |
-| `llm-tck-embedding` | Embedding |
-| `llm-tck-image` | Image |
-| `llm-tck-audio` | Audio |
+| `gpt-4.1-mini` | Chat |
+| `text-embedding-3-small` | Embedding |
+| `gpt-image-1` | Image |
+| `gpt-4o-mini-tts` | Audio |
+| `sora-2` | Video |
 
 Model IDs and model kinds are enforced. A chat request to an embedding model, or an embedding request to an unknown model, returns `404` with `llm_tck_unknown_model`.
+
+### Fault Simulation
+
+Fault simulation is configured on the provider-neutral runtime and applies through every provider namespace. Use it when a test needs retry, moderation, or provider-error handling without scripting each provider route separately.
+
+```csharp
+builder.Services.AddLlmTck(options =>
+{
+    // Allow two accepted runtime requests, then return 429 too_many_requests.
+    options.SimulateRateLimitAfter(2);
+
+    // Return 400 content_filter whenever a request text contains either term.
+    options.SimulateContentFilter("blocked phrase", "unsafe fixture");
+});
+```
+
+`SimulateRateLimitAfter(0)` makes the first valid runtime request return `429` with `too_many_requests`. `SimulateContentFilter(...)` checks chat messages, embedding inputs, image prompts, audio speech input, audio transcription/translation prompts, and video prompts. `ConfigureAsync(...)` and `ResetAsync()` both reset the rate-limit counter so tests stay deterministic.
 
 ## ASP.NET Core Startup
 
@@ -141,6 +195,7 @@ The simplest host config is one chat scenario:
 
 ```csharp
 using ManagedCode.LlmTck.Hosting;
+using ManagedCode.LlmTck.Models;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -149,7 +204,7 @@ builder.Services.AddLlmTck(options =>
     options.AddChatScenario(
         "blue-whale",
         scenario => scenario
-            .ForModel("llm-tck-chat")
+            .ForModel(LlmTckKnownModelIds.Gpt41Mini)
             .WhenUserContains("largest animal")
             .Responds("blue whale", "blue ", "whale"));
 });
@@ -171,10 +226,7 @@ builder.Services.AddLlmTck(options =>
 {
     options.RequireBearerToken("test-key");
 
-    options.AddModel("gpt-4.1-mini", LlmTckModelKind.Chat);
-    options.AddModel("text-embedding-3-small", LlmTckModelKind.Embedding);
-    options.AddModel("gpt-image-1", LlmTckModelKind.Image);
-    options.AddModel("gpt-4o-mini-tts", LlmTckModelKind.Audio);
+    options.AddDefaultOpenAiModels();
 
     options.WithDefaultEmbeddingVector(0.125f, 0.25f, 0.5f, 1.0f);
     options.WithDefaultAudio(File.ReadAllBytes("fixtures/ok.wav"), "audio/wav");
@@ -182,7 +234,7 @@ builder.Services.AddLlmTck(options =>
     options.AddChatScenario(
         "invoice-total",
         scenario => scenario
-            .ForModel("gpt-4.1-mini")
+            .ForModel(LlmTckKnownModelIds.Gpt41Mini)
             .WhenUserContains("invoice total")
             .Responds(
                 "{\"total\":42.50}",
@@ -193,14 +245,14 @@ builder.Services.AddLlmTck(options =>
     options.AddChatScenario(
         "provider-rate-limit",
         scenario => scenario
-            .ForModel("gpt-4.1-mini")
+            .ForModel(LlmTckKnownModelIds.Gpt41Mini)
             .WhenUserContains("rate limit")
             .Fails(429, "rate_limit_exceeded", "Scripted rate limit from LLM TCK."));
 
     options.AddChatScenario(
         "slow-response",
         scenario => scenario
-            .ForModel("gpt-4.1-mini")
+            .ForModel(LlmTckKnownModelIds.Gpt41Mini)
             .WhenUserContains("slow")
             .Responds("done")
             .DelaysBy(250));
@@ -234,6 +286,7 @@ builder
     .AddProject<Projects.Consumer>("consumer")
     .WithReference(llmTck)
     .WithEnvironment("LLM_PROVIDER_ENDPOINT", llmTck.GetHttpEndpoint())
+    .WithEnvironment("OPENAI_ENDPOINT", llmTck.GetOpenAiEndpoint())
     .WaitFor(llmTck);
 
 builder.Build().Run();
@@ -247,7 +300,13 @@ Use `AddLlmTckContainer()` only when you explicitly want a container-backed reso
 
 Open the TCK resource endpoint from the Aspire dashboard and add `/admin/llm-tck` to inspect the running configuration. If the resource was configured with `.WithApiKey("test-key")` or `RequireBearerToken("test-key")`, enter the same token in the control panel before refreshing.
 
-The panel reads `/admin/llm-tck/models` and `/admin/llm-tck/assertions`. It shows advertised models, assertion counters, request and response previews, and deterministic token usage. Token usage is counted with the repo-owned tiktoken-compatible counter and reported both as summary totals and per runtime event with `inputTokens`, `outputTokens`, and `totalTokens`. Provider response envelopes also receive the same deterministic usage values: OpenAI-compatible chat and Responses usage, Anthropic sync messages and streaming `message_start`/`message_delta`, Gemini `usageMetadata` including long-running video operation results, Cohere chat usage, Ollama prompt/eval counts, and Bedrock Converse usage.
+The panel reads `/admin/llm-tck/models` and `/admin/llm-tck/assertions`. It shows advertised models, assertion counters, request and response previews, and deterministic token usage. Token usage is counted with the repo-owned tiktoken-compatible counter and reported both as summary totals and per runtime event with `inputTokens`, `outputTokens`, `reasoningTokens`, and `totalTokens`. Provider response envelopes also receive the same deterministic usage values: OpenAI-compatible chat and Responses usage including reasoning-token details when configured, Anthropic sync messages and streaming `message_start`/`message_delta`, Gemini `usageMetadata` including long-running video operation results, Cohere chat usage, Ollama prompt/eval counts, and Bedrock Converse usage.
+
+For reasoning-capable fixture models, configure a deterministic reasoning-token count on the model. LLM TCK includes those tokens in `outputTokens` and exposes the split in `reasoningTokens`; OpenAI-compatible responses also include `completion_tokens_details.reasoning_tokens` or `output_tokens_details.reasoning_tokens`.
+
+```csharp
+options.AddReasoningChatModel("gpt-5-nano", reasoningTokens: 128);
+```
 
 ![LLM TCK control panel showing token usage totals and a matched runtime event](docs/images/llm-tck-control-panel-token-usage.png)
 
@@ -263,7 +322,7 @@ The panel reads `/admin/llm-tck/models` and `/admin/llm-tck/assertions`. It show
 options.AddChatScenario(
     "support-refund",
     scenario => scenario
-        .ForModel("gpt-4.1-mini")
+        .ForModel(LlmTckKnownModelIds.Gpt41Mini)
         .WhenUserContains("refund")
         .Responds("I can help with a refund."));
 ```
@@ -278,7 +337,7 @@ using ManagedCode.LlmTck.Scenarios;
 options.AddChatScenario(
     "exact-system-contract",
     scenario => scenario
-        .ForModel("gpt-4.1-mini")
+        .ForModel(LlmTckKnownModelIds.Gpt41Mini)
         .WithExactMatch(
             new LlmTckMessage { Role = "system", Content = "Return JSON only." },
             new LlmTckMessage { Role = "user", Content = "Give me the invoice total." })
@@ -293,7 +352,7 @@ Each matched request consumes the next response. This makes multi-turn flows det
 options.AddChatScenario(
     "two-turn-plan",
     scenario => scenario
-        .ForModel("gpt-4.1-mini")
+        .ForModel(LlmTckKnownModelIds.Gpt41Mini)
         .WhenUserContains("make a plan")
         .Responds("First draft")
         .Responds("Revised draft"));
@@ -309,7 +368,7 @@ The first `Responds` argument is the non-streaming response. The remaining argum
 options.AddChatScenario(
     "streaming-answer",
     scenario => scenario
-        .ForModel("gpt-4.1-mini")
+        .ForModel(LlmTckKnownModelIds.Gpt41Mini)
         .WhenUserContains("stream this")
         .Responds("blue whale", "blue ", "whale"));
 ```
@@ -324,7 +383,7 @@ Use `Fails(...)` to test client error handling without waiting for a real provid
 options.AddChatScenario(
     "content-policy-error",
     scenario => scenario
-        .ForModel("gpt-4.1-mini")
+        .ForModel(LlmTckKnownModelIds.Gpt41Mini)
         .WhenUserContains("blocked fixture")
         .Fails(400, "content_filter", "The scripted request was rejected."));
 ```
@@ -337,7 +396,7 @@ Use `DelaysBy(...)` to test timeout and cancellation behavior:
 options.AddChatScenario(
     "timeout-path",
     scenario => scenario
-        .ForModel("gpt-4.1-mini")
+        .ForModel(LlmTckKnownModelIds.Gpt41Mini)
         .WhenUserContains("slow path")
         .Responds("eventual answer")
         .DelaysBy(1_500));
@@ -353,7 +412,7 @@ A scenario can require its own bearer token:
 options.AddChatScenario(
     "tenant-a-only",
     scenario => scenario
-        .ForModel("gpt-4.1-mini")
+        .ForModel(LlmTckKnownModelIds.Gpt41Mini)
         .RequireBearerToken("tenant-a-key")
         .WhenUserContains("tenant secret")
         .Responds("tenant-a response"));
@@ -368,7 +427,7 @@ Use either a global token or per-scenario tokens. If both are configured for a s
 Configure a fixed embedding vector. Every input value receives the same deterministic vector:
 
 ```csharp
-options.AddModel("text-embedding-3-small", LlmTckModelKind.Embedding);
+options.AddTextEmbedding3Small();
 options.WithDefaultEmbeddingVector(0.01f, 0.02f, 0.03f, 0.04f);
 ```
 
@@ -388,7 +447,7 @@ var result = await embeddings.GenerateAsync(["alpha", "beta"]);
 Image generation returns a deterministic base64 PNG by default:
 
 ```csharp
-options.AddModel("gpt-image-1", LlmTckModelKind.Image);
+options.AddGptImage1();
 ```
 
 ```csharp
@@ -407,7 +466,7 @@ var image = await images.GenerateAsync(
 Audio speech returns deterministic bytes with a matching media type. The default fixture is a minimal WAV payload:
 
 ```csharp
-options.AddModel("gpt-4o-mini-tts", LlmTckModelKind.Audio);
+options.AddGpt4OMiniTts();
 options.WithDefaultAudio(File.ReadAllBytes("fixtures/speech.wav"), "audio/wav");
 ```
 
@@ -630,29 +689,38 @@ Reset clears assertion events and scenario response positions without replacing 
 await control.ResetAsync();
 ```
 
-## Endpoints
+## Hosted Endpoint Families
 
-- `GET /openai/v1/models`
-- `POST /openai/v1/chat/completions`
-- `POST /openai/v1/embeddings`
-- `POST /openai/v1/images/generations`
-- `POST /openai/v1/audio/speech`
-- `POST /anthropic/v1/messages`
-- `POST /gemini/v1beta/models/{model}:generateContent`
-- `POST /mistral/v1/chat/completions`
-- `POST /ollama/api/chat`
-- `POST /cohere/v2/chat`
-- `POST /bedrock/model/{modelId}/converse`
-- `POST /azure-openai/openai/deployments/{deployment}/chat/completions`
-- `POST /microsoft-foundry/chat/completions`
-- `GET /admin/llm-tck/models`
-- `GET /admin/llm-tck/assertions`
-- `POST /admin/llm-tck/configure`
-- `POST /admin/llm-tck/reset`
+Provider endpoints are explicitly namespaced. The table below shows the route
+families and representative operations; the full method/path contract lives in
+each provider profile's `ApiContract` and is guarded by
+`ProviderApiContractTests`. See
+[`docs/Features/ProviderApiContractCoverage.md`](docs/Features/ProviderApiContractCoverage.md)
+for the current coverage rules and behavior-test inventory.
 
-Audio speech returns a deterministic WAV fixture by default.
+| Provider | Namespace | Representative hosted operations |
+| --- | --- | --- |
+| OpenAI | `/openai` | `/openai/v1/models`, `/openai/v1/chat/completions`, `/openai/v1/responses`, `/openai/v1/embeddings`, `/openai/v1/images/*`, `/openai/v1/audio/*`, `/openai/v1/videos*` |
+| Azure OpenAI | `/azure-openai` | `/azure-openai/openai/deployments/{deployment}/chat/completions`, embeddings, images, audio, and `/azure-openai/openai/v1/video/generations/*` |
+| Microsoft Foundry | `/microsoft-foundry` | `/microsoft-foundry/chat/completions`, `/microsoft-foundry/embeddings`, and `/microsoft-foundry/models/*` aliases |
+| Anthropic | `/anthropic` | `/anthropic/v1/messages` |
+| Gemini | `/gemini` | `/gemini/v1beta/models/{model}:generateContent`, streaming content, embeddings, long-running video operations, and generated files |
+| Groq | `/groq` | `/groq/openai/v1/models`, chat completions, Responses, speech, transcription, and translation routes |
+| Mistral | `/mistral` | `/mistral/v1/chat/completions`, `/mistral/v1/embeddings` |
+| Ollama | `/ollama` | `/ollama/api/chat`, `/ollama/api/embed` |
+| Cohere | `/cohere` | `/cohere/v2/chat`, `/cohere/v2/embed` |
+| Amazon Bedrock | `/bedrock` | `/bedrock/model/{modelId}/converse`, converse stream, invoke, and invoke-with-response-stream |
+| OpenRouter | `/openrouter` | `/openrouter/api/v1/models`, chat completions, Responses |
+| DeepSeek | `/deepseek` | `/deepseek/models`, `/deepseek/v1/chat/completions` |
+| Perplexity | `/perplexity` | `/perplexity/v1/sonar` |
 
-When `requiredBearerToken` is configured, all endpoints above require `Authorization: Bearer <token>`.
+Control endpoints live under `/admin/llm-tck`: the browser control panel,
+`GET /admin/llm-tck/models`, `GET /admin/llm-tck/assertions`,
+`POST /admin/llm-tck/configure`, and `POST /admin/llm-tck/reset`.
+
+Audio speech returns a deterministic WAV fixture by default. When
+`requiredBearerToken` is configured, all provider and control endpoints require
+`Authorization: Bearer <token>`.
 
 ## Common Test Shapes
 
@@ -670,7 +738,7 @@ When `requiredBearerToken` is configured, all endpoints above require `Authoriza
 options.AddChatScenario(
     "retry-then-success",
     scenario => scenario
-        .ForModel("gpt-4.1-mini")
+        .ForModel(LlmTckKnownModelIds.Gpt41Mini)
         .WhenUserContains("retry")
         .Fails(429, "rate_limit_exceeded", "Try again.")
         .Responds("success after retry"));
@@ -682,7 +750,7 @@ options.AddChatScenario(
 options.AddChatScenario(
     "exact-contract",
     scenario => scenario
-        .ForModel("gpt-4.1-mini")
+        .ForModel(LlmTckKnownModelIds.Gpt41Mini)
         .WithExactMatch(
             new LlmTckMessage { Role = "system", Content = "Return JSON only." },
             new LlmTckMessage { Role = "user", Content = "Summarize invoice INV-42." })

@@ -110,6 +110,12 @@ public static class OpenAiWireMapper
                 InputTokens = result.Usage.InputTokens,
                 OutputTokens = result.Usage.OutputTokens,
                 TotalTokens = result.Usage.TotalTokens,
+                OutputTokensDetails = result.Usage.ReasoningTokens > 0
+                    ? new OpenAiOutputTokensDetails
+                    {
+                        ReasoningTokens = result.Usage.ReasoningTokens,
+                    }
+                    : null,
             },
         };
     }
@@ -454,6 +460,12 @@ public static class OpenAiWireMapper
             PromptTokens = usage.InputTokens,
             CompletionTokens = usage.OutputTokens,
             TotalTokens = usage.TotalTokens,
+            CompletionTokensDetails = usage.ReasoningTokens > 0
+                ? new OpenAiCompletionTokensDetails
+                {
+                    ReasoningTokens = usage.ReasoningTokens,
+                }
+                : null,
         };
     }
 

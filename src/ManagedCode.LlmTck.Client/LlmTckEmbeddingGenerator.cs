@@ -1,6 +1,7 @@
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
+using ManagedCode.LlmTck.Models;
 using ManagedCode.LlmTck.OpenAI;
 using Microsoft.Extensions.AI;
 using ProviderRoutes = ManagedCode.LlmTck.Providers.LlmTckProviderRouteNamespaces;
@@ -9,7 +10,7 @@ namespace ManagedCode.LlmTck.Client;
 
 public sealed class LlmTckEmbeddingGenerator(
     HttpClient httpClient,
-    string defaultModelId = "llm-tck-embedding",
+    string defaultModelId = LlmTckKnownModelIds.TextEmbedding3Small,
     string? bearerToken = null
 ) : IEmbeddingGenerator<string, Embedding<float>>
 {

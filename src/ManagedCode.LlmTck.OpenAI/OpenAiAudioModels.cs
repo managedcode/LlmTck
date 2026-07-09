@@ -1,11 +1,12 @@
 using System.Text.Json.Serialization;
+using ManagedCode.LlmTck.Models;
 
 namespace ManagedCode.LlmTck.OpenAI;
 
 public sealed record OpenAiAudioSpeechRequest
 {
     [JsonPropertyName("model")]
-    public string Model { get; init; } = "llm-tck-audio";
+    public string Model { get; init; } = LlmTckKnownModelIds.Gpt4OMiniTts;
 
     [JsonPropertyName("input")]
     public string Input { get; init; } = string.Empty;
