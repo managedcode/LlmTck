@@ -18,6 +18,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using ProviderRoutes = ManagedCode.LlmTck.Providers.LlmTckProviderRouteNamespaces;
 
 namespace ManagedCode.LlmTck.Hosting;
@@ -3348,14 +3349,42 @@ public static class LlmTckEndpointRouteBuilderExtensions
         );
         if (File.Exists(manifestPath))
         {
-            var environment = endpoints.ServiceProvider.GetService<IWebHostEnvironment>();
-            var configuration = endpoints.ServiceProvider.GetService<IConfiguration>();
-            if (environment is not null && configuration is not null && File.Exists(runtimeManifestPath))
-            {
-                StaticWebAssetsLoader.UseStaticWebAssets(environment, configuration);
-            }
+            UseStaticWebAssetsRuntimeManifestIfAvailable(endpoints, runtimeManifestPath);
 
             endpoints.MapStaticAssets(manifestPath);
+        }
+    }
+
+    private static void UseStaticWebAssetsRuntimeManifestIfAvailable(
+        IEndpointRouteBuilder endpoints,
+        string runtimeManifestPath
+    )
+    {
+        if (!File.Exists(runtimeManifestPath))
+        {
+            return;
+        }
+
+        var environment = endpoints.ServiceProvider.GetService<IWebHostEnvironment>();
+        var configuration = endpoints.ServiceProvider.GetService<IConfiguration>();
+        if (environment is null || configuration is null)
+        {
+            return;
+        }
+
+        try
+        {
+            StaticWebAssetsLoader.UseStaticWebAssets(environment, configuration);
+        }
+        catch (DirectoryNotFoundException exception)
+        {
+            endpoints.ServiceProvider
+                .GetService<ILoggerFactory>()
+                ?.CreateLogger(typeof(LlmTckEndpointRouteBuilderExtensions))
+                .LogWarning(
+                    exception,
+                    "Skipping LLM TCK static web assets runtime manifest because it references a missing content root."
+                );
         }
     }
 

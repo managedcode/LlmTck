@@ -94,6 +94,8 @@ public sealed class AdminPanelTests
         await Assert.That(endpointSource).Contains("MapRazorComponents<LlmTckAdminPage>");
         await Assert.That(endpointSource).Contains("MapStaticAssets");
         await Assert.That(endpointSource).Contains("StaticWebAssetsLoader.UseStaticWebAssets");
+        await Assert.That(endpointSource).Contains("catch (DirectoryNotFoundException exception)");
+        await Assert.That(endpointSource).Contains("Skipping LLM TCK static web assets runtime manifest");
         await Assert.That(endpointSource).Contains("AddInteractiveServerComponents");
         await Assert.That(endpointSource).Contains("AddInteractiveServerRenderMode");
         await Assert.That(endpointSource).Contains("DisableAntiforgery");
@@ -107,6 +109,18 @@ public sealed class AdminPanelTests
         await Assert.That(panelComponent).DoesNotContain("fetch(");
         await Assert.That(endpointSource.Contains("Results.Content(LlmTckAdminPage.Html", StringComparison.Ordinal))
             .IsFalse();
+    }
+
+    [Test]
+    public async Task AspirePackage_DoesNotShipBuildMachineStaticWebAssetsRuntimeManifestAsync()
+    {
+        var repositoryRoot = FindRepositoryRoot();
+        var aspireProject = await File.ReadAllTextAsync(Path.Combine(
+            repositoryRoot,
+            "src/ManagedCode.LlmTck.Aspire/ManagedCode.LlmTck.Aspire.csproj"
+        ));
+
+        await Assert.That(aspireProject).Contains("**\\*.staticwebassets.runtime.json");
     }
 
     [Test]

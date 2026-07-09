@@ -11,7 +11,7 @@
   <ItemGroup>
     <None
       Include="$(MSBuildThisFileDirectory)..\..\samples\ManagedCode.LlmTck.Service\bin\$(Configuration)\$(TargetFramework)\**\*"
-      Exclude="$(MSBuildThisFileDirectory)..\..\samples\ManagedCode.LlmTck.Service\bin\$(Configuration)\$(TargetFramework)\ManagedCode.LlmTck.Service"
+      Exclude="$(MSBuildThisFileDirectory)..\..\samples\ManagedCode.LlmTck.Service\bin\$(Configuration)\$(TargetFramework)\ManagedCode.LlmTck.Service;$(MSBuildThisFileDirectory)..\..\samples\ManagedCode.LlmTck.Service\bin\$(Configuration)\$(TargetFramework)\**\*.staticwebassets.runtime.json"
       Pack="true"
       PackagePath="tools\llm-tck-service\%(RecursiveDir)%(Filename)%(Extension)"
       Visible="false" />
