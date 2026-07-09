@@ -215,7 +215,7 @@ public sealed class AspireIntegrationTests
         );
 
         await Assert.That(llmTckEndpointExpression).IsNotEmpty();
-        await Assert.That(root.StatusCode).IsEqualTo(HttpStatusCode.NotFound);
+        await Assert.That(root.StatusCode).IsEqualTo(HttpStatusCode.OK);
         await Assert.That(adminPage).Contains("LLM&nbsp;TCK");
         await Assert.That(adminPage).Contains(LlmTckControlRoutes.Models);
         await Assert.That(adminPage).Contains(LlmTckControlRoutes.Assertions);

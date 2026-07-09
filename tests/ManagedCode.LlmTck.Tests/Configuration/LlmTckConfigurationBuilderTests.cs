@@ -50,6 +50,45 @@ public sealed class LlmTckConfigurationBuilderTests
     }
 
     [Test]
+    public async Task KnownOpenAiModelConvenienceMethods_AddSupportedAliasesAsync()
+    {
+        var configuration = new LlmTckConfigurationBuilder()
+            .AddKnownOpenAiModels(reasoningTokens: 17)
+            .Build();
+
+        await Assert.That(HasModel(configuration, LlmTckKnownModelIds.Gpt55, LlmTckModelKind.Chat))
+            .IsTrue();
+        await Assert.That(HasModel(configuration, LlmTckKnownModelIds.Gpt54Mini, LlmTckModelKind.Chat))
+            .IsTrue();
+        await Assert.That(HasModel(configuration, LlmTckKnownModelIds.Gpt5Nano, LlmTckModelKind.Chat))
+            .IsTrue();
+        await Assert.That(HasModel(configuration, LlmTckKnownModelIds.Gpt41, LlmTckModelKind.Chat))
+            .IsTrue();
+        await Assert.That(HasModel(configuration, LlmTckKnownModelIds.Gpt4OMini, LlmTckModelKind.Chat))
+            .IsTrue();
+        await Assert.That(HasModel(configuration, LlmTckKnownModelIds.TextEmbedding3Large, LlmTckModelKind.Embedding))
+            .IsTrue();
+        await Assert.That(HasModel(configuration, LlmTckKnownModelIds.TextEmbeddingAda002, LlmTckModelKind.Embedding))
+            .IsTrue();
+        await Assert.That(HasModel(configuration, LlmTckKnownModelIds.GptImage2, LlmTckModelKind.Image))
+            .IsTrue();
+        await Assert.That(HasModel(configuration, LlmTckKnownModelIds.GptImage15, LlmTckModelKind.Image))
+            .IsTrue();
+        await Assert.That(HasModel(configuration, LlmTckKnownModelIds.GptImage1Mini, LlmTckModelKind.Image))
+            .IsTrue();
+        await Assert.That(HasModel(configuration, LlmTckKnownModelIds.Tts1, LlmTckModelKind.Audio))
+            .IsTrue();
+        await Assert.That(HasModel(configuration, LlmTckKnownModelIds.Tts1Hd, LlmTckModelKind.Audio))
+            .IsTrue();
+        await Assert.That(HasModel(configuration, LlmTckKnownModelIds.Sora2Pro, LlmTckModelKind.Video))
+            .IsTrue();
+        await Assert.That(configuration.Models.Single(model => model.Id == LlmTckKnownModelIds.Gpt55).ReasoningTokens)
+            .IsEqualTo(17);
+        await Assert.That(configuration.Models.Single(model => model.Id == LlmTckKnownModelIds.Gpt41).ReasoningTokens)
+            .IsEqualTo(0);
+    }
+
+    [Test]
     public async Task Build_ReplacesDuplicateModelsAndScenariosAndSnapshotsNestedStateAsync()
     {
         var builder = new LlmTckConfigurationBuilder()
@@ -232,5 +271,14 @@ public sealed class LlmTckConfigurationBuilderTests
         }
 
         await Assert.That(exception?.GetType()).IsEqualTo(typeof(TException));
+    }
+
+    private static bool HasModel(
+        LlmTckConfiguration configuration,
+        string id,
+        LlmTckModelKind kind
+    )
+    {
+        return configuration.Models.Any(model => model.Id == id && model.Kind == kind);
     }
 }

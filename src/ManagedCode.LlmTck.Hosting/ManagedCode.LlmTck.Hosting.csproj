@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk.Razor">
   <PropertyGroup>
     <PackageId>ManagedCode.LlmTck.Hosting</PackageId>
     <Description>ASP.NET Core endpoint mapping for ManagedCode.LlmTck provider emulation and control APIs.</Description>

@@ -29,6 +29,14 @@ namespace ManagedCode.LlmTck.Tests.Providers;
 public sealed class ProviderApiContractTests
 {
     private const int _maxDocumentationReviewAgeDays = 180;
+    private static readonly string[] _controlRoutePaths =
+    [
+        LlmTckControlRoutes.Admin,
+        LlmTckControlRoutes.Models,
+        LlmTckControlRoutes.Assertions,
+        LlmTckControlRoutes.Configure,
+        LlmTckControlRoutes.Reset,
+    ];
 
     private static readonly Uri[] _officialDocumentationHosts =
     [
@@ -134,7 +142,7 @@ public sealed class ProviderApiContractTests
                     endpoint.RoutePattern.RawText ?? string.Empty
                 ));
             })
-            .Where(route => !route.Path.StartsWith(LlmTckControlRoutes.Admin, StringComparison.Ordinal))
+            .Where(route => !_controlRoutePaths.Contains(route.Path, StringComparer.Ordinal))
             .OrderBy(route => route.Method, StringComparer.Ordinal)
             .ThenBy(route => route.Path, StringComparer.Ordinal)
             .ToArray();

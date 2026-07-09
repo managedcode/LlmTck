@@ -13,6 +13,7 @@ using ManagedCode.LlmTck.Runtime;
 using ManagedCode.LlmTck.Scenarios;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.DependencyInjection;
 using ProviderRoutes = ManagedCode.LlmTck.Providers.LlmTckProviderRouteNamespaces;
@@ -114,6 +115,7 @@ public static class LlmTckEndpointRouteBuilderExtensions
             runtime.ConfigureAsync(configuration).GetAwaiter().GetResult();
             return runtime;
         });
+        services.AddRazorComponents();
 
         return services;
     }
@@ -124,7 +126,7 @@ public static class LlmTckEndpointRouteBuilderExtensions
 
         endpoints.MapGet(
             LlmTckControlRoutes.Admin,
-            () => Results.Content(LlmTckAdminPage.Html, LlmTckAdminPage.ContentType)
+            () => new RazorComponentResult<LlmTckAdminPage>()
         );
         endpoints.MapGet(
             LlmTckControlRoutes.Models,
@@ -2989,7 +2991,7 @@ public static class LlmTckEndpointRouteBuilderExtensions
         return new(
             new OpenAiVideoCreateRequest
             {
-                Model = string.IsNullOrWhiteSpace(model) ? "sora-2" : model,
+                Model = string.IsNullOrWhiteSpace(model) ? LlmTckKnownModelIds.Sora2 : model,
                 Prompt = form["prompt"].ToString(),
                 Seconds = EmptyToNull(form["seconds"].ToString()),
                 Size = EmptyToNull(form["size"].ToString()),

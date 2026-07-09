@@ -1,4 +1,5 @@
 using ManagedCode.LlmTck.Client;
+using ManagedCode.LlmTck.Configuration;
 using ManagedCode.LlmTck.Models;
 using ManagedCode.LlmTck.Tests.TestSupport;
 using Microsoft.Extensions.AI;
@@ -25,6 +26,29 @@ public sealed class LlmTckClientConfigurationTests
             .IsTrue();
         await Assert.That(configuration.Models.Single(model => model.Id == "gpt-5-nano").ReasoningTokens)
             .IsEqualTo(11);
+    }
+
+    [Test]
+    public async Task ClientBuilder_ExposesKnownOpenAiModelConvenienceMethodsAsync()
+    {
+        var configuration = new LlmTckClientConfigurationBuilder()
+            .UseKnownOpenAiModels(reasoningTokens: 19)
+            .Build();
+
+        await Assert.That(HasModel(configuration, LlmTckKnownModelIds.Gpt55, LlmTckModelKind.Chat))
+            .IsTrue();
+        await Assert.That(HasModel(configuration, LlmTckKnownModelIds.Gpt54Nano, LlmTckModelKind.Chat))
+            .IsTrue();
+        await Assert.That(HasModel(configuration, LlmTckKnownModelIds.TextEmbedding3Large, LlmTckModelKind.Embedding))
+            .IsTrue();
+        await Assert.That(HasModel(configuration, LlmTckKnownModelIds.GptImage2, LlmTckModelKind.Image))
+            .IsTrue();
+        await Assert.That(HasModel(configuration, LlmTckKnownModelIds.Tts1Hd, LlmTckModelKind.Audio))
+            .IsTrue();
+        await Assert.That(HasModel(configuration, LlmTckKnownModelIds.Sora2Pro, LlmTckModelKind.Video))
+            .IsTrue();
+        await Assert.That(configuration.Models.Single(model => model.Id == LlmTckKnownModelIds.Gpt55).ReasoningTokens)
+            .IsEqualTo(19);
     }
 
     [Test]
@@ -109,5 +133,14 @@ public sealed class LlmTckClientConfigurationTests
         await Assert.That(transcription).IsEqualTo("dataset transcript");
         await Assert.That(translation).IsEqualTo("dataset translation");
         await Assert.That(assertions.Matched).IsGreaterThanOrEqualTo(8);
+    }
+
+    private static bool HasModel(
+        LlmTckConfiguration configuration,
+        string id,
+        LlmTckModelKind kind
+    )
+    {
+        return configuration.Models.Any(model => model.Id == id && model.Kind == kind);
     }
 }

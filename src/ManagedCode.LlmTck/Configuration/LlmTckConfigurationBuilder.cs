@@ -50,9 +50,69 @@ public sealed class LlmTckConfigurationBuilder
         return AddModel(id, LlmTckModelKind.Chat, reasoningTokens);
     }
 
+    public LlmTckConfigurationBuilder AddGpt55(int reasoningTokens = 0)
+    {
+        return AddModel(LlmTckKnownModelIds.Gpt55, LlmTckModelKind.Chat, reasoningTokens);
+    }
+
+    public LlmTckConfigurationBuilder AddGpt55Pro(int reasoningTokens = 0)
+    {
+        return AddModel(LlmTckKnownModelIds.Gpt55Pro, LlmTckModelKind.Chat, reasoningTokens);
+    }
+
+    public LlmTckConfigurationBuilder AddGpt54(int reasoningTokens = 0)
+    {
+        return AddModel(LlmTckKnownModelIds.Gpt54, LlmTckModelKind.Chat, reasoningTokens);
+    }
+
+    public LlmTckConfigurationBuilder AddGpt54Pro(int reasoningTokens = 0)
+    {
+        return AddModel(LlmTckKnownModelIds.Gpt54Pro, LlmTckModelKind.Chat, reasoningTokens);
+    }
+
+    public LlmTckConfigurationBuilder AddGpt54Mini(int reasoningTokens = 0)
+    {
+        return AddModel(LlmTckKnownModelIds.Gpt54Mini, LlmTckModelKind.Chat, reasoningTokens);
+    }
+
+    public LlmTckConfigurationBuilder AddGpt54Nano(int reasoningTokens = 0)
+    {
+        return AddModel(LlmTckKnownModelIds.Gpt54Nano, LlmTckModelKind.Chat, reasoningTokens);
+    }
+
+    public LlmTckConfigurationBuilder AddGpt5(int reasoningTokens = 0)
+    {
+        return AddModel(LlmTckKnownModelIds.Gpt5, LlmTckModelKind.Chat, reasoningTokens);
+    }
+
+    public LlmTckConfigurationBuilder AddGpt5Pro(int reasoningTokens = 0)
+    {
+        return AddModel(LlmTckKnownModelIds.Gpt5Pro, LlmTckModelKind.Chat, reasoningTokens);
+    }
+
+    public LlmTckConfigurationBuilder AddGpt5Mini(int reasoningTokens = 0)
+    {
+        return AddModel(LlmTckKnownModelIds.Gpt5Mini, LlmTckModelKind.Chat, reasoningTokens);
+    }
+
+    public LlmTckConfigurationBuilder AddGpt5Nano(int reasoningTokens = 0)
+    {
+        return AddModel(LlmTckKnownModelIds.Gpt5Nano, LlmTckModelKind.Chat, reasoningTokens);
+    }
+
+    public LlmTckConfigurationBuilder AddGpt41()
+    {
+        return AddModel(LlmTckKnownModelIds.Gpt41, LlmTckModelKind.Chat);
+    }
+
     public LlmTckConfigurationBuilder AddGpt41Mini()
     {
         return AddModel(LlmTckKnownModelIds.Gpt41Mini, LlmTckModelKind.Chat);
+    }
+
+    public LlmTckConfigurationBuilder AddGpt4OMini()
+    {
+        return AddModel(LlmTckKnownModelIds.Gpt4OMini, LlmTckModelKind.Chat);
     }
 
     public LlmTckConfigurationBuilder AddTextEmbedding3Small()
@@ -60,9 +120,34 @@ public sealed class LlmTckConfigurationBuilder
         return AddModel(LlmTckKnownModelIds.TextEmbedding3Small, LlmTckModelKind.Embedding);
     }
 
+    public LlmTckConfigurationBuilder AddTextEmbedding3Large()
+    {
+        return AddModel(LlmTckKnownModelIds.TextEmbedding3Large, LlmTckModelKind.Embedding);
+    }
+
+    public LlmTckConfigurationBuilder AddTextEmbeddingAda002()
+    {
+        return AddModel(LlmTckKnownModelIds.TextEmbeddingAda002, LlmTckModelKind.Embedding);
+    }
+
+    public LlmTckConfigurationBuilder AddGptImage2()
+    {
+        return AddModel(LlmTckKnownModelIds.GptImage2, LlmTckModelKind.Image);
+    }
+
+    public LlmTckConfigurationBuilder AddGptImage15()
+    {
+        return AddModel(LlmTckKnownModelIds.GptImage15, LlmTckModelKind.Image);
+    }
+
     public LlmTckConfigurationBuilder AddGptImage1()
     {
         return AddModel(LlmTckKnownModelIds.GptImage1, LlmTckModelKind.Image);
+    }
+
+    public LlmTckConfigurationBuilder AddGptImage1Mini()
+    {
+        return AddModel(LlmTckKnownModelIds.GptImage1Mini, LlmTckModelKind.Image);
     }
 
     public LlmTckConfigurationBuilder AddGpt4OMiniTts()
@@ -70,9 +155,24 @@ public sealed class LlmTckConfigurationBuilder
         return AddModel(LlmTckKnownModelIds.Gpt4OMiniTts, LlmTckModelKind.Audio);
     }
 
+    public LlmTckConfigurationBuilder AddTts1()
+    {
+        return AddModel(LlmTckKnownModelIds.Tts1, LlmTckModelKind.Audio);
+    }
+
+    public LlmTckConfigurationBuilder AddTts1Hd()
+    {
+        return AddModel(LlmTckKnownModelIds.Tts1Hd, LlmTckModelKind.Audio);
+    }
+
     public LlmTckConfigurationBuilder AddSora2()
     {
         return AddModel(LlmTckKnownModelIds.Sora2, LlmTckModelKind.Video);
+    }
+
+    public LlmTckConfigurationBuilder AddSora2Pro()
+    {
+        return AddModel(LlmTckKnownModelIds.Sora2Pro, LlmTckModelKind.Video);
     }
 
     public LlmTckConfigurationBuilder AddDefaultOpenAiModels()
@@ -82,6 +182,60 @@ public sealed class LlmTckConfigurationBuilder
             .AddGptImage1()
             .AddGpt4OMiniTts()
             .AddSora2();
+    }
+
+    public LlmTckConfigurationBuilder AddCurrentOpenAiChatModels(int reasoningTokens = 0)
+    {
+        return AddGpt55(reasoningTokens)
+            .AddGpt55Pro(reasoningTokens)
+            .AddGpt54(reasoningTokens)
+            .AddGpt54Pro(reasoningTokens)
+            .AddGpt54Mini(reasoningTokens)
+            .AddGpt54Nano(reasoningTokens)
+            .AddGpt5(reasoningTokens)
+            .AddGpt5Pro(reasoningTokens)
+            .AddGpt5Mini(reasoningTokens)
+            .AddGpt5Nano(reasoningTokens)
+            .AddGpt41()
+            .AddGpt41Mini()
+            .AddGpt4OMini();
+    }
+
+    public LlmTckConfigurationBuilder AddOpenAiEmbeddingModels()
+    {
+        return AddTextEmbedding3Small()
+            .AddTextEmbedding3Large()
+            .AddTextEmbeddingAda002();
+    }
+
+    public LlmTckConfigurationBuilder AddOpenAiImageModels()
+    {
+        return AddGptImage2()
+            .AddGptImage15()
+            .AddGptImage1()
+            .AddGptImage1Mini();
+    }
+
+    public LlmTckConfigurationBuilder AddOpenAiAudioModels()
+    {
+        return AddGpt4OMiniTts()
+            .AddTts1()
+            .AddTts1Hd();
+    }
+
+    public LlmTckConfigurationBuilder AddOpenAiVideoModels()
+    {
+        return AddSora2()
+            .AddSora2Pro();
+    }
+
+    public LlmTckConfigurationBuilder AddKnownOpenAiModels(int reasoningTokens = 0)
+    {
+        return AddCurrentOpenAiChatModels(reasoningTokens)
+            .AddOpenAiEmbeddingModels()
+            .AddOpenAiImageModels()
+            .AddOpenAiAudioModels()
+            .AddOpenAiVideoModels();
     }
 
     public LlmTckConfigurationBuilder RequireBearerToken(string token)

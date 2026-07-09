@@ -6,7 +6,7 @@ namespace ManagedCode.LlmTck.OpenAI;
 public sealed record OpenAiVideoCreateRequest
 {
     [JsonPropertyName("model")]
-    public string Model { get; init; } = "sora-2";
+    public string Model { get; init; } = LlmTckKnownModelIds.Sora2;
 
     [JsonPropertyName("prompt")]
     public string Prompt { get; init; } = string.Empty;

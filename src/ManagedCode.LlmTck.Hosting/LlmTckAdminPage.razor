@@ -1,0 +1,697 @@
+@namespace ManagedCode.LlmTck.Hosting
+@using ManagedCode.LlmTck.Control
+@using ManagedCode.LlmTck.Providers
+
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<meta name="generator" content="Blazor SSR">
+<link rel="icon" href="data:,">
+<title>LLM TCK · Control panel</title>
+<style>
+  :root {
+    color-scheme: dark;
+    --bg: #0b1014;
+    --panel: #111a20;
+    --panel-strong: #16242d;
+    --text: #ecf4f5;
+    --muted: #9fb0b4;
+    --line: #28424b;
+    --teal: #34d4c4;
+    --blue: #7bb6ff;
+    --amber: #f0ba5a;
+    --red: #f0736a;
+    --green: #5fd39a;
+    --radius: 8px;
+  }
+  * { box-sizing: border-box; }
+  html { min-height: 100%; }
+  body {
+    margin: 0;
+    min-height: 100vh;
+    min-height: 100svh;
+    overflow: auto;
+    background: var(--bg);
+    color: var(--text);
+    font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+  code, .mono { font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace; }
+  a { color: var(--teal); }
+  .wrap {
+    width: 100%;
+    min-height: 100vh;
+    min-height: 100svh;
+    height: auto;
+    padding: 16px;
+    display: grid;
+    grid-template-rows: auto auto auto minmax(0, 1fr) auto;
+    gap: 12px;
+  }
+
+  header.bar {
+    display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+    padding-bottom: 10px; border-bottom: 1px solid var(--line);
+  }
+  .logo { display: flex; align-items: baseline; gap: 10px; }
+  .logo b { font-size: 20px; font-weight: 800; letter-spacing: 0; }
+  .logo span { color: var(--muted); font-size: 13px; }
+  .pill {
+    display: inline-flex; align-items: center; gap: 8px; margin-left: auto;
+    padding: 6px 12px; border: 1px solid var(--line); border-radius: 999px;
+    background: var(--panel); font-size: 13px; font-weight: 600;
+  }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); box-shadow: 0 0 0 0 transparent; }
+  .pill.ok .dot { background: var(--green); box-shadow: 0 0 10px 1px color-mix(in srgb, var(--green) 70%, transparent); }
+  .pill.warn .dot { background: var(--amber); }
+  .pill.err .dot { background: var(--red); }
+
+  .toolbar {
+    display: flex; align-items: flex-end; gap: 12px; flex-wrap: wrap;
+    background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 12px;
+  }
+  .field { display: flex; flex-direction: column; gap: 6px; flex: 1 1 260px; }
+  .field label { font-size: 12px; color: var(--muted); font-weight: 600; letter-spacing: 0; }
+  input[type=password], input[type=text] {
+    background: var(--bg); border: 1px solid var(--line); color: var(--text);
+    border-radius: 8px; padding: 10px 12px; font-size: 14px; min-height: 42px; width: 100%;
+  }
+  input:focus { outline: none; border-color: var(--teal); }
+  .btns { display: flex; gap: 10px; flex-wrap: wrap; }
+  button {
+    appearance: none; cursor: pointer; font: inherit; font-weight: 700;
+    border-radius: 8px; min-height: 42px; padding: 0 16px; border: 1px solid var(--line);
+    background: var(--panel-strong); color: var(--text); transition: border-color .15s, background .15s, transform .05s;
+  }
+  button:hover { border-color: color-mix(in srgb, var(--teal) 60%, var(--line)); }
+  button:active { transform: translateY(1px); }
+  button.primary { background: var(--teal); border-color: var(--teal); color: #06110f; }
+  button.danger:hover { border-color: var(--red); color: var(--red); }
+  button:disabled { opacity: .5; cursor: not-allowed; }
+  .toggle { display: inline-flex; align-items: center; gap: 8px; color: var(--muted); font-size: 13px; user-select: none; }
+
+  .banner {
+    display: none; align-items: center; gap: 10px; padding: 10px 12px;
+    border-radius: 10px; border: 1px solid var(--line); background: var(--panel); font-size: 14px;
+  }
+  .banner.show { display: flex; }
+  .banner.err { border-color: color-mix(in srgb, var(--red) 55%, var(--line)); color: var(--red); }
+  .banner.warn { border-color: color-mix(in srgb, var(--amber) 55%, var(--line)); color: var(--amber); }
+
+  .stats {
+    display: grid;
+    grid-template-columns: repeat(11, minmax(104px, 1fr));
+    gap: 8px;
+    overflow-x: auto;
+    min-height: 0;
+    padding-bottom: 2px;
+  }
+  .stat {
+    background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+    min-width: 104px; padding: 10px 12px; position: relative; overflow: hidden;
+  }
+  .stat::before { content: ""; position: absolute; inset: 0 auto 0 0; width: 3px; background: var(--accent, var(--muted)); }
+  .stat .k { font-size: 11px; color: var(--muted); font-weight: 700; text-transform: uppercase; letter-spacing: 0; }
+  .stat .v { font-size: 24px; font-weight: 800; line-height: 1.1; margin-top: 3px; font-variant-numeric: tabular-nums; }
+
+  .workbench {
+    min-height: 0;
+    display: grid;
+    grid-template-columns: minmax(260px, .8fr) minmax(320px, 1fr) minmax(320px, 1fr) minmax(300px, .95fr);
+    grid-template-rows: auto auto auto auto;
+    gap: 12px;
+  }
+  .panel, .card {
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    overflow: hidden;
+  }
+  .fixtures-panel { grid-column: 1; grid-row: 1; }
+  .actions-panel { grid-column: 1; grid-row: 2; }
+  .api-panel { grid-column: 1; grid-row: 3; }
+  .groups-panel { grid-column: 1; grid-row: 4; }
+  .requests-panel { grid-column: 2; grid-row: 1 / span 4; }
+  .responses-panel { grid-column: 3; grid-row: 1 / span 4; }
+  .events-panel { grid-column: 4; grid-row: 1 / span 4; }
+  .panel > h2, .card > h2 {
+    margin: 0; padding: 10px 14px; font-size: 12px; letter-spacing: 0; text-transform: uppercase;
+    color: var(--muted); border-bottom: 1px solid var(--line); display: flex; align-items: center; gap: 8px;
+  }
+  .panel > h2 .count, .card > h2 .count { margin-left: auto; color: var(--text); font-size: 13px; font-weight: 700; }
+  .panel .body, .card .body { min-height: 0; padding: 0; overflow: auto; }
+  .fixtures-panel .body, .actions-panel .body, .api-panel .body { overflow: visible; }
+  .requests-panel, .responses-panel, .events-panel { min-height: 520px; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  th, td { text-align: left; padding: 8px 14px; }
+  th { font-size: 11px; text-transform: uppercase; letter-spacing: 0; color: var(--muted); font-weight: 700; }
+  tbody tr { border-top: 1px solid color-mix(in srgb, var(--line) 55%, transparent); }
+  td { overflow-wrap: anywhere; }
+  td .mono { color: var(--text); }
+
+  .tag {
+    display: inline-flex; align-items: center; padding: 2px 9px; border-radius: 999px;
+    font-size: 12px; font-weight: 700; border: 1px solid var(--tone, var(--line));
+    color: var(--tone, var(--muted)); background: color-mix(in srgb, var(--tone, var(--muted)) 12%, transparent);
+    white-space: nowrap;
+  }
+  .kind-chat { --tone: var(--teal); } .kind-embedding { --tone: var(--blue); }
+  .kind-image { --tone: var(--amber); } .kind-audio { --tone: var(--green); } .kind-video { --tone: #c89bff; }
+  .ev-matched { --tone: var(--green); } .ev-unmatched { --tone: var(--amber); }
+  .ev-modelnotfound { --tone: var(--blue); } .ev-authfailed { --tone: var(--red); }
+  .ev-scenarioexhausted { --tone: var(--amber); } .ev-errorreturned { --tone: var(--red); }
+
+  .events { list-style: none; margin: 0; padding: 4px 0; }
+  .events li { display: grid; grid-template-columns: auto 1fr; gap: 4px 10px; padding: 10px 14px; border-top: 1px solid color-mix(in srgb, var(--line) 55%, transparent); }
+  .events li:first-child { border-top: none; }
+  .events li.empty { display: block; padding: 28px 14px; }
+  .events .meta { grid-column: 2; color: var(--muted); font-size: 12px; display: flex; gap: 10px; flex-wrap: wrap; margin-top: 8px; }
+  .events .msg { grid-column: 2; font-size: 14px; overflow-wrap: anywhere; }
+  .events time { color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; white-space: nowrap; padding-top: 2px; }
+
+  .io { grid-column: 2; display: grid; gap: 8px; margin-top: 8px; }
+  .io-b { border: 1px solid var(--line); border-radius: 8px; background: var(--bg); overflow: hidden; }
+  .io-b .io-k { display: block; padding: 4px 10px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0; border-bottom: 1px solid var(--line); }
+  .io-req { border-color: color-mix(in srgb, var(--blue) 40%, var(--line)); }
+  .io-req .io-k { color: var(--blue); }
+  .io-res { border-color: color-mix(in srgb, var(--teal) 42%, var(--line)); }
+  .io-res .io-k { color: var(--teal); }
+  .io-b pre {
+    margin: 0; padding: 8px 10px; font-size: 13px; line-height: 1.45; color: var(--text);
+    white-space: pre-wrap; word-break: break-word; max-height: 160px; overflow: auto;
+    font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  }
+
+  .empty { padding: 28px 18px; text-align: center; color: var(--muted); font-size: 14px; }
+  .group-section { padding: 10px 0; border-top: 1px solid color-mix(in srgb, var(--line) 55%, transparent); }
+  .group-section:first-child { border-top: none; }
+  .group-title { padding: 0 14px 6px; color: var(--muted); font-size: 11px; font-weight: 700; text-transform: uppercase; }
+  .metric-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 8px;
+    padding: 7px 14px;
+    border-top: 1px solid color-mix(in srgb, var(--line) 35%, transparent);
+  }
+  .metric-row:first-of-type { border-top: none; }
+  .metric-name { overflow-wrap: anywhere; }
+  .metric-count { color: var(--text); font-weight: 800; font-variant-numeric: tabular-nums; }
+  .metric-detail { grid-column: 1 / -1; color: var(--muted); font-size: 12px; overflow-wrap: anywhere; }
+  .static-list { list-style: none; margin: 0; padding: 0; }
+  .static-row {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 8px;
+    padding: 8px 14px;
+    border-top: 1px solid color-mix(in srgb, var(--line) 45%, transparent);
+  }
+  .static-row:first-child { border-top: none; }
+  .static-key { color: var(--text); font-weight: 800; white-space: nowrap; }
+  .static-value { color: var(--muted); overflow-wrap: anywhere; }
+  .method {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 44px;
+    padding: 1px 7px;
+    border-radius: 6px;
+    border: 1px solid var(--tone, var(--line));
+    color: var(--tone, var(--text));
+    background: color-mix(in srgb, var(--tone, var(--muted)) 12%, transparent);
+    font-size: 11px;
+    font-weight: 800;
+  }
+  .method-get { --tone: var(--blue); }
+  .method-post { --tone: var(--teal); }
+  .action-name { display: block; font-weight: 800; color: var(--text); }
+  .action-detail { display: block; color: var(--muted); font-size: 12px; margin-top: 2px; overflow-wrap: anywhere; }
+
+  .item-list { list-style: none; margin: 0; padding: 0; }
+  .item {
+    padding: 10px 14px;
+    border-top: 1px solid color-mix(in srgb, var(--line) 55%, transparent);
+  }
+  .item:first-child { border-top: none; }
+  .item-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; }
+  .item-title { font-weight: 800; overflow-wrap: anywhere; }
+  .kv { color: var(--muted); font-size: 12px; display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+  .prebox {
+    margin: 0;
+    padding: 9px 10px;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    background: var(--bg);
+    color: var(--text);
+    font-size: 12px;
+    line-height: 1.45;
+    white-space: pre-wrap;
+    word-break: break-word;
+    overflow: auto;
+    max-height: 280px;
+    font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  }
+  .panel-hint { color: var(--muted); font-size: 12px; padding: 10px 14px; border-bottom: 1px solid color-mix(in srgb, var(--line) 45%, transparent); }
+  footer { color: var(--muted); font-size: 12px; text-align: center; }
+  footer code { color: var(--text); }
+
+  @@media (max-width: 1180px) {
+    .wrap { min-height: 100vh; height: auto; }
+    .workbench {
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+      grid-template-rows: none;
+    }
+    .fixtures-panel { grid-column: 1; grid-row: 1; }
+    .actions-panel { grid-column: 2; grid-row: 1; }
+    .api-panel { grid-column: 1; grid-row: 2; }
+    .groups-panel { grid-column: 2; grid-row: 2; }
+    .requests-panel { grid-column: 1; grid-row: 3; }
+    .responses-panel { grid-column: 2; grid-row: 3; }
+    .events-panel { grid-column: 1 / -1; grid-row: 4; }
+    .requests-panel, .responses-panel, .events-panel { min-height: 300px; }
+  }
+  @@media (max-width: 760px) {
+    .wrap { padding: 10px; gap: 10px; }
+    header.bar { align-items: flex-start; }
+    .pill { margin-left: 0; }
+    .toolbar { align-items: stretch; }
+    .btns, .btns button { width: 100%; }
+    .toggle { width: 100%; justify-content: center; }
+    .stats { grid-template-columns: repeat(2, minmax(132px, 1fr)); }
+    .stat { min-width: 0; }
+    .workbench { grid-template-columns: 1fr; grid-template-rows: none; }
+    .fixtures-panel, .actions-panel, .api-panel, .groups-panel, .requests-panel, .responses-panel, .events-panel {
+      grid-column: auto;
+      grid-row: auto;
+    }
+    .requests-panel, .responses-panel, .events-panel { min-height: 300px; }
+  }
+</style>
+</head>
+<body data-renderer="blazor-ssr">
+<div class="wrap">
+  <header class="bar">
+    <div class="logo"><b>LLM&nbsp;TCK</b><span>Control panel</span></div>
+    <div class="pill" id="status"><span class="dot"></span><span id="statusText">Connecting…</span></div>
+  </header>
+
+  <form class="toolbar" autocomplete="off" onsubmit="return false">
+    <div class="field">
+      <label for="token">Bearer token <span style="opacity:.7">(only if the server requires one)</span></label>
+      <input id="token" type="password" placeholder="leave empty when no token is configured" autocomplete="off" spellcheck="false">
+    </div>
+    <div class="btns">
+      <button class="primary" id="refresh" type="button">Refresh</button>
+      <button class="danger" id="reset" type="button">Reset runtime</button>
+      <label class="toggle"><input type="checkbox" id="auto"> auto</label>
+    </div>
+  </form>
+
+  <div class="banner" id="banner"><span id="bannerText"></span></div>
+
+  <section class="stats" id="stats"></section>
+
+  <main class="workbench">
+    <section class="panel fixtures-panel">
+      <h2>Fixtures / models <span class="count" id="modelCount">—</span></h2>
+      <div class="body" id="models"></div>
+    </section>
+    <section class="panel actions-panel">
+      <h2>Actions <span class="count">4</span></h2>
+      <div class="body">
+        <ul class="static-list">
+          <li class="static-row">
+            <span class="method method-get">GET</span>
+            <span><span class="action-name">Refresh state</span><span class="action-detail">Load models and assertion summary.</span></span>
+          </li>
+          <li class="static-row">
+            <span class="method method-post">POST</span>
+            <span><span class="action-name">Reset runtime</span><span class="action-detail">@LlmTckControlRoutes.Reset clears scenario positions and events.</span></span>
+          </li>
+          <li class="static-row">
+            <span class="method method-post">POST</span>
+            <span><span class="action-name">Configure runtime</span><span class="action-detail">@LlmTckControlRoutes.Configure replaces models, scenarios, fixtures, auth, and scripted errors.</span></span>
+          </li>
+          <li class="static-row">
+            <span class="method method-get">AUTH</span>
+            <span><span class="action-name">Bearer token</span><span class="action-detail">Optional Authorization header is reused for every control call.</span></span>
+          </li>
+        </ul>
+      </div>
+    </section>
+    <section class="panel api-panel">
+      <h2>API endpoints <span class="count">17</span></h2>
+      <div class="body">
+        <section class="group-section">
+          <div class="group-title">Control API</div>
+          <ul class="static-list">
+            <li class="static-row"><span class="method method-get">GET</span><span class="static-value">@LlmTckControlRoutes.Models</span></li>
+            <li class="static-row"><span class="method method-get">GET</span><span class="static-value">@LlmTckControlRoutes.Assertions</span></li>
+            <li class="static-row"><span class="method method-post">POST</span><span class="static-value">@LlmTckControlRoutes.Configure</span></li>
+            <li class="static-row"><span class="method method-post">POST</span><span class="static-value">@LlmTckControlRoutes.Reset</span></li>
+          </ul>
+        </section>
+        <section class="group-section">
+          <div class="group-title">Provider APIs</div>
+          <ul class="static-list">
+            <li class="static-row"><span class="static-key">OpenAI</span><span class="static-value">@LlmTckProviderRouteNamespaces.OpenAI</span></li>
+            <li class="static-row"><span class="static-key">Azure OpenAI</span><span class="static-value">@LlmTckProviderRouteNamespaces.AzureOpenAI</span></li>
+            <li class="static-row"><span class="static-key">Foundry</span><span class="static-value">@LlmTckProviderRouteNamespaces.MicrosoftFoundry</span></li>
+            <li class="static-row"><span class="static-key">Anthropic</span><span class="static-value">@LlmTckProviderRouteNamespaces.Anthropic</span></li>
+            <li class="static-row"><span class="static-key">Gemini</span><span class="static-value">@LlmTckProviderRouteNamespaces.Gemini</span></li>
+            <li class="static-row"><span class="static-key">Groq</span><span class="static-value">@LlmTckProviderRouteNamespaces.Groq</span></li>
+            <li class="static-row"><span class="static-key">Mistral</span><span class="static-value">@LlmTckProviderRouteNamespaces.Mistral</span></li>
+            <li class="static-row"><span class="static-key">Ollama</span><span class="static-value">@LlmTckProviderRouteNamespaces.Ollama</span></li>
+            <li class="static-row"><span class="static-key">Cohere</span><span class="static-value">@LlmTckProviderRouteNamespaces.Cohere</span></li>
+            <li class="static-row"><span class="static-key">Bedrock</span><span class="static-value">@LlmTckProviderRouteNamespaces.Bedrock</span></li>
+            <li class="static-row"><span class="static-key">OpenRouter</span><span class="static-value">@LlmTckProviderRouteNamespaces.OpenRouter</span></li>
+            <li class="static-row"><span class="static-key">DeepSeek</span><span class="static-value">@LlmTckProviderRouteNamespaces.DeepSeek</span></li>
+            <li class="static-row"><span class="static-key">Perplexity</span><span class="static-value">@LlmTckProviderRouteNamespaces.Perplexity</span></li>
+          </ul>
+        </section>
+      </div>
+    </section>
+    <section class="panel groups-panel">
+      <h2>Grouped overview <span class="count" id="groupCount">—</span></h2>
+      <div class="body" id="groups"></div>
+    </section>
+    <section class="panel requests-panel">
+      <h2>Calls / requests <span class="count" id="requestCount">—</span></h2>
+      <div class="panel-hint">Every captured provider call request, newest first.</div>
+      <div class="body" id="requests"></div>
+    </section>
+    <section class="panel responses-panel">
+      <h2>Responses <span class="count" id="responseCount">—</span></h2>
+      <div class="panel-hint">Every deterministic runtime response or error text, newest first.</div>
+      <div class="body" id="responses"></div>
+    </section>
+    <section class="panel events-panel">
+      <h2>Runtime events <span class="count" id="eventCount">—</span></h2>
+      <div class="body"><ul class="events" id="events"></ul></div>
+    </section>
+  </main>
+
+  <footer>
+    Served by <code>MapLlmTck()</code> · data from <code>@LlmTckControlRoutes.Models</code> and <code>@LlmTckControlRoutes.Assertions</code>
+  </footer>
+</div>
+
+<script>
+(function () {
+  "use strict";
+  var MODEL_KINDS = ["Chat", "Embedding", "Image", "Audio", "Video"];
+  var EVENT_KINDS = ["Matched", "Unmatched", "ModelNotFound", "AuthFailed", "ScenarioExhausted", "ErrorReturned"];
+  var STAT_CARDS = [
+    { key: "totalEvents", label: "Total events", accent: "var(--text)" },
+    { key: "totalTokens", label: "Total tokens", accent: "var(--teal)" },
+    { key: "inputTokens", label: "Input tokens", accent: "var(--blue)" },
+    { key: "outputTokens", label: "Output tokens", accent: "var(--green)" },
+    { key: "reasoningTokens", label: "Reasoning tokens", accent: "var(--amber)" },
+    { key: "matched", label: "Matched", accent: "var(--green)" },
+    { key: "unmatched", label: "Unmatched", accent: "var(--amber)" },
+    { key: "modelNotFound", label: "Model not found", accent: "var(--blue)" },
+    { key: "authFailed", label: "Auth failed", accent: "var(--red)" },
+    { key: "scenarioExhausted", label: "Scenario exhausted", accent: "var(--amber)" },
+    { key: "errorsReturned", label: "Errors returned", accent: "var(--red)" }
+  ];
+  var TOKEN_KEY = "llm-tck.token";
+
+  var $ = function (id) { return document.getElementById(id); };
+
+  // Storage access can throw in sandboxed iframes or when site data is blocked;
+  // degrade gracefully (token just isn't persisted) instead of killing the page.
+  function storageGet(key) { try { return localStorage.getItem(key); } catch (e) { return null; } }
+  function storageSet(key, value) { try { localStorage.setItem(key, value); } catch (e) { /* ignore */ } }
+
+  var tokenInput = $("token");
+  tokenInput.value = storageGet(TOKEN_KEY) || "";
+  tokenInput.addEventListener("change", function () {
+    storageSet(TOKEN_KEY, tokenInput.value);
+    refresh();
+  });
+
+  function esc(value) {
+    return String(value == null ? "" : value)
+      .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+  }
+  function label(value, table) {
+    if (typeof value === "number") { return table[value] != null ? table[value] : String(value); }
+    return value == null ? "" : String(value);
+  }
+  function slug(value) { return String(value).toLowerCase().replace(/[^a-z0-9]/g, ""); }
+  function formatUsage(usage) {
+    if (!usage) { return ""; }
+    return "tokens: " + esc(usage.inputTokens || 0) + " in / " +
+      esc(usage.outputTokens || 0) + " out / " +
+      esc(usage.reasoningTokens || 0) + " reasoning / " +
+      esc(usage.totalTokens || 0) + " total";
+  }
+  function eventsOf(summary) {
+    return summary && Array.isArray(summary.events) ? summary.events : [];
+  }
+  function eventKind(e) {
+    return label(e.kind, EVENT_KINDS) || "Unknown";
+  }
+  function addUsage(total, usage) {
+    if (!usage) { return total; }
+    total.inputTokens += usage.inputTokens || 0;
+    total.outputTokens += usage.outputTokens || 0;
+    total.reasoningTokens += usage.reasoningTokens || 0;
+    total.totalTokens += usage.totalTokens || 0;
+    return total;
+  }
+  function emptyUsage() {
+    return { inputTokens: 0, outputTokens: 0, reasoningTokens: 0, totalTokens: 0 };
+  }
+  function groupedRows(events, keyFn) {
+    var rows = [];
+    var byKey = {};
+    events.forEach(function (e) {
+      var key = keyFn(e) || "—";
+      if (!byKey[key]) {
+        byKey[key] = { key: key, count: 0, usage: emptyUsage() };
+        rows.push(byKey[key]);
+      }
+      byKey[key].count += 1;
+      addUsage(byKey[key].usage, e.usage);
+    });
+    rows.sort(function (a, b) { return b.count - a.count || a.key.localeCompare(b.key); });
+    return rows;
+  }
+  function renderGroupSection(title, rows) {
+    if (!rows.length) { return ""; }
+    return "<section class='group-section'><div class='group-title'>" + esc(title) + "</div>" +
+      rows.map(function (row) {
+        return "<div class='metric-row'><div class='metric-name'>" + esc(row.key) + "</div>" +
+          "<div class='metric-count'>" + esc(row.count) + "</div>" +
+          "<div class='metric-detail'>" + formatUsage(row.usage) + "</div></div>";
+      }).join("") + "</section>";
+  }
+
+  function relTime(iso) {
+    var t = Date.parse(iso);
+    if (isNaN(t)) { return esc(iso); }
+    var diff = Math.round((Date.now() - t) / 1000);
+    var abs = Math.abs(diff);
+    var text;
+    if (abs < 5) { text = "just now"; }
+    else if (abs < 60) { text = abs + "s ago"; }
+    else if (abs < 3600) { text = Math.round(abs / 60) + "m ago"; }
+    else if (abs < 86400) { text = Math.round(abs / 3600) + "h ago"; }
+    else { text = new Date(t).toLocaleString(); }
+    return '<time datetime="' + esc(iso) + '" title="' + esc(new Date(t).toLocaleString()) + '">' + esc(text) + "</time>";
+  }
+
+  function api(path) {
+    var headers = { "Accept": "application/json" };
+    var token = tokenInput.value.trim();
+    if (token) { headers.Authorization = "Bearer " + token; }
+    return fetch(path, { headers: headers, cache: "no-store" });
+  }
+
+  function setStatus(kind, text) {
+    var pill = $("status");
+    pill.className = "pill " + kind;
+    $("statusText").textContent = text;
+  }
+  function banner(kind, text) {
+    var el = $("banner");
+    if (!text) { el.className = "banner"; return; }
+    el.className = "banner show " + kind;
+    $("bannerText").textContent = text;
+  }
+
+  function renderStats(summary) {
+    $("stats").innerHTML = STAT_CARDS.map(function (c) {
+      var v = summary && summary[c.key] != null ? summary[c.key] : 0;
+      return '<div class="stat" style="--accent:' + c.accent + '">' +
+        '<div class="k">' + esc(c.label) + '</div><div class="v">' + esc(v) + "</div></div>";
+    }).join("");
+  }
+
+  function renderModels(models) {
+    $("modelCount").textContent = models.length;
+    if (!models.length) { $("models").innerHTML = '<div class="empty">No fixture models configured.</div>'; return; }
+    var groups = {};
+    var order = [];
+    models.forEach(function (m) {
+      var kind = label(m.kind, MODEL_KINDS) || "Unknown";
+      if (!groups[kind]) { groups[kind] = []; order.push(kind); }
+      groups[kind].push(m);
+    });
+    $("models").innerHTML = order.sort().map(function (kind) {
+      var rows = groups[kind].map(function (m) {
+        return "<tr><td><span class='mono'>" + esc(m.id) + "</span></td>" +
+          "<td class='mono' style='color:var(--muted)'>" + esc(m.ownedBy || "—") + "</td></tr>";
+      }).join("");
+      return "<section class='group-section'><div class='group-title'><span class='tag kind-" + slug(kind) + "'>" +
+        esc(kind) + "</span> " + esc(groups[kind].length) + "</div>" +
+        "<table><thead><tr><th>Id</th><th>Owned by</th></tr></thead><tbody>" + rows + "</tbody></table></section>";
+    }).join("");
+  }
+
+  function renderGroups(summary) {
+    var events = eventsOf(summary);
+    var kindRows = groupedRows(events, eventKind);
+    var modelRows = groupedRows(events, function (e) { return e.modelId || "—"; });
+    var scenarioRows = groupedRows(events, function (e) { return e.scenarioId || "No scenario"; });
+    $("groupCount").textContent = kindRows.length + modelRows.length + scenarioRows.length;
+    if (!events.length) { $("groups").innerHTML = '<div class="empty">No events to group yet.</div>'; return; }
+    $("groups").innerHTML =
+      renderGroupSection("By event kind", kindRows) +
+      renderGroupSection("By model", modelRows) +
+      renderGroupSection("By scenario", scenarioRows);
+  }
+
+  function renderIoList(summary, field, countId, targetId, emptyText) {
+    var events = eventsOf(summary);
+    var rows = [];
+    events.forEach(function (e, i) {
+      if (e[field] != null && String(e[field]).length > 0) {
+        rows.push({ event: e, number: i + 1 });
+      }
+    });
+    $(countId).textContent = rows.length;
+    if (!rows.length) { $(targetId).innerHTML = '<div class="empty">' + esc(emptyText) + '</div>'; return; }
+    $(targetId).innerHTML = "<ul class='item-list'>" + rows.reverse().map(function (row) {
+      var e = row.event;
+      var kind = eventKind(e);
+      var meta = [relTime(e.timestamp), "model: " + esc(e.modelId || "—")];
+      if (e.scenarioId) { meta.push("scenario: " + esc(e.scenarioId)); }
+      if (e.usage) { meta.push(formatUsage(e.usage)); }
+      return "<li class='item'><div class='item-head'><span class='item-title'>#" + esc(row.number) + "</span>" +
+        "<span class='tag ev-" + slug(kind) + "'>" + esc(kind) + "</span></div>" +
+        "<pre class='prebox'>" + esc(e[field]) + "</pre><div class='kv'>" + meta.join(" · ") + "</div></li>";
+    }).join("") + "</ul>";
+  }
+
+  function renderRequests(summary) {
+    renderIoList(summary, "request", "requestCount", "requests", "No captured requests yet.");
+  }
+
+  function renderResponses(summary) {
+    renderIoList(summary, "response", "responseCount", "responses", "No captured responses yet.");
+  }
+
+  function renderEvents(summary) {
+    var events = eventsOf(summary);
+    $("eventCount").textContent = events.length;
+    if (!events.length) { $("events").innerHTML = '<li class="empty">No runtime events yet.</li>'; return; }
+    var items = events.slice().reverse().map(function (e) {
+      var kind = eventKind(e);
+      var meta = ["model: " + esc(e.modelId || "—")];
+      if (e.scenarioId) { meta.push("scenario: " + esc(e.scenarioId)); }
+      if (e.usage) { meta.push(formatUsage(e.usage)); }
+      return "<li>" + relTime(e.timestamp) +
+        "<span class='tag ev-" + slug(kind) + "'>" + esc(kind) + "</span>" +
+        "<div class='msg'>" + esc(e.message || "") + "</div>" +
+        "<div class='meta'>" + meta.join(" · ") + "</div></li>";
+    }).join("");
+    $("events").innerHTML = items;
+  }
+
+  // Each refresh claims the latest generation; a slower in-flight refresh whose
+  // generation is stale (e.g. superseded by a reset) discards its result instead
+  // of repainting stale data or clobbering a newer banner. Resolves true only on
+  // a successful, still-current load.
+  var generation = 0;
+  function refresh() {
+    var gen = ++generation;
+    setStatus("", "Loading…");
+    return Promise.all([api("@LlmTckControlRoutes.Models"), api("@LlmTckControlRoutes.Assertions")]).then(function (res) {
+      if (gen !== generation) { return false; }
+      var modelsRes = res[0], assertRes = res[1];
+      if (modelsRes.status === 401 || assertRes.status === 401) {
+        setStatus("err", "Unauthorized");
+        banner("err", "The control endpoints rejected the token. Enter the configured bearer token above.");
+        renderStats(null); renderModels([]); renderGroups(null); renderRequests(null); renderResponses(null); renderEvents(null);
+        return false;
+      }
+      if (!modelsRes.ok || !assertRes.ok) {
+        setStatus("err", "Server error");
+        banner("err", "The server responded with an error: HTTP " + modelsRes.status + " / " + assertRes.status + ".");
+        renderStats(null); renderModels([]); renderGroups(null); renderRequests(null); renderResponses(null); renderEvents(null);
+        return false;
+      }
+      return Promise.all([modelsRes.json(), assertRes.json()]).then(function (data) {
+        if (gen !== generation) { return false; }
+        var models = data[0], summary = data[1];
+        banner("", "");
+        setStatus("ok", "Ready");
+        renderStats(summary);
+        renderModels(Array.isArray(models) ? models : (models.data || []));
+        renderGroups(summary);
+        renderRequests(summary);
+        renderResponses(summary);
+        renderEvents(summary);
+        return true;
+      });
+    }).catch(function (err) {
+      if (gen !== generation) { return false; }
+      setStatus("err", "Offline");
+      banner("err", "Could not reach the LLM TCK server: " + err.message);
+      renderStats(null); renderModels([]); renderGroups(null); renderRequests(null); renderResponses(null); renderEvents(null);
+      return false;
+    });
+  }
+
+  $("refresh").addEventListener("click", refresh);
+  $("reset").addEventListener("click", function () {
+    var btn = $("reset");
+    btn.disabled = true;
+    var headers = {};
+    var token = tokenInput.value.trim();
+    if (token) { headers.Authorization = "Bearer " + token; }
+    fetch("@LlmTckControlRoutes.Reset", { method: "POST", headers: headers }).then(function (res) {
+      if (res.status === 401) { banner("err", "Reset was rejected: the token is not accepted."); return; }
+      if (!res.ok) { banner("err", "Reset failed with HTTP " + res.status + "."); return; }
+      // Reload post-reset state; only confirm if that reload actually succeeded,
+      // so a failed refresh keeps its own error banner instead of a false success.
+      return refresh().then(function (ok) {
+        if (ok) { banner("warn", "Runtime reset — scenario positions and events cleared."); }
+      });
+    }).catch(function (err) {
+      banner("err", "Reset failed: " + err.message);
+    }).then(function () { btn.disabled = false; });
+  });
+
+  var timer = null;
+  $("auto").addEventListener("change", function (e) {
+    if (timer) { clearInterval(timer); timer = null; }
+    if (e.target.checked) { timer = setInterval(refresh, 4000); }
+  });
+
+  refresh();
+})();
+</script>
+</body>
+</html>

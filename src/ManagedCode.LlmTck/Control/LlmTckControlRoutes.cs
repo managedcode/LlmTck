@@ -2,9 +2,9 @@ namespace ManagedCode.LlmTck.Control;
 
 public static class LlmTckControlRoutes
 {
-    public const string Admin = "/admin/llm-tck";
-    public const string Models = Admin + "/models";
-    public const string Assertions = Admin + "/assertions";
-    public const string Configure = Admin + "/configure";
-    public const string Reset = Admin + "/reset";
+    public const string Admin = "/";
+    public const string Models = "/admin-api/models";
+    public const string Assertions = "/admin-api/assertions";
+    public const string Configure = "/admin-api/configure";
+    public const string Reset = "/admin-api/reset";
 }

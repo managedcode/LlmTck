@@ -9,7 +9,7 @@ LLM TCK provides deterministic provider emulation for integration tests. Test su
 - `ManagedCode.LlmTck` owns provider-neutral runtime state: models, scenarios, match rules, deterministic modality fixtures, auth checks, and assertion events.
 - `ManagedCode.LlmTck.OpenAI` owns OpenAI-compatible DTOs and mapping from runtime results to wire responses.
 - `ManagedCode.LlmTck.AzureOpenAI`, `ManagedCode.LlmTck.Foundry`, `ManagedCode.LlmTck.Anthropic`, `ManagedCode.LlmTck.Gemini`, `ManagedCode.LlmTck.Groq`, `ManagedCode.LlmTck.Mistral`, `ManagedCode.LlmTck.Ollama`, `ManagedCode.LlmTck.Cohere`, `ManagedCode.LlmTck.Bedrock`, `ManagedCode.LlmTck.OpenRouter`, `ManagedCode.LlmTck.DeepSeek`, and `ManagedCode.LlmTck.Perplexity` own provider compatibility profiles and provider-specific wire contracts as they are implemented.
-- `ManagedCode.LlmTck.Hosting` exposes the runtime through ASP.NET Core endpoints.
+- `ManagedCode.LlmTck.Hosting` exposes the runtime through ASP.NET Core endpoints and serves the browser admin panel as Blazor server-side rendered components.
 - `ManagedCode.LlmTck.Client` exposes a control client and `Microsoft.Extensions.AI` clients.
 - `ManagedCode.LlmTck.Aspire` adds a package-owned Aspire resource with `builder.AddLlmTck()`.
 - `samples/ManagedCode.LlmTck.Service` is the runnable HTTP provider emulator.
@@ -17,12 +17,12 @@ LLM TCK provides deterministic provider emulation for integration tests. Test su
 
 ## Runtime Flow
 
-1. Tests configure the runtime through `AddLlmTck(...)` at host startup, through `LlmTckClient.ConfigureAsync(config => ...)`, or through `POST /admin/llm-tck/configure`.
+1. Tests configure the runtime through `AddLlmTck(...)` at host startup, through `LlmTckClient.ConfigureAsync(config => ...)`, or through `POST /admin-api/configure`.
 2. Provider requests arrive through `/v1/*` endpoints.
 3. Hosting maps provider requests into provider-neutral runtime requests.
 4. The runtime checks bearer-token requirements, configured model IDs, model modality kind, and scenario match rules.
 5. The provider adapter maps success or failure to the expected wire shape.
-6. Tests call `/admin/llm-tck/assertions` to inspect matched, unmatched, unknown-model, auth-failed, exhausted, and error-returned events.
+6. Tests call `/admin-api/assertions` to inspect matched, unmatched, unknown-model, auth-failed, exhausted, and error-returned events.
 
 Control endpoints use the same bearer-token requirement when one is configured, so tests can expose the service without leaving runtime reset or reconfiguration open to unauthenticated callers.
 

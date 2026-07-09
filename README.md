@@ -15,7 +15,7 @@ contracts, and `ManagedCode.LlmTck.Hosting` only claims routes that are mapped b
 Use it when a test needs to prove what an application sends to an LLM provider,
 script deterministic provider responses, exercise retry/error/model-routing paths,
 or assert that no unexpected LLM calls occurred. When a bearer token is configured,
-both provider endpoints and `/admin/llm-tck/*` control endpoints require it.
+both provider endpoints and `/admin-api/*` control endpoints require it.
 
 ## Packages
 
@@ -156,7 +156,7 @@ LLM TCK is configured with one `LlmTckConfiguration`.
 You can apply that configuration in two places:
 
 - at host startup through `builder.Services.AddLlmTck(options => ...)`
-- at test runtime through `LlmTckClient.ConfigureAsync(...)` or `POST /admin/llm-tck/configure`
+- at test runtime through `LlmTckClient.ConfigureAsync(...)` or `POST /admin-api/configure`
 
 Runtime configuration is a replacement, not a merge. Applying a new configuration resets scenario positions and assertion events. The runtime snapshots the configuration, so later mutations to your builder/list objects do not change the running provider.
 
@@ -292,15 +292,15 @@ builder
 builder.Build().Run();
 ```
 
-`AddLlmTck()` creates a `LlmTckResource` backed by the packaged .NET LLM TCK service executable and exposes its `http` endpoint. It does not require a consumer service project reference, generated `Projects.*` metadata type, project path, Docker, or a container runtime. Consumer resources should reference the TCK resource, wait for it, and use `llmTck.GetHttpEndpoint()` when they need the provider-compatible base URL. `.WithApiKey("test-key")` sets `LlmTck:RequiredBearerToken` so both provider endpoints and `/admin/llm-tck/*` control endpoints require the same bearer token.
+`AddLlmTck()` creates a `LlmTckResource` backed by the packaged .NET LLM TCK service executable and exposes its `http` endpoint. It does not require a consumer service project reference, generated `Projects.*` metadata type, project path, Docker, or a container runtime. Consumer resources should reference the TCK resource, wait for it, and use `llmTck.GetHttpEndpoint()` when they need the provider-compatible base URL. `.WithApiKey("test-key")` sets `LlmTck:RequiredBearerToken` so both provider endpoints and `/admin-api/*` control endpoints require the same bearer token.
 
 Use `AddLlmTckContainer()` only when you explicitly want a container-backed resource, for example for a deployment or container-runtime smoke test. The container mode uses the matching versioned image such as `ghcr.io/managedcode/llm-tck:0.0.9`; it is not the default local Aspire path.
 
 ## Control Panel And Token Usage
 
-Open the TCK resource endpoint from the Aspire dashboard and add `/admin/llm-tck` to inspect the running configuration. If the resource was configured with `.WithApiKey("test-key")` or `RequireBearerToken("test-key")`, enter the same token in the control panel before refreshing.
+Open the TCK resource endpoint from the Aspire dashboard to inspect the running configuration at `/`. The browser admin panel is rendered by Blazor server-side rendering from `ManagedCode.LlmTck.Hosting`. If the resource was configured with `.WithApiKey("test-key")` or `RequireBearerToken("test-key")`, enter the same token in the control panel before refreshing.
 
-The panel reads `/admin/llm-tck/models` and `/admin/llm-tck/assertions`. It shows advertised models, assertion counters, request and response previews, and deterministic token usage. Token usage is counted with the repo-owned tiktoken-compatible counter and reported both as summary totals and per runtime event with `inputTokens`, `outputTokens`, `reasoningTokens`, and `totalTokens`. Provider response envelopes also receive the same deterministic usage values: OpenAI-compatible chat and Responses usage including reasoning-token details when configured, Anthropic sync messages and streaming `message_start`/`message_delta`, Gemini `usageMetadata` including long-running video operation results, Cohere chat usage, Ollama prompt/eval counts, and Bedrock Converse usage.
+The panel reads `/admin-api/models` and `/admin-api/assertions`. It shows advertised models, assertion counters, request and response previews, and deterministic token usage. Token usage is counted with the repo-owned tiktoken-compatible counter and reported both as summary totals and per runtime event with `inputTokens`, `outputTokens`, `reasoningTokens`, and `totalTokens`. Provider response envelopes also receive the same deterministic usage values: OpenAI-compatible chat and Responses usage including reasoning-token details when configured, Anthropic sync messages and streaming `message_start`/`message_delta`, Gemini `usageMetadata` including long-running video operation results, Cohere chat usage, Ollama prompt/eval counts, and Bedrock Converse usage.
 
 For reasoning-capable fixture models, configure a deterministic reasoning-token count on the model. LLM TCK includes those tokens in `outputTokens` and exposes the split in `reasoningTokens`; OpenAI-compatible responses also include `completion_tokens_details.reasoning_tokens` or `output_tokens_details.reasoning_tokens`.
 
@@ -572,10 +572,10 @@ If the current runtime already has a bearer token, the configure request must us
 
 ### Configure With Raw JSON
 
-`POST /admin/llm-tck/configure` accepts readable enum values such as `"chat"` and `"contains"`:
+`POST /admin-api/configure` accepts readable enum values such as `"chat"` and `"contains"`:
 
 ```bash
-curl -X POST http://localhost:5000/admin/llm-tck/configure \
+curl -X POST http://localhost:5000/admin-api/configure \
   -H "content-type: application/json" \
   -H "authorization: Bearer test-key" \
   -d '{
@@ -714,9 +714,9 @@ for the current coverage rules and behavior-test inventory.
 | DeepSeek | `/deepseek` | `/deepseek/models`, `/deepseek/v1/chat/completions` |
 | Perplexity | `/perplexity` | `/perplexity/v1/sonar` |
 
-Control endpoints live under `/admin/llm-tck`: the browser control panel,
-`GET /admin/llm-tck/models`, `GET /admin/llm-tck/assertions`,
-`POST /admin/llm-tck/configure`, and `POST /admin/llm-tck/reset`.
+The Blazor server-side rendered browser control panel lives at `/`. JSON control endpoints live under
+`/admin-api`: `GET /admin-api/models`, `GET /admin-api/assertions`,
+`POST /admin-api/configure`, and `POST /admin-api/reset`.
 
 Audio speech returns a deterministic WAV fixture by default. When
 `requiredBearerToken` is configured, all provider and control endpoints require
