@@ -1,4 +1,4 @@
-# LLM TCK
+# LLM Technology Compatibility Kit 
 
 `ManagedCode.LlmTck` is a deterministic Technology Compatibility Kit for LLM APIs. It gives tests a local provider-compatible server that can be hosted by Aspire, scripted with explicit scenarios, and called through regular HTTP or `Microsoft.Extensions.AI`.
 
