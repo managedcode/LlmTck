@@ -12,9 +12,11 @@ using ManagedCode.LlmTck.OpenAI;
 using ManagedCode.LlmTck.Runtime;
 using ManagedCode.LlmTck.Scenarios;
 using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Hosting.StaticWebAssets;
 using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Routing;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using ProviderRoutes = ManagedCode.LlmTck.Providers.LlmTckProviderRouteNamespaces;
 
@@ -115,7 +117,9 @@ public static class LlmTckEndpointRouteBuilderExtensions
             runtime.ConfigureAsync(configuration).GetAwaiter().GetResult();
             return runtime;
         });
-        services.AddRazorComponents();
+        services
+            .AddRazorComponents()
+            .AddInteractiveServerComponents();
 
         return services;
     }
@@ -124,10 +128,11 @@ public static class LlmTckEndpointRouteBuilderExtensions
     {
         ArgumentNullException.ThrowIfNull(endpoints);
 
-        endpoints.MapGet(
-            LlmTckControlRoutes.Admin,
-            () => new RazorComponentResult<LlmTckAdminPage>()
-        );
+        MapStaticAssetsIfAvailable(endpoints);
+        endpoints
+            .MapRazorComponents<LlmTckAdminPage>()
+            .AddInteractiveServerRenderMode()
+            .DisableAntiforgery();
         endpoints.MapGet(
             LlmTckControlRoutes.Models,
             (HttpContext context, ILlmTckRuntime runtime) =>
@@ -170,20 +175,20 @@ public static class LlmTckEndpointRouteBuilderExtensions
             ProviderRoutes.ForProvider(ProviderRoutes.DeepSeek, "/models"),
             (ILlmTckRuntime runtime) => Results.Json(OpenAiWireMapper.ToModelsResponse(runtime.GetModels()))
         );
-        endpoints.MapPost(ProviderRoutes.ForProvider(ProviderRoutes.OpenAI, "/v1/chat/completions"), CompleteChatAsync);
+        endpoints.MapPost(ProviderRoutes.ForProvider(ProviderRoutes.OpenAI, "/v1/chat/completions"), CompleteOpenAiChatAsync);
         endpoints.MapPost(ProviderRoutes.ForProvider(ProviderRoutes.Anthropic, "/v1/messages"), CompleteAnthropicMessageAsync);
         endpoints.MapPost(ProviderRoutes.ForProvider(ProviderRoutes.Perplexity, "/v1/sonar"), CompleteChatAsync);
-        endpoints.MapPost(ProviderRoutes.ForProvider(ProviderRoutes.OpenAI, "/v1/responses"), CreateResponseAsync);
-        endpoints.MapPost(ProviderRoutes.ForProvider(ProviderRoutes.Groq, "/openai/v1/chat/completions"), CompleteChatAsync);
-        endpoints.MapPost(ProviderRoutes.ForProvider(ProviderRoutes.Groq, "/openai/v1/responses"), CreateResponseAsync);
+        endpoints.MapPost(ProviderRoutes.ForProvider(ProviderRoutes.OpenAI, "/v1/responses"), CreateOpenAiResponseAsync);
+        endpoints.MapPost(ProviderRoutes.ForProvider(ProviderRoutes.Groq, "/openai/v1/chat/completions"), CompleteGroqChatAsync);
+        endpoints.MapPost(ProviderRoutes.ForProvider(ProviderRoutes.Groq, "/openai/v1/responses"), CreateGroqResponseAsync);
         endpoints.MapPost(ProviderRoutes.ForProvider(ProviderRoutes.Groq, "/openai/v1/audio/speech"), GenerateGroqAudioAsync);
         endpoints.MapPost(ProviderRoutes.ForProvider(ProviderRoutes.Groq, "/openai/v1/audio/transcriptions"), TranscribeGroqAudioAsync);
         endpoints.MapPost(ProviderRoutes.ForProvider(ProviderRoutes.Groq, "/openai/v1/audio/translations"), TranslateGroqAudioAsync);
-        endpoints.MapPost(ProviderRoutes.ForProvider(ProviderRoutes.OpenRouter, "/api/v1/chat/completions"), CompleteChatAsync);
-        endpoints.MapPost(ProviderRoutes.ForProvider(ProviderRoutes.OpenRouter, "/api/v1/responses"), CreateResponseAsync);
-        endpoints.MapPost(ProviderRoutes.ForProvider(ProviderRoutes.Mistral, "/v1/chat/completions"), CompleteChatAsync);
+        endpoints.MapPost(ProviderRoutes.ForProvider(ProviderRoutes.OpenRouter, "/api/v1/chat/completions"), CompleteOpenRouterChatAsync);
+        endpoints.MapPost(ProviderRoutes.ForProvider(ProviderRoutes.OpenRouter, "/api/v1/responses"), CreateOpenRouterResponseAsync);
+        endpoints.MapPost(ProviderRoutes.ForProvider(ProviderRoutes.Mistral, "/v1/chat/completions"), CompleteMistralChatAsync);
         endpoints.MapPost(ProviderRoutes.ForProvider(ProviderRoutes.Mistral, "/v1/embeddings"), CreateEmbeddingAsync);
-        endpoints.MapPost(ProviderRoutes.ForProvider(ProviderRoutes.DeepSeek, "/v1/chat/completions"), CompleteChatAsync);
+        endpoints.MapPost(ProviderRoutes.ForProvider(ProviderRoutes.DeepSeek, "/v1/chat/completions"), CompleteDeepSeekChatAsync);
         endpoints.MapPost(ProviderRoutes.ForProvider(ProviderRoutes.OpenAI, "/v1/embeddings"), CreateEmbeddingAsync);
         endpoints.MapPost(ProviderRoutes.ForProvider(ProviderRoutes.OpenAI, "/v1/images/generations"), GenerateImageAsync);
         endpoints.MapPost(ProviderRoutes.ForProvider(ProviderRoutes.OpenAI, "/v1/images/edits"), EditImageAsync);
@@ -227,9 +232,9 @@ public static class LlmTckEndpointRouteBuilderExtensions
             ProviderRoutes.ForProvider(ProviderRoutes.Bedrock, "/model/{modelId}/invoke-with-response-stream"),
             InvokeBedrockModelWithResponseStreamAsync
         );
-        endpoints.MapPost(ProviderRoutes.ForProvider(ProviderRoutes.MicrosoftFoundry, "/chat/completions"), CompleteChatAsync);
+        endpoints.MapPost(ProviderRoutes.ForProvider(ProviderRoutes.MicrosoftFoundry, "/chat/completions"), CompleteFoundryChatAsync);
         endpoints.MapPost(ProviderRoutes.ForProvider(ProviderRoutes.MicrosoftFoundry, "/embeddings"), CreateEmbeddingAsync);
-        endpoints.MapPost(ProviderRoutes.ForProvider(ProviderRoutes.MicrosoftFoundry, "/models/chat/completions"), CompleteChatAsync);
+        endpoints.MapPost(ProviderRoutes.ForProvider(ProviderRoutes.MicrosoftFoundry, "/models/chat/completions"), CompleteFoundryChatAsync);
         endpoints.MapPost(ProviderRoutes.ForProvider(ProviderRoutes.MicrosoftFoundry, "/models/embeddings"), CreateEmbeddingAsync);
         endpoints.MapPost(
             ProviderRoutes.ForProvider(ProviderRoutes.AzureOpenAI, "/openai/deployments/{deployment}/chat/completions"),
@@ -320,7 +325,117 @@ public static class LlmTckEndpointRouteBuilderExtensions
         CancellationToken cancellationToken
     )
     {
-        return await CompleteChatCoreAsync(context, runtime, null, cancellationToken).ConfigureAwait(false);
+        return await CompleteChatCoreAsync(
+                context,
+                runtime,
+                null,
+                LlmTckPromptCachePolicy.None,
+                OpenAiCacheUsageShape.None,
+                cancellationToken
+            )
+            .ConfigureAwait(false);
+    }
+
+    private static async Task<IResult> CompleteOpenAiChatAsync(
+        HttpContext context,
+        ILlmTckRuntime runtime,
+        CancellationToken cancellationToken
+    )
+    {
+        return await CompleteChatCoreAsync(
+                context,
+                runtime,
+                null,
+                LlmTckPromptCachePolicy.OpenAiCompatible,
+                OpenAiCacheUsageShape.PromptTokensDetails,
+                cancellationToken
+            )
+            .ConfigureAwait(false);
+    }
+
+    private static async Task<IResult> CompleteGroqChatAsync(
+        HttpContext context,
+        ILlmTckRuntime runtime,
+        CancellationToken cancellationToken
+    )
+    {
+        return await CompleteChatCoreAsync(
+                context,
+                runtime,
+                null,
+                LlmTckPromptCachePolicy.OpenAiCompatible,
+                OpenAiCacheUsageShape.PromptTokensDetails,
+                cancellationToken
+            )
+            .ConfigureAwait(false);
+    }
+
+    private static async Task<IResult> CompleteMistralChatAsync(
+        HttpContext context,
+        ILlmTckRuntime runtime,
+        CancellationToken cancellationToken
+    )
+    {
+        return await CompleteChatCoreAsync(
+                context,
+                runtime,
+                null,
+                LlmTckPromptCachePolicy.Mistral,
+                OpenAiCacheUsageShape.PromptTokensDetails,
+                cancellationToken
+            )
+            .ConfigureAwait(false);
+    }
+
+    private static async Task<IResult> CompleteOpenRouterChatAsync(
+        HttpContext context,
+        ILlmTckRuntime runtime,
+        CancellationToken cancellationToken
+    )
+    {
+        return await CompleteChatCoreAsync(
+                context,
+                runtime,
+                null,
+                LlmTckPromptCachePolicy.OpenRouter,
+                OpenAiCacheUsageShape.PromptTokensDetailsWithCacheWriteTokens,
+                cancellationToken
+            )
+            .ConfigureAwait(false);
+    }
+
+    private static async Task<IResult> CompleteDeepSeekChatAsync(
+        HttpContext context,
+        ILlmTckRuntime runtime,
+        CancellationToken cancellationToken
+    )
+    {
+        return await CompleteChatCoreAsync(
+                context,
+                runtime,
+                null,
+                LlmTckPromptCachePolicy.DeepSeek,
+                OpenAiCacheUsageShape.DeepSeekPromptCache,
+                cancellationToken
+            )
+            .ConfigureAwait(false);
+    }
+
+    private static async Task<IResult> CompleteFoundryChatAsync(
+        HttpContext context,
+        ILlmTckRuntime runtime,
+        CancellationToken cancellationToken
+    )
+    {
+        return await CompleteChatCoreAsync(
+                context,
+                runtime,
+                null,
+                LlmTckPromptCachePolicy.OpenAiCompatible,
+                OpenAiCacheUsageShape.PromptTokensDetails,
+                cancellationToken
+            )
+            .ConfigureAwait(false);
     }
 
     private static async Task<IResult> CompleteAzureOpenAiChatAsync(
@@ -330,13 +445,70 @@ public static class LlmTckEndpointRouteBuilderExtensions
         CancellationToken cancellationToken
     )
     {
-        return await CompleteChatCoreAsync(context, runtime, deployment, cancellationToken)
+        return await CompleteChatCoreAsync(
+                context,
+                runtime,
+                deployment,
+                LlmTckPromptCachePolicy.OpenAiCompatible,
+                OpenAiCacheUsageShape.PromptTokensDetails,
+                cancellationToken
+            )
             .ConfigureAwait(false);
     }
 
-    private static async Task<IResult> CreateResponseAsync(
+    private static async Task<IResult> CreateOpenAiResponseAsync(
         HttpContext context,
         ILlmTckRuntime runtime,
+        CancellationToken cancellationToken
+    )
+    {
+        return await CreateResponseCoreAsync(
+                context,
+                runtime,
+                LlmTckPromptCachePolicy.OpenAiCompatible,
+                OpenAiCacheUsageShape.PromptTokensDetails,
+                cancellationToken
+            )
+            .ConfigureAwait(false);
+    }
+
+    private static async Task<IResult> CreateGroqResponseAsync(
+        HttpContext context,
+        ILlmTckRuntime runtime,
+        CancellationToken cancellationToken
+    )
+    {
+        return await CreateResponseCoreAsync(
+                context,
+                runtime,
+                LlmTckPromptCachePolicy.OpenAiCompatible,
+                OpenAiCacheUsageShape.PromptTokensDetails,
+                cancellationToken
+            )
+            .ConfigureAwait(false);
+    }
+
+    private static async Task<IResult> CreateOpenRouterResponseAsync(
+        HttpContext context,
+        ILlmTckRuntime runtime,
+        CancellationToken cancellationToken
+    )
+    {
+        return await CreateResponseCoreAsync(
+                context,
+                runtime,
+                LlmTckPromptCachePolicy.OpenRouter,
+                OpenAiCacheUsageShape.PromptTokensDetailsWithCacheWriteTokens,
+                cancellationToken
+            )
+            .ConfigureAwait(false);
+    }
+
+    private static async Task<IResult> CreateResponseCoreAsync(
+        HttpContext context,
+        ILlmTckRuntime runtime,
+        LlmTckPromptCachePolicy promptCachePolicy,
+        OpenAiCacheUsageShape cacheUsageShape,
         CancellationToken cancellationToken
     )
     {
@@ -352,7 +524,16 @@ public static class LlmTckEndpointRouteBuilderExtensions
             return InvalidRequest("Missing response body.");
         }
 
-        var validationError = ValidateResponseRequest(read.Value);
+        var request = read.Value;
+        if (promptCachePolicy == LlmTckPromptCachePolicy.OpenRouter
+            && string.IsNullOrWhiteSpace(request.SessionId)
+            && context.Request.Headers.TryGetValue("x-session-id", out var sessionId)
+            && !string.IsNullOrWhiteSpace(sessionId.ToString()))
+        {
+            request = request with { SessionId = sessionId.ToString() };
+        }
+
+        var validationError = ValidateResponseRequest(request);
         if (validationError is not null)
         {
             return validationError;
@@ -360,7 +541,7 @@ public static class LlmTckEndpointRouteBuilderExtensions
 
         var result = await runtime
             .CompleteChatAsync(
-                OpenAiWireMapper.ToRuntimeRequest(read.Value),
+                OpenAiWireMapper.ToRuntimeRequest(request, promptCachePolicy),
                 ReadAccessToken(context),
                 cancellationToken
             )
@@ -376,14 +557,21 @@ public static class LlmTckEndpointRouteBuilderExtensions
 
         var responseId = $"resp_{Guid.NewGuid():N}";
         var created = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
-        if (read.Value.Stream)
+        if (request.Stream)
         {
-            await WriteStreamingResponseAsync(context, result, responseId, created, cancellationToken)
+            await WriteStreamingResponseAsync(
+                    context,
+                    result,
+                    responseId,
+                    created,
+                    cacheUsageShape,
+                    cancellationToken
+                )
                 .ConfigureAwait(false);
             return Results.Empty;
         }
 
-        return Results.Json(OpenAiWireMapper.ToResponse(result, responseId, created));
+        return Results.Json(OpenAiWireMapper.ToResponse(result, responseId, created, cacheUsageShape));
     }
 
     private static async Task<IResult> CompleteAnthropicMessageAsync(
@@ -877,6 +1065,8 @@ public static class LlmTckEndpointRouteBuilderExtensions
         HttpContext context,
         ILlmTckRuntime runtime,
         string? modelOverride,
+        LlmTckPromptCachePolicy promptCachePolicy,
+        OpenAiCacheUsageShape cacheUsageShape,
         CancellationToken cancellationToken
     )
     {
@@ -895,6 +1085,14 @@ public static class LlmTckEndpointRouteBuilderExtensions
         var request = string.IsNullOrWhiteSpace(modelOverride)
             ? read.Value
             : read.Value with { Model = modelOverride };
+        if (promptCachePolicy == LlmTckPromptCachePolicy.OpenRouter
+            && string.IsNullOrWhiteSpace(request.SessionId)
+            && context.Request.Headers.TryGetValue("x-session-id", out var sessionId)
+            && !string.IsNullOrWhiteSpace(sessionId.ToString()))
+        {
+            request = request with { SessionId = sessionId.ToString() };
+        }
+
         var validationError = ValidateChatRequest(request);
         if (validationError is not null)
         {
@@ -903,7 +1101,7 @@ public static class LlmTckEndpointRouteBuilderExtensions
 
         var result = await runtime
             .CompleteChatAsync(
-                OpenAiWireMapper.ToRuntimeRequest(request),
+                OpenAiWireMapper.ToRuntimeRequest(request, promptCachePolicy),
                 ReadAccessToken(context),
                 cancellationToken
             )
@@ -923,7 +1121,7 @@ public static class LlmTckEndpointRouteBuilderExtensions
             return Results.Empty;
         }
 
-        return Results.Json(OpenAiWireMapper.ToChatResponse(result));
+        return Results.Json(OpenAiWireMapper.ToChatResponse(result, cacheUsageShape));
     }
 
     private static async Task<IResult> CreateEmbeddingAsync(
@@ -2427,6 +2625,7 @@ public static class LlmTckEndpointRouteBuilderExtensions
         LlmTckChatResult result,
         string responseId,
         long created,
+        OpenAiCacheUsageShape cacheUsageShape,
         CancellationToken cancellationToken
     )
     {
@@ -2470,7 +2669,12 @@ public static class LlmTckEndpointRouteBuilderExtensions
             .ConfigureAwait(false);
         await WriteResponseSseDataAsync(
                 context,
-                OpenAiWireMapper.ToResponseDoneEvent(result, responseId, created),
+                OpenAiWireMapper.ToResponseDoneEvent(
+                    result,
+                    responseId,
+                    created,
+                    cacheUsageShape
+                ),
                 cancellationToken
             )
             .ConfigureAwait(false);
@@ -3124,6 +3328,35 @@ public static class LlmTckEndpointRouteBuilderExtensions
                 ),
                 statusCode: StatusCodes.Status401Unauthorized
             );
+    }
+
+    private static void MapStaticAssetsIfAvailable(IEndpointRouteBuilder endpoints)
+    {
+        var entryAssemblyName = System.Reflection.Assembly.GetEntryAssembly()?.GetName().Name;
+        if (string.IsNullOrWhiteSpace(entryAssemblyName))
+        {
+            return;
+        }
+
+        var manifestPath = Path.Combine(
+            AppContext.BaseDirectory,
+            $"{entryAssemblyName}.staticwebassets.endpoints.json"
+        );
+        var runtimeManifestPath = Path.Combine(
+            AppContext.BaseDirectory,
+            $"{entryAssemblyName}.staticwebassets.runtime.json"
+        );
+        if (File.Exists(manifestPath))
+        {
+            var environment = endpoints.ServiceProvider.GetService<IWebHostEnvironment>();
+            var configuration = endpoints.ServiceProvider.GetService<IConfiguration>();
+            if (environment is not null && configuration is not null && File.Exists(runtimeManifestPath))
+            {
+                StaticWebAssetsLoader.UseStaticWebAssets(environment, configuration);
+            }
+
+            endpoints.MapStaticAssets(manifestPath);
+        }
     }
 
     private static async Task<JsonReadResult<T>> ReadJsonAsync<T>(

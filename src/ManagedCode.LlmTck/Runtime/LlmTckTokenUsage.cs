@@ -4,6 +4,10 @@ public sealed record LlmTckTokenUsage
 {
     public int InputTokens { get; init; }
 
+    public int CachedInputTokens { get; init; }
+
+    public int CacheCreationInputTokens { get; init; }
+
     public int OutputTokens { get; init; }
 
     public int ReasoningTokens { get; init; }

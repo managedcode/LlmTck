@@ -1,3 +1,5 @@
+using System.Security.Cryptography;
+using System.Text;
 using ManagedCode.LlmTck.Configuration;
 using ManagedCode.LlmTck.Models;
 using ManagedCode.LlmTck.Scenarios;
@@ -8,9 +10,16 @@ public sealed class LlmTckRuntime : ILlmTckRuntime
 {
     private const string _tooManyRequestsCode = "too_many_requests";
     private const string _contentFilterCode = "content_filter";
+    private const int _openAiPromptCacheMinimumTokens = 1024;
+    private const int _openAiPromptCacheIncrementTokens = 128;
+    private const int _mistralPromptCacheMinimumTokens = 64;
+    private const int _mistralPromptCacheIncrementTokens = 64;
+    private const int _geminiPromptCacheMinimumTokens = 2048;
+    private const int _geminiPromptCacheIncrementTokens = 128;
 
     private readonly object _gate = new();
     private readonly Dictionary<string, int> _scenarioPositions = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, int> _promptCacheEntries = new(StringComparer.Ordinal);
     private readonly List<LlmTckRuntimeEvent> _events = [];
     private LlmTckConfiguration _configuration = LlmTckConfiguration.CreateDefault();
     private int _requestCount;
@@ -27,6 +36,7 @@ public sealed class LlmTckRuntime : ILlmTckRuntime
         {
             _configuration = LlmTckConfigurationBuilder.Snapshot(configuration);
             _scenarioPositions.Clear();
+            _promptCacheEntries.Clear();
             _events.Clear();
             _requestCount = 0;
         }
@@ -41,6 +51,7 @@ public sealed class LlmTckRuntime : ILlmTckRuntime
         lock (_gate)
         {
             _scenarioPositions.Clear();
+            _promptCacheEntries.Clear();
             _events.Clear();
             _requestCount = 0;
         }
@@ -213,7 +224,11 @@ public sealed class LlmTckRuntime : ILlmTckRuntime
         lock (_gate)
         {
             var responseText = response.Error?.Message ?? response.Content;
-            var usage = CreateChatUsage(request, responseText);
+            var usage = CreateChatUsage(
+                request,
+                responseText,
+                updatePromptCache: response.Error is null
+            );
             AddEvent(
                 response.Error is null ? LlmTckEventKind.Matched : LlmTckEventKind.ErrorReturned,
                 scenario.Id,
@@ -685,6 +700,10 @@ public sealed class LlmTckRuntime : ILlmTckRuntime
                 ScenarioExhausted = _events.Count(item => item.Kind == LlmTckEventKind.ScenarioExhausted),
                 ErrorsReturned = _events.Count(item => item.Kind == LlmTckEventKind.ErrorReturned),
                 InputTokens = _events.Sum(item => item.Usage?.InputTokens ?? 0),
+                CachedInputTokens = _events.Sum(item => item.Usage?.CachedInputTokens ?? 0),
+                CacheCreationInputTokens = _events.Sum(item =>
+                    item.Usage?.CacheCreationInputTokens ?? 0
+                ),
                 OutputTokens = _events.Sum(item => item.Usage?.OutputTokens ?? 0),
                 ReasoningTokens = _events.Sum(item => item.Usage?.ReasoningTokens ?? 0),
                 TotalTokens = _events.Sum(item => item.Usage?.TotalTokens ?? 0),
@@ -1004,11 +1023,16 @@ public sealed class LlmTckRuntime : ILlmTckRuntime
 
     private LlmTckTokenUsage CreateChatUsage(
         LlmTckChatRequest request,
-        string? response = null
+        string? response = null,
+        bool updatePromptCache = false
     )
     {
         var inputTokens = request.Messages.Sum(message =>
             LlmTckTokenCounter.CountTextTokens(message.Content)
+        );
+        var (cachedInputTokens, cacheCreationInputTokens) = CalculatePromptCacheUsage(
+            request,
+            updatePromptCache
         );
         var visibleOutputTokens = LlmTckTokenCounter.CountTextTokens(response);
         var reasoningTokens = GetReasoningTokens(request.ModelId);
@@ -1016,11 +1040,137 @@ public sealed class LlmTckRuntime : ILlmTckRuntime
         return new LlmTckTokenUsage
         {
             InputTokens = inputTokens,
+            CachedInputTokens = cachedInputTokens,
+            CacheCreationInputTokens = cacheCreationInputTokens,
             OutputTokens = outputTokens,
             ReasoningTokens = reasoningTokens,
             TotalTokens = inputTokens + outputTokens,
         };
     }
+
+    private (int CachedInputTokens, int CacheCreationInputTokens) CalculatePromptCacheUsage(
+        LlmTckChatRequest request,
+        bool updatePromptCache
+    )
+    {
+        if (!updatePromptCache || request.PromptCachePolicy == LlmTckPromptCachePolicy.None)
+        {
+            return (0, 0);
+        }
+
+        var candidates = CreatePromptCacheCandidates(request);
+        if (candidates.Count == 0)
+        {
+            return (0, 0);
+        }
+
+        var cachedInputTokens = candidates
+            .Where(candidate => _promptCacheEntries.ContainsKey(candidate.Key))
+            .Select(candidate => candidate.Tokens)
+            .DefaultIfEmpty()
+            .Max();
+        var maxCacheableTokens = candidates.Max(candidate => candidate.Tokens);
+
+        foreach (var candidate in candidates)
+        {
+            _promptCacheEntries[candidate.Key] = candidate.Tokens;
+        }
+
+        return (cachedInputTokens, Math.Max(0, maxCacheableTokens - cachedInputTokens));
+    }
+
+    private static List<PromptCacheCandidate> CreatePromptCacheCandidates(
+        LlmTckChatRequest request
+    )
+    {
+        var candidates = new List<PromptCacheCandidate>();
+        var cachePrefix = new StringBuilder();
+        var cumulativeTokens = 0;
+
+        foreach (var message in request.Messages)
+        {
+            cumulativeTokens += LlmTckTokenCounter.CountTextTokens(message.Content);
+            cachePrefix
+                .Append("role:")
+                .Append(message.Role)
+                .Append('\u001f')
+                .Append("content:")
+                .Append(message.Content)
+                .Append('\u001e');
+
+            var cacheableTokens = RoundPromptCacheTokens(
+                request.PromptCachePolicy,
+                cumulativeTokens
+            );
+            if (cacheableTokens <= 0)
+            {
+                continue;
+            }
+
+            candidates.Add(
+                new PromptCacheCandidate(
+                    CreatePromptCacheEntryKey(request, cachePrefix.ToString(), cacheableTokens),
+                    cacheableTokens
+                )
+            );
+        }
+
+        return candidates;
+    }
+
+    private static int RoundPromptCacheTokens(
+        LlmTckPromptCachePolicy policy,
+        int tokenCount
+    )
+    {
+        var minimumTokens = GetPromptCacheMinimumTokens(policy);
+        if (tokenCount < minimumTokens)
+        {
+            return 0;
+        }
+
+        var incrementTokens = GetPromptCacheIncrementTokens(policy);
+        return minimumTokens + ((tokenCount - minimumTokens) / incrementTokens * incrementTokens);
+    }
+
+    private static int GetPromptCacheMinimumTokens(LlmTckPromptCachePolicy policy)
+    {
+        return policy switch
+        {
+            LlmTckPromptCachePolicy.Mistral => _mistralPromptCacheMinimumTokens,
+            LlmTckPromptCachePolicy.Gemini => _geminiPromptCacheMinimumTokens,
+            _ => _openAiPromptCacheMinimumTokens,
+        };
+    }
+
+    private static int GetPromptCacheIncrementTokens(LlmTckPromptCachePolicy policy)
+    {
+        return policy switch
+        {
+            LlmTckPromptCachePolicy.Mistral => _mistralPromptCacheIncrementTokens,
+            LlmTckPromptCachePolicy.Gemini => _geminiPromptCacheIncrementTokens,
+            _ => _openAiPromptCacheIncrementTokens,
+        };
+    }
+
+    private static string CreatePromptCacheEntryKey(
+        LlmTckChatRequest request,
+        string prefix,
+        int cacheableTokens
+    )
+    {
+        var keyMaterial = string.Join(
+            '\u001d',
+            request.PromptCachePolicy.ToString(),
+            request.ModelId,
+            request.PromptCacheKey ?? string.Empty,
+            cacheableTokens.ToString(System.Globalization.CultureInfo.InvariantCulture),
+            prefix
+        );
+        return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(keyMaterial)));
+    }
+
+    private readonly record struct PromptCacheCandidate(string Key, int Tokens);
 
     private static LlmTckTokenUsage CreateVideoUsage(string prompt)
     {

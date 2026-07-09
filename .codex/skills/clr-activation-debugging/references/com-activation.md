@@ -7,7 +7,7 @@ When a COM object is implemented in managed code (or is a CLR-internal component
 The shim then must determine:
 1. Which CLR version should host this COM object
 2. Whether the CLR is already loaded in this process
-3. Whether to use legacy or modern activation
+3. Whether to use prior or modern activation
 
 ## CLSID Registry Layout
 
@@ -65,23 +65,23 @@ DllGetClassObject(rclsid, riid, ppv)
 │     └─ Success → done (no CLR involved)
 │
 ├─ 4. Classify the CLSID:
-│     ├─ IsClrHostedLegacyComObject()? → Legacy COM object
+│     ├─ IsClrHostedPriorComObject()? → Prior COM object
 │     ├─ IsCLSIDImplementedInFrameworkAssembly()? → Framework assembly COM
 │     └─ Neither → Modern managed COM
 │
 ├─ 5. Determine activation path:
 │     │
-│     ├─ MODERN PATH (not legacy, not framework):
+│     ├─ MODERN PATH (not prior, not framework):
 │     │   └─ GetClassObjectForManagedType()
 │     │       ├─ Uses ICLRMetaHostPolicy with METAHOST_POLICY_HIGHCOMPAT
-│     │       ├─ IsLegacyBind: 0, IsCapped: 0
+│     │       ├─ IsPriorBind: 0, IsCapped: 0
 │     │       └─ Config file + version subkeys guide runtime selection
 │     │
-│     └─ LEGACY PATH (legacy or framework COM):
+│     └─ PRIOR PATH (prior or framework COM):
 │         └─ RequestRuntimeDll()
-│             ├─ Sets IsLegacyBind: 1, IsCapped: 1
+│             ├─ Sets IsPriorBind: 1, IsCapped: 1
 │             ├─ Sets fLatestVersion: TRUE (find latest within cap)
-│             ├─ If g_pLegacyAPIRuntimeInfo already set → use it directly
+│             ├─ If g_pPriorAPIRuntimeInfo already set → use it directly
 │             └─ Otherwise → ComputeVersionString → FindLatestVersion (capped)
 │
 └─ 6. Load the CLR, get class factory, return object
@@ -95,9 +95,9 @@ Native tools like `link.exe`, `mt.exe`, `CL.exe` are not .NET applications, but 
 - **SymBinder** (`{0A29FF9E-7F9C-4437-8B11-F424491E3931}`): Symbol binder for debug information
 - **ALink** (`{B79B0ACD-F5CD-409B-B5A5-A16244610B92}`): Assembly linker
 
-These COM objects have `InprocServer32 = mscoree.dll` and go through the full shim activation path. Because they're activated via `DllGetClassObject` (not via a managed EXE launch), they take the **legacy COM path** with `IsCapped: 1`.
+These COM objects have `InprocServer32 = mscoree.dll` and go through the full shim activation path. Because they're activated via `DllGetClassObject` (not via a managed EXE launch), they take the **prior COM path** with `IsCapped: 1`.
 
-## The Legacy Runtime Binding Order Problem
+## The Prior Runtime Binding Order Problem
 
 The order of activations within a process determines behavior:
 
@@ -106,11 +106,11 @@ The order of activations within a process determines behavior:
 ```
 1. ClrCreateInstance → ICLRMetaHostPolicy::GetRequestedRuntime
    → Config says supportedRuntime v4.0 → Loads v4.0 → Success
-   → g_pLegacyAPIRuntimeInfo may or may not be set yet
+   → g_pPriorAPIRuntimeInfo may or may not be set yet
 
 2. DllGetClassObject for diasymreader
-   → Legacy bind, IsCapped: 1
-   → If g_pLegacyAPIRuntimeInfo is set to v4.0 → uses v4.0 → OK
+   → Prior bind, IsCapped: 1
+   → If g_pPriorAPIRuntimeInfo is set to v4.0 → uses v4.0 → OK
    → If NOT set → FindLatestVersion (capped to v2.0) → fails on machines without 3.5
 ```
 
@@ -118,17 +118,17 @@ The order of activations within a process determines behavior:
 
 ```
 1. DllGetClassObject for diasymreader
-   → Legacy bind, IsCapped: 1
-   → No legacy runtime bound yet
+   → Prior bind, IsCapped: 1
+   → No prior runtime bound yet
    → No config file
    → FindLatestVersion (capped to v2.0) → (null) → ERROR → FOD
 ```
 
-### Scenario C: Legacy hosting API sets the runtime first
+### Scenario C: Prior hosting API sets the runtime first
 
 ```
-1. CorBindToRuntimeEx(v4.0) → binds g_pLegacyAPIRuntimeInfo to v4.0
-2. DllGetClassObject for anything → legacy bind → uses g_pLegacyAPIRuntimeInfo (v4.0) → OK
+1. CorBindToRuntimeEx(v4.0) → binds g_pPriorAPIRuntimeInfo to v4.0
+2. DllGetClassObject for anything → prior bind → uses g_pPriorAPIRuntimeInfo (v4.0) → OK
 ```
 
 ## Diagnosing CLSID Issues
@@ -156,7 +156,7 @@ Get-ChildItem "Registry::HKCR\CLSID\$clsid\InprocServer32" -ErrorAction Silently
 
 | Observation | Meaning |
 |-------------|---------|
-| Only a `4.0.30319` subkey exists, no `2.0.50727` | .NET 3.5 was never installed (no v2 registration). Capped legacy binds will fail. |
+| Only a `4.0.30319` subkey exists, no `2.0.50727` | .NET 3.5 was never installed (no v2 registration). Capped prior binds will fail. |
 | Both `2.0.50727` and `4.0.30319` subkeys exist | Both runtimes have registered this CLSID. Capped binds can use v2, uncapped can use v4. |
 | `ImplementedInThisVersion` is present | This is a native CLR component (not managed interop). |
 | `Assembly` and `Class` are present | This is a managed COM interop registration. |

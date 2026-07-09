@@ -96,6 +96,10 @@ public sealed record GeminiUsageMetadata
     [JsonPropertyName("promptTokenCount")]
     public int PromptTokenCount { get; init; }
 
+    [JsonPropertyName("cachedContentTokenCount")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public int CachedContentTokenCount { get; init; }
+
     [JsonPropertyName("candidatesTokenCount")]
     public int CandidatesTokenCount { get; init; }
 

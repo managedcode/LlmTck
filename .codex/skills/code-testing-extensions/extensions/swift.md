@@ -191,7 +191,7 @@ final class CalculatorTests: XCTestCase {
 | `signal SIGABRT` in tests | Often a force-unwrap on `nil`; replace `!` with `XCTUnwrap` to localize the failure |
 | `MainActor-isolated property cannot be referenced from a non-isolated context` | Mark the test method `@MainActor` or move setup into a `MainActor` task |
 | `Sandbox: ... deny file-write-create` | Use `FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)` instead of writing to fixed paths |
-| Test discovery shows zero tests on Linux | XCTest on Linux needs `XCTMain([testCase(MyTests.allTests), ...])` in `Tests/LinuxMain.swift` (legacy SwiftPM only); for Swift 5.4+ this is auto-generated |
+| Test discovery shows zero tests on Linux | XCTest on Linux needs `XCTMain([testCase(MyTests.allTests), ...])` in `Tests/LinuxMain.swift` (prior SwiftPM only); for Swift 5.4+ this is auto-generated |
 
 ## Mocking Rules
 

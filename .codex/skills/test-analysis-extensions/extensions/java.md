@@ -78,7 +78,7 @@ assertThatThrownBy(() -> service.placeOrder(emptyOrder))
 public void placeOrder_empty_throws() { service.placeOrder(emptyOrder); }
 ```
 
-Flag legacy JUnit 4 `@Test(expected=...)` and bare `try/catch/fail` patterns as smells.
+Flag prior JUnit 4 `@Test(expected=...)` and bare `try/catch/fail` patterns as smells.
 
 ## Mystery Guest — Common Java Patterns
 

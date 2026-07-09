@@ -1,7 +1,9 @@
 using System.Net;
 using System.Net.Http.Json;
+using System.Text;
 using System.Text.Json;
 using ManagedCode.LlmTck.Models;
+using ManagedCode.LlmTck.Runtime;
 using ManagedCode.LlmTck.Tests.TestSupport;
 
 namespace ManagedCode.LlmTck.Tests.Anthropic;
@@ -53,6 +55,57 @@ public sealed class AnthropicEndpointTests
             .IsGreaterThan(0);
         await Assert.That(payload.GetProperty("usage").GetProperty("output_tokens").GetInt32())
             .IsGreaterThan(0);
+        await Assert.That(
+                payload.GetProperty("usage").TryGetProperty("cache_read_input_tokens", out _)
+            )
+            .IsFalse();
+    }
+
+    [Test]
+    public async Task MessagesEndpoint_WithCacheControl_ReturnsAnthropicCacheUsageAsync()
+    {
+        var cacheableSystemPrompt = CreatePromptWithAtLeastTokens(1100);
+        using var host = await LlmTckTestHost.StartAsync(options => options
+                .AddModel("claude-cache-test", LlmTckModelKind.Chat)
+                .AddChatScenario(
+                    "anthropic-cache",
+                    scenario => scenario
+                        .ForModel("claude-cache-test")
+                        .WhenUserContains("anthropic cache turn")
+                        .Responds("first")
+                        .Responds("second")
+                ));
+        using var client = host.GetTestClient();
+        client.DefaultRequestHeaders.Add("anthropic-version", "2023-06-01");
+
+        var first = await PostCachedAnthropicMessageAsync(
+            client,
+            cacheableSystemPrompt,
+            "anthropic cache turn one"
+        );
+        var second = await PostCachedAnthropicMessageAsync(
+            client,
+            cacheableSystemPrompt,
+            "anthropic cache turn two"
+        );
+
+        first.EnsureSuccessStatusCode();
+        second.EnsureSuccessStatusCode();
+
+        var firstUsage = (await first.Content.ReadFromJsonAsync<JsonElement>(_jsonOptions))
+            .GetProperty("usage");
+        var secondUsage = (await second.Content.ReadFromJsonAsync<JsonElement>(_jsonOptions))
+            .GetProperty("usage");
+
+        await Assert.That(firstUsage.GetProperty("cache_creation_input_tokens").GetInt32())
+            .IsGreaterThanOrEqualTo(1024);
+        await Assert.That(firstUsage.GetProperty("cache_read_input_tokens").GetInt32())
+            .IsEqualTo(0);
+        await Assert.That(secondUsage.GetProperty("cache_creation_input_tokens").GetInt32())
+            .IsEqualTo(0);
+        await Assert.That(secondUsage.GetProperty("cache_read_input_tokens").GetInt32())
+            .IsGreaterThanOrEqualTo(1024);
+        await Assert.That(secondUsage.GetProperty("input_tokens").GetInt32()).IsGreaterThan(0);
     }
 
     [Test]
@@ -160,5 +213,36 @@ public sealed class AnthropicEndpointTests
         );
 
         response.EnsureSuccessStatusCode();
+    }
+
+    private static Task<HttpResponseMessage> PostCachedAnthropicMessageAsync(
+        HttpClient client,
+        string systemPrompt,
+        string userPrompt
+    )
+    {
+        return client.PostAsJsonAsync(
+            "/anthropic/v1/messages",
+            new
+            {
+                model = "claude-cache-test",
+                max_tokens = 256,
+                cache_control = new { type = "ephemeral" },
+                system = systemPrompt,
+                messages = new[] { new { role = "user", content = userPrompt } },
+            },
+            _jsonOptions
+        );
+    }
+
+    private static string CreatePromptWithAtLeastTokens(int minimumTokens)
+    {
+        var builder = new StringBuilder("cacheable fixture");
+        while (LlmTckTokenCounter.CountTextTokens(builder.ToString()) < minimumTokens)
+        {
+            builder.Append(" stable-prefix");
+        }
+
+        return builder.ToString();
     }
 }

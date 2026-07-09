@@ -1,3 +1,4 @@
+using System.Text.Json;
 using ManagedCode.LlmTck.Runtime;
 using ManagedCode.LlmTck.Scenarios;
 
@@ -27,6 +28,9 @@ public static class AnthropicWireMapper
         {
             ModelId = request.Model,
             Stream = request.Stream,
+            PromptCachePolicy = HasPromptCacheControl(request)
+                ? LlmTckPromptCachePolicy.Anthropic
+                : LlmTckPromptCachePolicy.None,
             Messages = messages,
         };
     }
@@ -38,11 +42,7 @@ public static class AnthropicWireMapper
             Id = CreateMessageId(),
             Model = result.ModelId,
             Content = [new AnthropicContentBlock { Text = result.Content }],
-            Usage = new AnthropicUsage
-            {
-                InputTokens = result.Usage.InputTokens,
-                OutputTokens = result.Usage.OutputTokens,
-            },
+            Usage = CreateUsage(result.Usage),
         };
     }
 
@@ -70,11 +70,10 @@ public static class AnthropicWireMapper
                 Model = result.ModelId,
                 StopReason = null,
                 Content = [],
-                Usage = new AnthropicUsage
-                {
-                    InputTokens = result.Usage.InputTokens,
-                    OutputTokens = result.Usage.OutputTokens > 0 ? 1 : 0,
-                },
+                Usage = CreateUsage(
+                    result.Usage,
+                    result.Usage.OutputTokens > 0 ? 1 : 0
+                ),
             },
         };
     }
@@ -137,6 +136,45 @@ public static class AnthropicWireMapper
     private static string CreateMessageId()
     {
         return $"msg_llmtck_{Guid.NewGuid():N}";
+    }
+
+    private static AnthropicUsage CreateUsage(
+        LlmTckTokenUsage usage,
+        int? outputTokens = null
+    )
+    {
+        var hasCacheBreakdown = usage.CachedInputTokens > 0
+            || usage.CacheCreationInputTokens > 0;
+        return new()
+        {
+            InputTokens = hasCacheBreakdown
+                ? Math.Max(
+                    0,
+                    usage.InputTokens
+                        - usage.CachedInputTokens
+                        - usage.CacheCreationInputTokens
+                )
+                : usage.InputTokens,
+            OutputTokens = outputTokens ?? usage.OutputTokens,
+            CacheCreationInputTokens = hasCacheBreakdown
+                ? usage.CacheCreationInputTokens
+                : null,
+            CacheReadInputTokens = hasCacheBreakdown ? usage.CachedInputTokens : null,
+        };
+    }
+
+    private static bool HasPromptCacheControl(AnthropicMessagesRequest request)
+    {
+        return HasCacheControl(request.CacheControl)
+            || AnthropicContentReader.HasCacheControl(request.System)
+            || request.Messages.Any(message =>
+                AnthropicContentReader.HasCacheControl(message.Content)
+            );
+    }
+
+    private static bool HasCacheControl(JsonElement? cacheControl)
+    {
+        return cacheControl is { ValueKind: not JsonValueKind.Undefined and not JsonValueKind.Null };
     }
 
     private static string CreateRequestId()

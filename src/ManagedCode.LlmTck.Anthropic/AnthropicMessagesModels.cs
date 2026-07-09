@@ -19,6 +19,9 @@ public sealed record AnthropicMessagesRequest
 
     [JsonPropertyName("system")]
     public JsonElement System { get; init; }
+
+    [JsonPropertyName("cache_control")]
+    public JsonElement? CacheControl { get; init; }
 }
 
 public sealed record AnthropicInputMessage
@@ -76,6 +79,14 @@ public sealed record AnthropicUsage
 
     [JsonPropertyName("output_tokens")]
     public int OutputTokens { get; init; }
+
+    [JsonPropertyName("cache_creation_input_tokens")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public int? CacheCreationInputTokens { get; init; }
+
+    [JsonPropertyName("cache_read_input_tokens")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public int? CacheReadInputTokens { get; init; }
 }
 
 public sealed record AnthropicErrorResponse
@@ -110,6 +121,17 @@ internal static class AnthropicContentReader
             JsonValueKind.Object => ReadContentBlock(content),
             JsonValueKind.Undefined or JsonValueKind.Null => string.Empty,
             _ => content.ToString(),
+        };
+    }
+
+    public static bool HasCacheControl(JsonElement content)
+    {
+        return content.ValueKind switch
+        {
+            JsonValueKind.Object => content.TryGetProperty("cache_control", out _)
+                || content.EnumerateObject().Any(property => HasCacheControl(property.Value)),
+            JsonValueKind.Array => content.EnumerateArray().Any(HasCacheControl),
+            _ => false,
         };
     }
 

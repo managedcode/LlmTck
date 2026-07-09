@@ -50,7 +50,7 @@ $env:DOTNET_EnableCrashReport = "1"
 
 - The dump output directory must exist before the crash — CoreCLR will not create it.
 - Format specifiers (`%p`, `%e`, `%h`, `%t`) require .NET 7+. On .NET 6, use a literal path.
-- The legacy `COMPlus_` prefix (e.g., `COMPlus_DbgEnableMiniDump`) still works but `DOTNET_` is preferred for .NET 6+.
+- The prior `COMPlus_` prefix (e.g., `COMPlus_DbgEnableMiniDump`) still works but `DOTNET_` is preferred for .NET 6+.
 - Single-file published apps only support full dumps (`DOTNET_DbgMiniDumpType=4`), same as NativeAOT.
 
 ## On-Demand Dump Collection

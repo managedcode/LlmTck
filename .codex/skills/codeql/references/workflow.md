@@ -146,7 +146,7 @@ For solutions with multiple projects:
 
 ### .NET Framework Projects
 
-For legacy .NET Framework:
+For prior .NET Framework:
 
 ```yaml
 jobs:

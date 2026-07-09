@@ -2,6 +2,7 @@ using System.Net.Http.Json;
 using System.Text;
 using System.Text.Json;
 using ManagedCode.LlmTck.Models;
+using ManagedCode.LlmTck.Runtime;
 using ManagedCode.LlmTck.Tests.TestSupport;
 
 namespace ManagedCode.LlmTck.Tests.Bedrock;
@@ -72,6 +73,51 @@ public sealed class BedrockEndpointTests
             .IsEqualTo(inputTokens + 2);
         await Assert.That(payload.GetProperty("metrics").GetProperty("latencyMs").GetInt32())
             .IsEqualTo(0);
+    }
+
+    [Test]
+    public async Task ConverseEndpoint_WithCachePoint_ReturnsBedrockCacheUsageAsync()
+    {
+        var cacheableSystemPrompt = CreatePromptWithAtLeastTokens(1100);
+        using var host = await LlmTckTestHost.StartAsync(options => options
+                .AddModel("amazon.nova-cache-v1:0", LlmTckModelKind.Chat)
+                .AddChatScenario(
+                    "bedrock-cache",
+                    scenario => scenario
+                        .ForModel("amazon.nova-cache-v1:0")
+                        .WhenUserContains("bedrock cache turn")
+                        .Responds("first")
+                        .Responds("second")
+                ));
+        using var client = host.GetTestClient();
+
+        var first = await PostCachedBedrockConverseAsync(
+            client,
+            cacheableSystemPrompt,
+            "bedrock cache turn one"
+        );
+        var second = await PostCachedBedrockConverseAsync(
+            client,
+            cacheableSystemPrompt,
+            "bedrock cache turn two"
+        );
+
+        first.EnsureSuccessStatusCode();
+        second.EnsureSuccessStatusCode();
+
+        var firstUsage = (await first.Content.ReadFromJsonAsync<JsonElement>(_jsonOptions))
+            .GetProperty("usage");
+        var secondUsage = (await second.Content.ReadFromJsonAsync<JsonElement>(_jsonOptions))
+            .GetProperty("usage");
+
+        await Assert.That(firstUsage.GetProperty("cacheWriteInputTokens").GetInt32())
+            .IsGreaterThanOrEqualTo(1024);
+        await Assert.That(firstUsage.TryGetProperty("cacheReadInputTokens", out _))
+            .IsFalse();
+        await Assert.That(secondUsage.GetProperty("cacheReadInputTokens").GetInt32())
+            .IsGreaterThanOrEqualTo(1024);
+        await Assert.That(secondUsage.TryGetProperty("cacheWriteInputTokens", out _))
+            .IsFalse();
     }
 
     [Test]
@@ -284,5 +330,47 @@ public sealed class BedrockEndpointTests
         var bytes = streamEvent.GetProperty("chunk").GetProperty("bytes").GetString();
         var json = Encoding.UTF8.GetString(Convert.FromBase64String(bytes!));
         return JsonDocument.Parse(json).RootElement.Clone();
+    }
+
+    private static Task<HttpResponseMessage> PostCachedBedrockConverseAsync(
+        HttpClient client,
+        string systemPrompt,
+        string userPrompt
+    )
+    {
+        return client.PostAsJsonAsync(
+            "/bedrock/model/amazon.nova-cache-v1:0/converse",
+            new
+            {
+                system = new[]
+                {
+                    new
+                    {
+                        text = systemPrompt,
+                        cachePoint = new { type = "default" },
+                    },
+                },
+                messages = new[]
+                {
+                    new
+                    {
+                        role = "user",
+                        content = new[] { new { text = userPrompt } },
+                    },
+                },
+            },
+            _jsonOptions
+        );
+    }
+
+    private static string CreatePromptWithAtLeastTokens(int minimumTokens)
+    {
+        var builder = new StringBuilder("cacheable fixture");
+        while (LlmTckTokenCounter.CountTextTokens(builder.ToString()) < minimumTokens)
+        {
+            builder.Append(" stable-prefix");
+        }
+
+        return builder.ToString();
     }
 }

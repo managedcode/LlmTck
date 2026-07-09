@@ -129,6 +129,9 @@ public sealed class ProviderApiContractTests
     public async Task HostingProviderRoutes_AreCoveredByImplementedDocumentedOperationsAsync()
     {
         using var host = await LlmTckTestHost.StartAsync();
+        var providerNamespaces = GetProfiles()
+            .Select(profile => GetExpectedProviderNamespace(profile.Id))
+            .ToArray();
         var routes = host.Services
             .GetRequiredService<EndpointDataSource>()
             .Endpoints.OfType<RouteEndpoint>()
@@ -143,6 +146,7 @@ public sealed class ProviderApiContractTests
                 ));
             })
             .Where(route => !_controlRoutePaths.Contains(route.Path, StringComparer.Ordinal))
+            .Where(route => IsProviderRoute(route.Path, providerNamespaces))
             .OrderBy(route => route.Method, StringComparer.Ordinal)
             .ThenBy(route => route.Path, StringComparer.Ordinal)
             .ToArray();
@@ -256,6 +260,13 @@ public sealed class ProviderApiContractTests
             && _officialDocumentationHosts.Any(host =>
                 string.Equals(uri.Host, host.Host, StringComparison.OrdinalIgnoreCase)
             );
+    }
+
+    private static bool IsProviderRoute(string path, IReadOnlyCollection<string> providerNamespaces)
+    {
+        return providerNamespaces.Any(providerNamespace =>
+            path.StartsWith(providerNamespace, StringComparison.Ordinal)
+        );
     }
 
     private static bool IsSupportedHttpMethod(string method)

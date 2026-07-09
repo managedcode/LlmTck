@@ -4,6 +4,7 @@ using System.Net.Http.Json;
 using System.Text;
 using System.Text.Json;
 using ManagedCode.LlmTck.Models;
+using ManagedCode.LlmTck.Runtime;
 using ManagedCode.LlmTck.Tests.TestSupport;
 
 namespace ManagedCode.LlmTck.Tests.Providers;
@@ -62,6 +63,123 @@ public sealed class OpenAiCompatibleProviderRouteTests
         await Assert.That(usage.GetProperty("completion_tokens").GetInt32()).IsEqualTo(2);
         await Assert.That(usage.GetProperty("total_tokens").GetInt32())
             .IsEqualTo(promptTokens + 2);
+    }
+
+    [Test]
+    [Arguments("/groq/openai/v1/chat/completions", false, false)]
+    [Arguments("/openrouter/api/v1/chat/completions", true, false)]
+    [Arguments("/mistral/v1/chat/completions", false, false)]
+    [Arguments("/deepseek/v1/chat/completions", false, true)]
+    [Arguments("/microsoft-foundry/chat/completions", false, false)]
+    [Arguments("/microsoft-foundry/models/chat/completions", false, false)]
+    public async Task OpenAiCompatibleChatRoutes_WithProviderPromptCaching_ReportCacheUsageAsync(
+        string path,
+        bool includesCacheWriteTokens,
+        bool usesDeepSeekUsageFields
+    )
+    {
+        var cacheablePrompt = CreatePromptWithAtLeastTokens(1100);
+        using var host = await LlmTckTestHost.StartAsync(options => options
+                .AddModel("provider-cache-chat", LlmTckModelKind.Chat)
+                .AddChatScenario(
+                    "provider-cache",
+                    scenario => scenario
+                        .ForModel("provider-cache-chat")
+                        .WhenUserContains("provider cache turn")
+                        .Responds("first")
+                        .Responds("second")
+                ));
+        using var client = host.GetTestClient();
+
+        var first = await PostProviderCacheRequestAsync(
+            client,
+            path,
+            cacheablePrompt,
+            "provider cache turn one"
+        );
+        var second = await PostProviderCacheRequestAsync(
+            client,
+            path,
+            cacheablePrompt,
+            "provider cache turn two"
+        );
+
+        first.EnsureSuccessStatusCode();
+        second.EnsureSuccessStatusCode();
+
+        var firstUsage = (await first.Content.ReadFromJsonAsync<JsonElement>(_jsonOptions))
+            .GetProperty("usage");
+        var secondUsage = (await second.Content.ReadFromJsonAsync<JsonElement>(_jsonOptions))
+            .GetProperty("usage");
+
+        if (usesDeepSeekUsageFields)
+        {
+            await Assert.That(firstUsage.GetProperty("prompt_cache_hit_tokens").GetInt32())
+                .IsEqualTo(0);
+            await Assert.That(secondUsage.GetProperty("prompt_cache_hit_tokens").GetInt32())
+                .IsGreaterThanOrEqualTo(1024);
+            await Assert.That(secondUsage.GetProperty("prompt_cache_miss_tokens").GetInt32())
+                .IsGreaterThan(0);
+            await Assert.That(secondUsage.TryGetProperty("prompt_tokens_details", out _))
+                .IsFalse();
+            return;
+        }
+
+        var firstDetails = firstUsage.GetProperty("prompt_tokens_details");
+        var secondDetails = secondUsage.GetProperty("prompt_tokens_details");
+        await Assert.That(firstDetails.GetProperty("cached_tokens").GetInt32()).IsEqualTo(0);
+        await Assert.That(secondDetails.GetProperty("cached_tokens").GetInt32())
+            .IsGreaterThanOrEqualTo(1024);
+
+        if (includesCacheWriteTokens)
+        {
+            await Assert.That(firstDetails.GetProperty("cache_write_tokens").GetInt32())
+                .IsGreaterThanOrEqualTo(1024);
+            await Assert.That(secondDetails.GetProperty("cache_write_tokens").GetInt32())
+                .IsEqualTo(0);
+        }
+    }
+
+    [Test]
+    public async Task OpenAiCompatibleChatRoutes_WithoutProviderPromptCaching_DoNotReportCacheUsageAsync()
+    {
+        var cacheablePrompt = CreatePromptWithAtLeastTokens(1100);
+        using var host = await LlmTckTestHost.StartAsync(options => options
+                .AddModel("perplexity-cache-chat", LlmTckModelKind.Chat)
+                .AddChatScenario(
+                    "perplexity-cache",
+                    scenario => scenario
+                        .ForModel("perplexity-cache-chat")
+                        .WhenUserContains("perplexity cache turn")
+                        .Responds("first")
+                        .Responds("second")
+                ));
+        using var client = host.GetTestClient();
+
+        var first = await PostProviderCacheRequestAsync(
+            client,
+            "/perplexity/v1/sonar",
+            cacheablePrompt,
+            "perplexity cache turn one",
+            "perplexity-cache-chat"
+        );
+        var second = await PostProviderCacheRequestAsync(
+            client,
+            "/perplexity/v1/sonar",
+            cacheablePrompt,
+            "perplexity cache turn two",
+            "perplexity-cache-chat"
+        );
+
+        first.EnsureSuccessStatusCode();
+        second.EnsureSuccessStatusCode();
+
+        var usage = (await second.Content.ReadFromJsonAsync<JsonElement>(_jsonOptions))
+            .GetProperty("usage");
+
+        await Assert.That(usage.TryGetProperty("prompt_tokens_details", out _)).IsFalse();
+        await Assert.That(usage.TryGetProperty("prompt_cache_hit_tokens", out _)).IsFalse();
+        await Assert.That(usage.TryGetProperty("prompt_cache_miss_tokens", out _)).IsFalse();
     }
 
     [Test]
@@ -581,5 +699,41 @@ public sealed class OpenAiCompatibleProviderRouteTests
         content.Add(new StringContent(model), "model");
         content.Add(new StringContent(responseFormat), "response_format");
         return content;
+    }
+
+    private static Task<HttpResponseMessage> PostProviderCacheRequestAsync(
+        HttpClient client,
+        string path,
+        string systemPrompt,
+        string userPrompt,
+        string model = "provider-cache-chat"
+    )
+    {
+        return client.PostAsJsonAsync(
+            path,
+            new
+            {
+                model,
+                prompt_cache_key = "provider-cache-session",
+                session_id = "provider-cache-session",
+                messages = new[]
+                {
+                    new { role = "system", content = systemPrompt },
+                    new { role = "user", content = userPrompt },
+                },
+            },
+            _jsonOptions
+        );
+    }
+
+    private static string CreatePromptWithAtLeastTokens(int minimumTokens)
+    {
+        var builder = new StringBuilder("cacheable fixture");
+        while (LlmTckTokenCounter.CountTextTokens(builder.ToString()) < minimumTokens)
+        {
+            builder.Append(" stable-prefix");
+        }
+
+        return builder.ToString();
     }
 }

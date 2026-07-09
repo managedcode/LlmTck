@@ -7,6 +7,7 @@ using ManagedCode.LlmTck.Client;
 using ManagedCode.LlmTck.Configuration;
 using ManagedCode.LlmTck.Control;
 using ManagedCode.LlmTck.Models;
+using ManagedCode.LlmTck.Runtime;
 using ManagedCode.LlmTck.Tests.TestSupport;
 
 namespace ManagedCode.LlmTck.Tests.OpenAI;
@@ -232,6 +233,137 @@ public sealed class OpenAiEndpointTests
             .IsGreaterThan(reasoningTokens);
         await Assert.That(responseUsage.GetProperty("output_tokens").GetInt32())
             .IsGreaterThan(reasoningTokens);
+    }
+
+    [Test]
+    public async Task OpenAiUsage_IncludesPromptCacheDetailsForChatAndResponsesAsync()
+    {
+        var chatPrompt = CreatePromptWithAtLeastTokens(1100);
+        var responsesPrompt = CreatePromptWithAtLeastTokens(1100) + " responses";
+        using var host = await LlmTckTestHost.StartAsync(options => options
+                .AddModel("cache-chat", LlmTckModelKind.Chat)
+                .AddChatScenario(
+                    "openai-chat-cache",
+                    scenario => scenario
+                        .ForModel("cache-chat")
+                        .WhenUserContains("cache turn")
+                        .Responds("first")
+                        .Responds("second")
+                )
+                .AddChatScenario(
+                    "openai-responses-cache",
+                    scenario => scenario
+                        .ForModel("cache-chat")
+                        .WhenUserContains("responses cached prompt")
+                        .Responds("first")
+                        .Responds("second")
+                ));
+        using var client = host.GetTestClient();
+
+        var firstChat = await client.PostAsJsonAsync(
+            "/openai/v1/chat/completions",
+            new
+            {
+                model = "cache-chat",
+                messages = new[]
+                {
+                    new { role = "system", content = chatPrompt },
+                    new { role = "user", content = "cache turn one" },
+                },
+            },
+            _jsonOptions
+        );
+        var secondChat = await client.PostAsJsonAsync(
+            "/openai/v1/chat/completions",
+            new
+            {
+                model = "cache-chat",
+                messages = new[]
+                {
+                    new { role = "system", content = chatPrompt },
+                    new { role = "user", content = "cache turn two" },
+                },
+            },
+            _jsonOptions
+        );
+        var firstResponse = await client.PostAsJsonAsync(
+            "/openai/v1/responses",
+            new
+            {
+                model = "cache-chat",
+                instructions = responsesPrompt,
+                input = "responses cached prompt one",
+            },
+            _jsonOptions
+        );
+        var secondResponse = await client.PostAsJsonAsync(
+            "/openai/v1/responses",
+            new
+            {
+                model = "cache-chat",
+                instructions = responsesPrompt,
+                input = "responses cached prompt two",
+            },
+            _jsonOptions
+        );
+
+        firstChat.EnsureSuccessStatusCode();
+        secondChat.EnsureSuccessStatusCode();
+        firstResponse.EnsureSuccessStatusCode();
+        secondResponse.EnsureSuccessStatusCode();
+
+        var firstChatUsage = (await firstChat.Content.ReadFromJsonAsync<JsonElement>(_jsonOptions))
+            .GetProperty("usage");
+        var secondChatUsage = (await secondChat.Content.ReadFromJsonAsync<JsonElement>(_jsonOptions))
+            .GetProperty("usage");
+        var firstResponseUsage = (await firstResponse.Content.ReadFromJsonAsync<JsonElement>(_jsonOptions))
+            .GetProperty("usage");
+        var secondResponseUsage = (await secondResponse.Content.ReadFromJsonAsync<JsonElement>(_jsonOptions))
+            .GetProperty("usage");
+
+        await Assert.That(
+                firstChatUsage
+                    .GetProperty("prompt_tokens_details")
+                    .GetProperty("cached_tokens")
+                    .GetInt32()
+            )
+            .IsEqualTo(0);
+        await Assert.That(
+                secondChatUsage
+                    .GetProperty("prompt_tokens_details")
+                    .GetProperty("cached_tokens")
+                    .GetInt32()
+            )
+            .IsGreaterThanOrEqualTo(1024);
+        await Assert.That(secondChatUsage.GetProperty("prompt_tokens").GetInt32())
+            .IsGreaterThan(
+                secondChatUsage
+                    .GetProperty("prompt_tokens_details")
+                    .GetProperty("cached_tokens")
+                    .GetInt32()
+            );
+
+        await Assert.That(
+                firstResponseUsage
+                    .GetProperty("input_tokens_details")
+                    .GetProperty("cached_tokens")
+                    .GetInt32()
+            )
+            .IsEqualTo(0);
+        await Assert.That(
+                secondResponseUsage
+                    .GetProperty("input_tokens_details")
+                    .GetProperty("cached_tokens")
+                    .GetInt32()
+            )
+            .IsGreaterThanOrEqualTo(1024);
+        await Assert.That(secondResponseUsage.GetProperty("input_tokens").GetInt32())
+            .IsGreaterThan(
+                secondResponseUsage
+                    .GetProperty("input_tokens_details")
+                    .GetProperty("cached_tokens")
+                    .GetInt32()
+            );
     }
 
     [Test]
@@ -817,6 +949,17 @@ public sealed class OpenAiEndpointTests
         }
 
         return content;
+    }
+
+    private static string CreatePromptWithAtLeastTokens(int minimumTokens)
+    {
+        var builder = new StringBuilder("cacheable fixture");
+        while (LlmTckTokenCounter.CountTextTokens(builder.ToString()) < minimumTokens)
+        {
+            builder.Append(" stable-prefix");
+        }
+
+        return builder.ToString();
     }
 
     private static MultipartFormDataContent CreateVideoCharacterContent()

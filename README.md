@@ -39,6 +39,27 @@ both provider endpoints and `/admin-api/*` control endpoints require it.
 | [`ManagedCode.LlmTck.Client`](https://www.nuget.org/packages/ManagedCode.LlmTck.Client) | [![NuGet](https://img.shields.io/nuget/v/ManagedCode.LlmTck.Client.svg)](https://www.nuget.org/packages/ManagedCode.LlmTck.Client) | Control client plus `IChatClient`, `IEmbeddingGenerator<string, Embedding<float>>`, and `IImageGenerator` implementations. |
 | [`ManagedCode.LlmTck.Aspire`](https://www.nuget.org/packages/ManagedCode.LlmTck.Aspire) | [![NuGet](https://img.shields.io/nuget/v/ManagedCode.LlmTck.Aspire.svg)](https://www.nuget.org/packages/ManagedCode.LlmTck.Aspire) | Aspire AppHost extension methods. |
 
+## Current Functionality
+
+This is the currently implemented behavior, not future intent:
+
+| Surface | What works now |
+| --- | --- |
+| Hosting | `builder.Services.AddLlmTck(...)` registers one deterministic runtime; `app.MapLlmTck()` maps the Blazor server-side browser panel at `/`, JSON control endpoints under `/admin-api`, and provider-namespaced HTTP routes. |
+| Runtime configuration | Configure at host startup, through `LlmTckClient.ConfigureAsync(...)`, or through `POST /admin-api/configure`. Configuration replaces the current runtime state and resets assertions, scenario positions, fault counters, and prompt-cache entries. |
+| Reset | `ResetAsync()` and `POST /admin-api/reset` keep the current models/scenarios/fixtures but clear assertion events, scenario response positions, rate-limit counters, and prompt-cache entries. |
+| Models | Default models use official fixture IDs for chat, embeddings, images, audio, and video. Typed helpers register broader OpenAI model families, and `AddModel(...)` supports custom deployment or provider IDs. Model kind is enforced on every route. |
+| Chat scenarios | Contains matching, exact prompt matching, queued responses, streaming chunks, scripted errors, delayed responses, cancellation-safe queues, and scenario-specific bearer tokens are implemented. |
+| Modalities | Chat, embeddings, image generation/edit/variation, audio speech/transcription/translation, OpenAI/Azure video, Gemini long-running video/file output, and Bedrock text/embedding/image invoke shapes return deterministic fixtures. |
+| Provider matrix | OpenAI, Azure OpenAI, Microsoft Foundry, Anthropic, Gemini, Groq, Mistral, Ollama, Cohere, Amazon Bedrock, OpenRouter, DeepSeek, and Perplexity are exposed under explicit provider namespaces. Each hosted operation is represented in a provider `ApiContract` and behavior evidence tests. |
+| SDK clients | Official OpenAI, Azure OpenAI, Azure AI Inference / Foundry, and `Microsoft.Extensions.AI` clients can call the hosted provider routes. The client package also creates control, chat, embedding, image, and audio clients with the same bearer token. |
+| Auth | A global bearer token protects provider and `/admin-api/*` endpoints. Anthropic `x-api-key` and Azure `api-key` headers are accepted as provider-native ways to pass the same token. Scenarios can add their own bearer-token requirement. |
+| Fault simulation | Provider-neutral rate-limit and content-filter simulation flow through every provider family and return provider-shaped errors. Scripted per-scenario failures remain available for exact test paths. |
+| Assertions | `/admin-api/assertions` returns counters plus every runtime event with request preview, response/error text, model id, scenario id, event kind, and deterministic usage. |
+| Usage accounting | Input, output, reasoning, total, cached-input, and cache-write token values are computed deterministically and projected into provider-specific response envelopes when that provider surface documents usage fields. |
+| Browser panel | `/` shows models/fixtures, actions, control and provider endpoint groups, grouped runtime events, captured requests, captured responses, counters, and per-event usage. It auto-refreshes every 15 seconds using Blazor component state and `StateHasChanged()`. |
+| Aspire | `builder.AddLlmTck()` starts the packaged .NET service without Docker by default; `WithApiKey(...)` wires auth, `GetHttpEndpoint()` and provider-specific endpoint helpers expose URLs, and `AddLlmTckContainer()` is an explicit container opt-in. |
+
 ## Provider Packages
 
 Provider packages keep vendor-specific protocol and compatibility metadata out of the provider-neutral runtime. The package surface exists now so applications can select a provider family explicitly; provider-specific DTOs and endpoint mappings are added inside each package as support grows.
@@ -172,6 +193,21 @@ The default configuration advertises official OpenAI fixture model IDs:
 
 Model IDs and model kinds are enforced. A chat request to an embedding model, or an embedding request to an unknown model, returns `404` with `llm_tck_unknown_model`.
 
+Use typed helpers for broader OpenAI model registration when tests need more than the defaults:
+
+```csharp
+options.AddKnownOpenAiModels(reasoningTokens: 128);
+
+// Or register only one modality family.
+options.AddCurrentOpenAiChatModels(reasoningTokens: 128);
+options.AddOpenAiEmbeddingModels();
+options.AddOpenAiImageModels();
+options.AddOpenAiAudioModels();
+options.AddOpenAiVideoModels();
+```
+
+Individual helpers are also available, including `AddGpt55(...)`, `AddGpt54Mini(...)`, `AddGpt5Nano(...)`, `AddGpt41()`, `AddGpt4OMini()`, `AddTextEmbedding3Large()`, `AddGptImage2()`, `AddGptImage15()`, `AddGptImage1Mini()`, `AddTts1()`, `AddTts1Hd()`, and `AddSora2Pro()`. Keep using `AddModel(...)` for custom deployment names or provider-specific IDs.
+
 ### Fault Simulation
 
 Fault simulation is configured on the provider-neutral runtime and applies through every provider namespace. Use it when a test needs retry, moderation, or provider-error handling without scripting each provider route separately.
@@ -268,7 +304,7 @@ app.Run();
 Install the Aspire integration package in the AppHost:
 
 ```bash
-dotnet add package ManagedCode.LlmTck.Aspire --version 0.0.9
+dotnet add package ManagedCode.LlmTck.Aspire --version 0.0.10
 ```
 
 Then add the package-owned TCK resource directly:
@@ -294,19 +330,55 @@ builder.Build().Run();
 
 `AddLlmTck()` creates a `LlmTckResource` backed by the packaged .NET LLM TCK service executable and exposes its `http` endpoint. It does not require a consumer service project reference, generated `Projects.*` metadata type, project path, Docker, or a container runtime. Consumer resources should reference the TCK resource, wait for it, and use `llmTck.GetHttpEndpoint()` when they need the provider-compatible base URL. `.WithApiKey("test-key")` sets `LlmTck:RequiredBearerToken` so both provider endpoints and `/admin-api/*` control endpoints require the same bearer token.
 
-Use `AddLlmTckContainer()` only when you explicitly want a container-backed resource, for example for a deployment or container-runtime smoke test. The container mode uses the matching versioned image such as `ghcr.io/managedcode/llm-tck:0.0.9`; it is not the default local Aspire path.
+Use `AddLlmTckContainer()` only when you explicitly want a container-backed resource, for example for a deployment or container-runtime smoke test. The container mode uses the matching versioned image such as `ghcr.io/managedcode/llm-tck:0.0.10`; it is not the default local Aspire path.
 
 ## Control Panel And Token Usage
 
 Open the TCK resource endpoint from the Aspire dashboard to inspect the running configuration at `/`. The browser admin panel is rendered by Blazor server-side rendering from `ManagedCode.LlmTck.Hosting`. If the resource was configured with `.WithApiKey("test-key")` or `RequireBearerToken("test-key")`, enter the same token in the control panel before refreshing.
 
-The panel reads `/admin-api/models` and `/admin-api/assertions`. It shows advertised models, assertion counters, request and response previews, and deterministic token usage. Token usage is counted with the repo-owned tiktoken-compatible counter and reported both as summary totals and per runtime event with `inputTokens`, `outputTokens`, `reasoningTokens`, and `totalTokens`. Provider response envelopes also receive the same deterministic usage values: OpenAI-compatible chat and Responses usage including reasoning-token details when configured, Anthropic sync messages and streaming `message_start`/`message_delta`, Gemini `usageMetadata` including long-running video operation results, Cohere chat usage, Ollama prompt/eval counts, and Bedrock Converse usage.
+The panel reads `/admin-api/models` and `/admin-api/assertions`. It shows advertised models, actions, control endpoint groups, provider endpoint groups, grouped runtime events, captured requests, captured responses, assertion counters, and deterministic token usage. Auto-refresh is enabled by default and runs every 15 seconds on the server-side Blazor component; there is no client-side polling script and no visible countdown.
+
+Token usage is counted with the repo-owned tiktoken-compatible counter and reported both as summary totals and per runtime event with `inputTokens`, `cachedInputTokens`, `cacheCreationInputTokens`, `outputTokens`, `reasoningTokens`, and `totalTokens`. Provider response envelopes also receive the same deterministic usage values: OpenAI-compatible chat and Responses usage including reasoning-token and prompt-cache details when configured, Anthropic sync messages and streaming `message_start`/`message_delta`, Gemini `usageMetadata` including long-running video operation results, Cohere chat usage, Ollama prompt/eval counts, and Bedrock Converse usage.
 
 For reasoning-capable fixture models, configure a deterministic reasoning-token count on the model. LLM TCK includes those tokens in `outputTokens` and exposes the split in `reasoningTokens`; OpenAI-compatible responses also include `completion_tokens_details.reasoning_tokens` or `output_tokens_details.reasoning_tokens`.
 
 ```csharp
-options.AddReasoningChatModel("gpt-5-nano", reasoningTokens: 128);
+options.AddGpt5Nano(reasoningTokens: 128);
 ```
+
+## Prompt Cache Accounting
+
+Prompt cache accounting is deterministic runtime state for testing provider usage handling. LLM TCK does not call a real cache service and does not hide prompt text; it calculates repeated prompt-prefix usage from the requests that reach the runtime.
+
+Cache entries are created only for successful chat or Responses requests on provider surfaces with a cache policy. A failed, unmatched, unauthorized, cancelled, unknown-model, or scripted-error request does not create a cache entry. `ConfigureAsync(...)` and `ResetAsync()` both clear prompt-cache entries so each test can start from a known cache state.
+
+The cache key includes provider cache policy, model id, an optional provider cache key or session id, the rounded cacheable token count, and the cumulative message prefix. The first successful request with a cacheable prefix reports cache-write tokens and zero cache-read tokens. A later successful request with the same cache key reports cache-read tokens and zero cache-write tokens for the already cached prefix.
+
+Provider cache thresholds follow the current runtime policy:
+
+| Policy | Provider routes | Minimum cacheable tokens | Increment |
+| --- | --- | ---: | ---: |
+| OpenAI-compatible | OpenAI, Groq, Azure OpenAI, Microsoft Foundry, Perplexity, Responses API routes that use the OpenAI-compatible shape | 1024 | 128 |
+| OpenRouter | OpenRouter chat and Responses routes; `session_id` or `x-session-id` can become the cache key when no explicit prompt cache key is sent | 1024 | 128 |
+| DeepSeek | DeepSeek chat routes | 1024 | 128 |
+| Anthropic | Anthropic Messages requests that include `cache_control` markers | 1024 | 128 |
+| Mistral | Mistral chat routes | 64 | 64 |
+| Gemini | Gemini generateContent routes | 2048 | 128 |
+| Bedrock | Bedrock Converse requests that include `cachePoint` or `cache_control` markers | 1024 | 128 |
+
+Cache accounting is a breakdown of input usage, not an extra billable token bucket. `totalTokens` remains `inputTokens + outputTokens`; `cachedInputTokens` and `cacheCreationInputTokens` explain how much of the input was read from, or written to, the deterministic prompt cache.
+
+Provider envelopes expose the same runtime usage through provider-native field names:
+
+| Provider surface | Cache fields returned |
+| --- | --- |
+| OpenAI, Groq, Azure OpenAI, Microsoft Foundry, Mistral, Perplexity chat | `usage.prompt_tokens_details.cached_tokens` |
+| OpenAI, Groq, Azure OpenAI, Microsoft Foundry, Perplexity Responses | `usage.input_tokens_details.cached_tokens` |
+| OpenRouter chat and Responses | `cached_tokens` plus `cache_write_tokens` in the matching prompt/input token details object |
+| DeepSeek chat | `usage.prompt_cache_hit_tokens` and `usage.prompt_cache_miss_tokens` |
+| Anthropic Messages | `usage.cache_creation_input_tokens` and `usage.cache_read_input_tokens` when cache usage exists |
+| Gemini generateContent | `usageMetadata.cachedContentTokenCount` |
+| Bedrock Converse and ConverseStream metadata | `usage.cacheReadInputTokens` and `usage.cacheWriteInputTokens` |
 
 ![LLM TCK control panel showing token usage totals and a matched runtime event](docs/images/llm-tck-control-panel-token-usage.png)
 

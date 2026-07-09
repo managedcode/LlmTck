@@ -6,6 +6,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.App.Internal.Assets" />
     <ProjectReference Include="..\..\src\ManagedCode.LlmTck.Hosting\ManagedCode.LlmTck.Hosting.csproj" />
   </ItemGroup>
 </Project>

@@ -38,7 +38,7 @@ compatibility: "Requires a .NET SDK-based repository; respects the repo's `AGENT
 ## Workflow
 
 1. Prefer one repo-root `.editorconfig` with `root = true`.
-2. Add nested `.editorconfig` files when a subtree has a clear scoped purpose, such as stricter rules, different generated-code handling, or a different policy for tests or legacy code.
+2. Add nested `.editorconfig` files when a subtree has a clear scoped purpose, such as stricter rules, different generated-code handling, or a different policy for tests or prior code.
 3. Keep severity in `.editorconfig`, not scattered through IDE settings.
 4. Write the file as real EditorConfig, not as a made-up `.NET` variant:
    - lowercase filename `.editorconfig`

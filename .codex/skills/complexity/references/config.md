@@ -36,7 +36,7 @@ dotnet_diagnostic.CA1501.severity = suggestion
 
 ### Per-File Overrides
 
-To relax rules for generated or legacy code:
+To relax rules for generated or prior code:
 
 ```ini
 [*.generated.cs]
@@ -106,7 +106,7 @@ CA1506(Type): 80
 CA1501: 6
 ```
 
-**Relaxed (legacy migration):**
+**Relaxed (prior migration):**
 
 ```text
 CA1502: 30
@@ -193,9 +193,9 @@ For localized suppression:
 
 ```csharp
 #pragma warning disable CA1502
-public void LegacyMethod()
+public void PriorMethod()
 {
-    // Complex legacy code pending refactoring
+    // Complex prior code pending refactoring
 }
 #pragma warning restore CA1502
 ```

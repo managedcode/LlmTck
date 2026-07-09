@@ -47,7 +47,7 @@ compatibility: "Requires a .NET repository with Node-based frontend assets such 
 
 - ESLint `v10.5.0` improves rule location reporting for complexity-style rules such as `max-depth`, `max-lines-per-function`, `max-nested-callbacks`, and `max-statements`, and reports `no-with` at the `with` keyword.
 - Rebaseline snapshot tests or lint-output parsers after upgrading because diagnostics may point at more precise locations.
-- Current docs clarify parser option precedence over `languageOptions`; review flat-config migrations that mix legacy parser settings with new config shapes.
+- Current docs clarify parser option precedence over `languageOptions`; review flat-config migrations that mix prior parser settings with new config shapes.
 
 ## Bootstrap When Missing
 

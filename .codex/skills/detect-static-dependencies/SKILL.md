@@ -20,7 +20,7 @@ Scan a C# codebase for calls to hard-to-test static APIs and produce a ranked re
 ## When to Use
 
 - Auditing a project's testability before adding unit tests
-- Understanding the scope of static coupling in a legacy codebase
+- Understanding the scope of static coupling in a prior codebase
 - Prioritizing which statics to wrap first (highest-frequency wins)
 - Creating a migration plan for incremental testability improvements
 

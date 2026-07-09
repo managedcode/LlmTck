@@ -15,7 +15,7 @@ Automated testing in MCAF is evidence, not ceremony.
 
 - use Red -> Green -> Refactor as the default workflow for new behaviour and bug fixes
 - bug fixes start with a failing regression test that reproduces the reported issue
-- when strict TDD is blocked by legacy code, third-party limits, or missing harnesses, document the reason and add the automated test in the same change before calling the work done
+- when strict TDD is blocked by prior code, third-party limits, or missing harnesses, document the reason and add the automated test in the same change before calling the work done
 
 ## Test-Level Selection
 

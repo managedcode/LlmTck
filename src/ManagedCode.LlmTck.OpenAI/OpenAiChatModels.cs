@@ -14,6 +14,12 @@ public sealed record OpenAiChatCompletionRequest
 
     [JsonPropertyName("stream")]
     public bool Stream { get; init; }
+
+    [JsonPropertyName("prompt_cache_key")]
+    public string? PromptCacheKey { get; init; }
+
+    [JsonPropertyName("session_id")]
+    public string? SessionId { get; init; }
 }
 
 public sealed record OpenAiChatMessage
@@ -124,9 +130,31 @@ public sealed record OpenAiUsage
     [JsonPropertyName("total_tokens")]
     public int TotalTokens { get; init; }
 
+    [JsonPropertyName("prompt_tokens_details")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public OpenAiPromptTokensDetails? PromptTokensDetails { get; init; }
+
     [JsonPropertyName("completion_tokens_details")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public OpenAiCompletionTokensDetails? CompletionTokensDetails { get; init; }
+
+    [JsonPropertyName("prompt_cache_hit_tokens")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public int? PromptCacheHitTokens { get; init; }
+
+    [JsonPropertyName("prompt_cache_miss_tokens")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public int? PromptCacheMissTokens { get; init; }
+}
+
+public sealed record OpenAiPromptTokensDetails
+{
+    [JsonPropertyName("cached_tokens")]
+    public int CachedTokens { get; init; }
+
+    [JsonPropertyName("cache_write_tokens")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public int? CacheWriteTokens { get; init; }
 }
 
 public sealed record OpenAiCompletionTokensDetails

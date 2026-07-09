@@ -152,7 +152,7 @@ Summarize what was done:
 | OrderProcessorTests.cs | Added FakeTimeProvider parameter |
 
 ### Remaining (out of scope)
-- MyProject/Legacy/ — 8 call sites not migrated (different namespace)
+- MyProject/Older/ — 8 call sites not migrated (different namespace)
 ```
 
 ## Validation

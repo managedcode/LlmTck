@@ -54,9 +54,9 @@ The process path in the first line identifies exactly which binary triggered CLR
 | `FunctionCall: _CorExeMain` | Managed EXE launch — the OS loader recognized a .NET assembly |
 | `FunctionCall: DllGetClassObject. Clsid: {guid}, Iid: {iid}` | COM activation — CoCreateInstance routed through mscoree.dll |
 | `FunctionCall: ClrCreateInstance, Clsid: {guid}, Iid: {iid}` | Modern v4+ hosting API entry |
-| `LegacyFunctionCall: CorBindToRuntimeEx. Version: {ver}, BuildFlavor: {flavor}, Flags: {hex}` | Legacy v1/v2 hosting API binding |
-| `LegacyFunctionCall: LoadLibraryShim. DllName: {dll}, Version: {ver}` | Legacy API to load a framework DLL |
-| `LegacyFunctionCall: GetFileVersion. Filename: {path}` | Shim reading PE version from a binary |
+| `PriorFunctionCall: CorBindToRuntimeEx. Version: {ver}, BuildFlavor: {flavor}, Flags: {hex}` | Prior v1/v2 hosting API binding |
+| `PriorFunctionCall: LoadLibraryShim. DllName: {dll}, Version: {ver}` | Prior API to load a framework DLL |
+| `PriorFunctionCall: GetFileVersion. Filename: {path}` | Shim reading PE version from a binary |
 | `MethodCall: ICLRMetaHostPolicy::GetRequestedRuntime. Version: {ver}, Metahost Policy Flags: {hex}, Binary: {path}` | Policy-based runtime request |
 | `MethodCall: ICLRRuntimeInfo::GetInterface. Clsid: {guid}, Iid: {iid}` | Requesting an interface from a loaded runtime |
 
@@ -65,11 +65,11 @@ The process path in the first line identifies exactly which binary triggered CLR
 | Message | Meaning |
 |---------|---------|
 | `Input values for ComputeVersionString follow this line` | Start of a version resolution block |
-| `IsLegacyBind is: {0\|1}` | Whether this is a legacy (pre-v4) activation path |
+| `IsPriorBind is: {0\|1}` | Whether this is a prior (pre-v4) activation path |
 | `IsCapped is {0\|1}` | Whether enumeration is restricted to ≤v2.0.50727 |
 | `SkuCheckFlags are {value}` | SKU compatibility check mode |
 | `ShouldEmulateExeLaunch is {0\|1}` | Whether to use EXE launch policies |
-| `LegacyBindRequired is {0\|1}` | Whether legacy binding is strictly required |
+| `PriorBindRequired is {0\|1}` | Whether prior binding is strictly required |
 | `Installed Runtime: vX.Y.Z. VERSION_ARCHITECTURE: N` | A runtime version found installed on the machine |
 
 ### Config File Processing
@@ -81,7 +81,7 @@ The process path in the first line identifies exactly which binary triggered CLR
 | `Config File (Open). Result:80070002` | Config file **not found** (ERROR_FILE_NOT_FOUND) |
 | `Config File (Read). Result:00000000` | Config file read successfully |
 | `Found config file: {path}` | Config file successfully parsed |
-| `UseLegacyV2RuntimeActivationPolicy is set to {0\|1}` | Value of `<startup useLegacyV2RuntimeActivationPolicy="true\|false">` |
+| `UsePriorV2RuntimeActivationPolicy is set to {0\|1}` | Value of `<startup usePriorV2RuntimeActivationPolicy="true\|false">` |
 | `Config file includes SupportedRuntime entry. Version: {ver}, SKU: {sku}` | A `<supportedRuntime>` element from the config |
 | `Found a supportedRuntime tag in the config file` | At least one `<supportedRuntime>` was present |
 
@@ -115,7 +115,7 @@ The process path in the first line identifies exactly which binary triggered CLR
 |---------|---------|
 | `FunctionCall: OnShimDllMainCalled. Reason: {code}` | DllMain callback (1=PROCESS_ATTACH, 0=PROCESS_DETACH, 2=THREAD_ATTACH, 3=THREAD_DETACH) |
 | `FunctionCall: RealDllMain. Reason: {code}` | Actual DllMain processing |
-| `LegacyFunctionCall: CorExitProcess. Code: {exit_code}` | Process exiting through legacy API |
+| `PriorFunctionCall: CorExitProcess. Code: {exit_code}` | Process exiting through prior API |
 
 ### Runtime Info Queries
 
@@ -131,11 +131,11 @@ These CLSIDs frequently appear in COM activation logs:
 
 | CLSID | Name | Notes |
 |-------|------|-------|
-| `{E5CB7A31-7512-11D2-89CE-0080C792E5D8}` | CorSymWriter_SxS / CLR Meta Data | Debug symbol writer — common trigger for legacy COM activation in native build tools |
+| `{E5CB7A31-7512-11D2-89CE-0080C792E5D8}` | CorSymWriter_SxS / CLR Meta Data | Debug symbol writer — common trigger for prior COM activation in native build tools |
 | `{0A29FF9E-7F9C-4437-8B11-F424491E3931}` | NDP SymBinder | Debug symbol binder |
 | `{9280188D-0E8E-4867-B30C-7FA83884E8DE}` | CLRMetaHost | ICLRMetaHost — the v4+ entry point for hosting |
 | `{2EBCD49A-1B47-4A61-B13A-4A03701E594B}` | CLRMetaHostPolicy | ICLRMetaHostPolicy — policy-based hosting |
-| `{CB2F6723-AB3A-11D2-9C40-00C04FA30A3E}` | CorRuntimeHost | Legacy v1/v2 hosting |
+| `{CB2F6723-AB3A-11D2-9C40-00C04FA30A3E}` | CorRuntimeHost | Prior v1/v2 hosting |
 | `{F7721072-BF57-476D-89F8-A7625D27683A}` | CLRStrongName | Strong name APIs |
 | `{B79B0ACD-F5CD-409B-B5A5-A16244610B92}` | ALink | Assembly linker |
 
@@ -197,5 +197,5 @@ These HRESULTs are returned by the shim to callers. They don't appear in the act
 | `0x80131701` | `CLR_E_SHIM_RUNTIMEEXPORT` | Found a runtime but failed to get a required export or interface. |
 | `0x80131702` | `CLR_E_SHIM_INSTALLROOT` | .NET Framework install root missing or invalid in registry. |
 | `0x80131703` | `CLR_E_SHIM_INSTALLCOMP` | A required installation component is missing. |
-| `0x80131704` | `CLR_E_SHIM_LEGACYRUNTIMEALREADYBOUND` | A different runtime is already bound as the legacy runtime — a legacy API tried to bind to a conflicting version. |
+| `0x80131704` | `CLR_E_SHIM_PRIORRUNTIMEALREADYBOUND` | A different runtime is already bound as the prior runtime — a prior API tried to bind to a conflicting version. |
 | `0x80131705` | `CLR_E_SHIM_SHUTDOWNINPROGRESS` | The shim is shutting down. |

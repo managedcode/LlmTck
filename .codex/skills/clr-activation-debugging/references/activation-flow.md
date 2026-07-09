@@ -3,7 +3,7 @@
 ## Overview
 
 The CLR shim is the .NET Framework's runtime selection and loading layer. It consists of two DLLs:
-- **mscoree.dll** (the "shell shim") — the public-facing entry point. It is the registered `InprocServer32` for CLR-hosted COM objects, the target of `_CorExeMain` for managed EXE launch, and the DLL that legacy hosting APIs (`CorBindToRuntimeEx`, etc.) are exported from.
+- **mscoree.dll** (the "shell shim") — the public-facing entry point. It is the registered `InprocServer32` for CLR-hosted COM objects, the target of `_CorExeMain` for managed EXE launch, and the DLL that prior hosting APIs (`CorBindToRuntimeEx`, etc.) are exported from.
 - **mscoreei.dll** — the actual shim implementation where all the runtime selection logic, logging, activation decisions, and policy evaluation live. mscoree.dll loads and forwards into mscoreei.dll.
 
 The shim supports loading CLR v2.0 and CLR v4.0 side-by-side in the same process (in-proc SxS). Note that .NET 2.0, 3.0, and 3.5 all share CLR v2.0 (v2.0.50727), while .NET 4.0 through 4.8.x all share CLR v4.0 (v4.0.30319).
@@ -12,15 +12,15 @@ The shim supports loading CLR v2.0 and CLR v4.0 side-by-side in the same process
 
 ### The v4 In-Proc SxS Design
 
-.NET 4.0 added the ability for multiple runtimes (v2.0 and v4.0) to coexist in the same process. This required a complete rethinking of the hosting API surface. A new set of APIs — the **metahost APIs** (defined in metahost.h: `ICLRMetaHost`, `ICLRMetaHostPolicy`, `ICLRRuntimeInfo`) — was introduced with a multi-runtime view of the world. The entire existing mscoree.h API surface became "legacy."
+.NET 4.0 added the ability for multiple runtimes (v2.0 and v4.0) to coexist in the same process. This required a complete rethinking of the hosting API surface. A new set of APIs — the **metahost APIs** (defined in metahost.h: `ICLRMetaHost`, `ICLRMetaHostPolicy`, `ICLRRuntimeInfo`) — was introduced with a multi-runtime view of the world. The entire existing mscoree.h API surface became "prior."
 
 The central design constraint: **installing v4 must be non-impactful** — it must not change the behavior of any existing component already on the machine.
 
-### Legacy Shim APIs vs. Metahost APIs
+### Prior Shim APIs vs. Metahost APIs
 
-**Metahost APIs** (`IsLegacyBind: 0`): The v4+ hosting APIs. These can enumerate all installed runtimes, target specific versions, and support side-by-side loading. This is the normal path for managed EXE launch (`_CorExeMain`) and v4+ COM activation.
+**Metahost APIs** (`IsPriorBind: 0`): The v4+ hosting APIs. These can enumerate all installed runtimes, target specific versions, and support side-by-side loading. This is the normal path for managed EXE launch (`_CorExeMain`) and v4+ COM activation.
 
-**Legacy shim APIs** (`IsLegacyBind: 1`): The entire pre-v4 API surface. These have a **single-runtime-per-process** view of the world, because before v4 there could only be one runtime in a process. The legacy API category encompasses:
+**Prior shim APIs** (`IsPriorBind: 1`): The entire pre-v4 API surface. These have a **single-runtime-per-process** view of the world, because before v4 there could only be one runtime in a process. The prior API category encompasses:
 
 1. **`CorBindToRuntimeEx` and friends** — Most flat exports of mscoree.dll defined in mscoree.h (`GetCORSystemDirectory`, `GetCORVersion`, `LoadLibraryShim`, etc.), plus the strong name APIs from strongname.h
 2. **Pre-v4 COM activation** — `CoCreateInstance` of a CLSID whose latest registration is against a pre-v4 runtime version. This includes `new` on such a coclass from managed code, or `Activator.CreateInstance` via `Type.GetTypeFromCLSID`.
@@ -28,54 +28,54 @@ The central design constraint: **installing v4 must be non-impactful** — it mu
 4. **Native activation of runtime-provided COM CLSIDs** — e.g., `CoCreateInstance` on `ICLRRuntimeHost`'s CLSID
 5. **Native activation of managed framework CLSIDs** — e.g., `CoCreateInstance` on `System.ArrayList`'s CLSID (extremely rare)
 
-### The Legacy Runtime
+### The Prior Runtime
 
-Because legacy APIs have a single-runtime view, once any legacy codepath chooses a runtime version, that becomes **the** legacy runtime for the process (`g_pLegacyAPIRuntimeInfo`). All subsequent legacy API calls see and use this same runtime for the remainder of the process lifetime. After a version has been chosen by one of these codepaths, that's the version ALL of them see.
+Because prior APIs have a single-runtime view, once any prior codepath chooses a runtime version, that becomes **the** prior runtime for the process (`g_pPriorAPIRuntimeInfo`). All subsequent prior API calls see and use this same runtime for the remainder of the process lifetime. After a version has been chosen by one of these codepaths, that's the version ALL of them see.
 
-If v4.0 is bound as the legacy runtime (through any mechanism — explicit version string, config with `useLegacyV2RuntimeActivationPolicy`, etc.), all subsequent legacy codepaths will use v4.0.
+If v4.0 is bound as the prior runtime (through any mechanism — explicit version string, config with `usePriorV2RuntimeActivationPolicy`, etc.), all subsequent prior codepaths will use v4.0.
 
 ### Whidbey Capping
 
-All legacy shim API codepaths had roll-forward semantics — they would find and use the latest installed runtime. **Whidbey capping** restricts ("caps") these roll-forward semantics at v2.0 (codename "Whidbey"), meaning **by default, none of the legacy codepaths see v4 at all**. This is what makes v4 installation non-impactful: existing components using legacy APIs continue to behave exactly as they did before v4 was installed.
+All prior shim API codepaths had roll-forward semantics — they would find and use the latest installed runtime. **Whidbey capping** restricts ("caps") these roll-forward semantics at v2.0 (codename "Whidbey"), meaning **by default, none of the prior codepaths see v4 at all**. This is what makes v4 installation non-impactful: existing components using prior APIs continue to behave exactly as they did before v4 was installed.
 
-When `IsCapped: 1` in the logs, the shim will not consider any runtime above v2.0.50727 when enumerating installed runtimes. This has an important and intentional side effect: **on a v4-only machine (no .NET 3.5 installed), legacy codepaths see NO runtimes at all** — the machine appears to have nothing installed from their perspective.
+When `IsCapped: 1` in the logs, the shim will not consider any runtime above v2.0.50727 when enumerating installed runtimes. This has an important and intentional side effect: **on a v4-only machine (no .NET 3.5 installed), prior codepaths see NO runtimes at all** — the machine appears to have nothing installed from their perspective.
 
 **Capping does NOT prevent loading v4+ if:**
-- A specific legitimate post-Whidbey version string is explicitly passed to a legacy API (e.g., `CorBindToRuntimeEx("v4.0.30319", ...)`) — the APIs will happily load it
-- A config file `<supportedRuntime>` explicitly names a v4+ version AND `useLegacyV2RuntimeActivationPolicy="true"` is set
-- The legacy runtime is already bound to v4+ (all subsequent legacy calls reuse it)
+- A specific legitimate post-Whidbey version string is explicitly passed to a prior API (e.g., `CorBindToRuntimeEx("v4.0.30319", ...)`) — the APIs will happily load it
+- A config file `<supportedRuntime>` explicitly names a v4+ version AND `usePriorV2RuntimeActivationPolicy="true"` is set
+- The prior runtime is already bound to v4+ (all subsequent prior calls reuse it)
 
-### useLegacyV2RuntimeActivationPolicy
+### usePriorV2RuntimeActivationPolicy
 
-This config attribute is the primary mechanism for making legacy codepaths see v4. Setting `useLegacyV2RuntimeActivationPolicy="true"` in the `<startup>` element tells the shim to treat all runtimes as candidates for legacy API codepaths. It is **mostly equivalent to calling `CorBindToRuntimeEx` with the full v4 version string**.
+This config attribute is the primary mechanism for making prior codepaths see v4. Setting `usePriorV2RuntimeActivationPolicy="true"` in the `<startup>` element tells the shim to treat all runtimes as candidates for prior API codepaths. It is **mostly equivalent to calling `CorBindToRuntimeEx` with the full v4 version string**.
 
 It can be used:
 - With one or more `<supportedRuntime>` entries to direct which runtime is chosen
 - With other config options
-- With **no `<supportedRuntime>` entries at all** — in which case legacy APIs can simply enumerate and discover v4
+- With **no `<supportedRuntime>` entries at all** — in which case prior APIs can simply enumerate and discover v4
 
 ```xml
-<!-- Common usage: direct legacy codepaths to v4.0 -->
+<!-- Common usage: direct prior codepaths to v4.0 -->
 <configuration>
-  <startup useLegacyV2RuntimeActivationPolicy="true">
+  <startup usePriorV2RuntimeActivationPolicy="true">
     <supportedRuntime version="v4.0"/>
   </startup>
 </configuration>
 ```
 
 ```xml
-<!-- Also valid: just let legacy APIs enumerate v4 -->
+<!-- Also valid: just let prior APIs enumerate v4 -->
 <configuration>
-  <startup useLegacyV2RuntimeActivationPolicy="true">
+  <startup usePriorV2RuntimeActivationPolicy="true">
   </startup>
 </configuration>
 ```
 
-**Side effect:** Enabling this attribute turns off in-proc SxS with pre-v4 runtimes — it locks them out of the process. The legacy runtime becomes v4, and pre-v4 runtimes cannot load.
+**Side effect:** Enabling this attribute turns off in-proc SxS with pre-v4 runtimes — it locks them out of the process. The prior runtime becomes v4, and pre-v4 runtimes cannot load.
 
 **Common reasons to use it:**
 - Loading pre-v4 mixed-mode (IJW) assemblies into v4
-- Making legacy API calls (P/Invoke to `GetCORSystemDirectory`, etc.) return v4 paths
+- Making prior API calls (P/Invoke to `GetCORSystemDirectory`, etc.) return v4 paths
 - Ensuring COM activation of managed objects uses the current runtime (v4) instead of falling back to v2
 
 **Why it isn't the default:** If it were the default, installing v4 would be impactful — it would change behavior of existing components, violating the core design constraint.
@@ -113,18 +113,18 @@ This is the order in which `ComputeVersionString` resolves a runtime version:
 2. Config file has <supportedRuntime> entries?
    └─ Yes → For each entry (in order):
       ├─ Is this version installed? Check SKU compatibility.
-      ├─ If IsCapped AND UseLegacyV2RuntimeActivationPolicy=0:
+      ├─ If IsCapped AND UsePriorV2RuntimeActivationPolicy=0:
       │   └─ Only consider v2.0.x entries (skip v4.0+)
-      ├─ If IsCapped AND UseLegacyV2RuntimeActivationPolicy=1:
+      ├─ If IsCapped AND UsePriorV2RuntimeActivationPolicy=1:
       │   └─ Consider ALL entries including v4.0+ (cap is lifted;
-      │      chosen runtime becomes the legacy runtime)
+      │      chosen runtime becomes the prior runtime)
       └─ First installed match wins → done
 
-2b. UseLegacyV2RuntimeActivationPolicy=1 but NO <supportedRuntime> entries?
-   └─ Legacy APIs can enumerate all installed runtimes (cap lifted)
+2b. UsePriorV2RuntimeActivationPolicy=1 but NO <supportedRuntime> entries?
+   └─ Prior APIs can enumerate all installed runtimes (cap lifted)
       → Falls through to FindLatestVersion (uncapped)
 
-3. Config file has <requiredRuntime> element? (legacy v1.0/v1.1)
+3. Config file has <requiredRuntime> element? (prior v1.0/v1.1)
    └─ Yes → Use that version → done
 
 4. COMPLUS_Version environment variable set?
@@ -133,7 +133,7 @@ This is the order in which `ComputeVersionString` resolves a runtime version:
 5. Host provided a default version?
    └─ Yes → Use that version → done
 
-6. Legacy runtime already bound (g_pLegacyAPIRuntimeInfo != NULL)?
+6. Prior runtime already bound (g_pPriorAPIRuntimeInfo != NULL)?
    └─ Yes → Use that version → done
 
 7. Binary has a PE header version (managed assemblies only)?
@@ -155,7 +155,7 @@ If resolution returns `(null)` → runtime not found → enter error/FOD path.
 1. OS loader recognizes .NET PE header, calls `_CorExeMain`
 2. Shim reads PE header for built-with version
 3. Looks for `{exe}.config` for `<supportedRuntime>` entries
-4. `IsLegacyBind: 0`, `IsCapped: 0` (normal modern bind)
+4. `IsPriorBind: 0`, `IsCapped: 0` (normal modern bind)
 5. Follows decision tree above
 6. Loads runtime, transfers control to managed entry point
 
@@ -168,27 +168,27 @@ This is the most complex path and the most common source of activation issues.
    - `HKCR\CLSID\{guid}\InprocServer32` → checks if `(Default)` is mscoree.dll
    - Enumerates version subkeys (e.g., `2.0.50727`, `4.0.30319`)
    - Reads `RuntimeVersion`, `Assembly`, `Class`, `ImplementedInThisVersion` from subkeys
-3. Determines if this is a legacy or modern COM object:
-   - If CLSID has only old version subkeys or is a known framework COM object → **legacy path**
-   - Legacy path sets `IsLegacyBind: 1`, `IsCapped: 1`
+3. Determines if this is a prior or modern COM object:
+   - If CLSID has only old version subkeys or is a known framework COM object → **prior path**
+   - Prior path sets `IsPriorBind: 1`, `IsCapped: 1`
 4. Version resolution follows the decision tree
-5. If the legacy runtime is already bound, reuses it (skips the entire search)
+5. If the prior runtime is already bound, reuses it (skips the entire search)
 
-**Critical implication:** For native EXEs doing COM activation, if no config file exists and the legacy runtime is not already bound, a capped legacy bind will enumerate only ≤v2.0 runtimes. On a machine without .NET 3.5, this finds nothing and triggers the error/FOD path.
+**Critical implication:** For native EXEs doing COM activation, if no config file exists and the prior runtime is not already bound, a capped prior bind will enumerate only ≤v2.0 runtimes. On a machine without .NET 3.5, this finds nothing and triggers the error/FOD path.
 
-### CorBindToRuntimeEx (Legacy Hosting)
+### CorBindToRuntimeEx (Prior Hosting)
 
 1. Caller specifies a version (or NULL for default)
 2. If version is NULL, uses `FindLatestVersion` (respects capping)
 3. If version specified, attempts to load that exact version
-4. On success, sets `g_pLegacyAPIRuntimeInfo` (the process-global legacy runtime)
-5. Subsequent calls must match the same runtime or fail with `CLR_E_SHIM_LEGACYRUNTIMEALREADYBOUND`
+4. On success, sets `g_pPriorAPIRuntimeInfo` (the process-global prior runtime)
+5. Subsequent calls must match the same runtime or fail with `CLR_E_SHIM_PRIORRUNTIMEALREADYBOUND`
 
-### LoadLibraryShim (Legacy DLL Loading)
+### LoadLibraryShim (Prior DLL Loading)
 
 1. Loads a framework DLL by name (e.g., `diasymreader.dll`)
 2. If version specified, loads from that runtime's directory
-3. If no version, uses legacy runtime if bound, otherwise finds latest
+3. If no version, uses prior runtime if bound, otherwise finds latest
 
 ## Config File Resolution
 
@@ -198,24 +198,24 @@ The shim looks for config files at:
 2. **Host config**: Provided by hosting API caller (rare)
 3. **App config**: `{exe_path}.config` (most common)
 
-### Config for legacy codepaths
+### Config for prior codepaths
 
-To make legacy shim API codepaths (including capped COM activation) see v4.0:
+To make prior shim API codepaths (including capped COM activation) see v4.0:
 
 ```xml
 <?xml version="1.0"?>
 <configuration>
-  <startup useLegacyV2RuntimeActivationPolicy="true">
+  <startup usePriorV2RuntimeActivationPolicy="true">
     <supportedRuntime version="v4.0"/>
   </startup>
 </configuration>
 ```
 
-**`useLegacyV2RuntimeActivationPolicy="true"` is the key piece** — it tells the shim to treat all runtimes as candidates for legacy codepaths, lifting the Whidbey cap. The `<supportedRuntime>` element directs which version is chosen, but even without it, the attribute alone allows legacy APIs to enumerate v4.
+**`usePriorV2RuntimeActivationPolicy="true"` is the key piece** — it tells the shim to treat all runtimes as candidates for prior codepaths, lifting the Whidbey cap. The `<supportedRuntime>` element directs which version is chosen, but even without it, the attribute alone allows prior APIs to enumerate v4.
 
-Without `useLegacyV2RuntimeActivationPolicy`, rolling forward to v4 via `<supportedRuntime>` works fine for the primary EXE load (which uses the metahost path), but legacy codepaths (COM activation, P/Invoke to mscoree.h APIs, etc.) remain capped and will still look for v2.0.
+Without `usePriorV2RuntimeActivationPolicy`, rolling forward to v4 via `<supportedRuntime>` works fine for the primary EXE load (which uses the metahost path), but prior codepaths (COM activation, P/Invoke to mscoree.h APIs, etc.) remain capped and will still look for v2.0.
 
-**Trade-off:** Setting `useLegacyV2RuntimeActivationPolicy="true"` turns off in-proc SxS with pre-v4 runtimes. This is usually acceptable for build tools and utilities, but should be considered for applications that need to host both v2 and v4.
+**Trade-off:** Setting `usePriorV2RuntimeActivationPolicy="true"` turns off in-proc SxS with pre-v4 runtimes. This is usually acceptable for build tools and utilities, but should be considered for applications that need to host both v2 and v4.
 
 ## Environment Variables That Affect Activation
 

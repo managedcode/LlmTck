@@ -41,12 +41,12 @@ compatibility: "Requires a .NET solution or project with MSTest packages; respec
 1. Detect the MSTest project style first:
    - `MSTest.Sdk` project SDK
    - `MSTest` meta-package
-   - legacy package set with explicit `Microsoft.NET.Test.Sdk`
+   - prior package set with explicit `Microsoft.NET.Test.Sdk`
 2. Read the repo's real `test` command from `AGENTS.md`. If the repo has no explicit command yet, start with `dotnet test PROJECT_OR_SOLUTION`.
 3. Keep the runner model consistent:
    - `MSTest.Sdk` defaults to the MSTest runner on Microsoft.Testing.Platform
-   - VSTest is opt-in with `UseVSTest=true` or legacy package choices
-   - do not pass VSTest-only switches or assume legacy `.runsettings` behavior on Microsoft.Testing.Platform jobs
+   - VSTest is opt-in with `UseVSTest=true` or prior package choices
+   - do not pass VSTest-only switches or assume prior `.runsettings` behavior on Microsoft.Testing.Platform jobs
 4. Prefer `[DataRow]` or `DynamicData` for stable data-driven coverage. Keep test lifecycle hooks minimal and deterministic.
 5. Keep MSTest analyzers enabled and fix findings instead of muting them casually.
 6. Align coverage/reporting packages with the active runner.

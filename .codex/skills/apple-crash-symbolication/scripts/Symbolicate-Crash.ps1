@@ -585,7 +585,7 @@ if (-not (Test-Path $CrashFile)) {
 # Detect file format: .ips JSON (iOS 15+) vs older .crash text
 $firstLine = (Get-Content $CrashFile -TotalCount 1).Trim()
 if (-not $firstLine.StartsWith('{')) {
-    Write-Error "Unsupported crash log format. This script requires the .ips JSON format (iOS 15+). The file is not JSON — it may be a legacy .crash text format, an Android tombstone, or another non-.ips format."
+    Write-Error "Unsupported crash log format. This script requires the .ips JSON format (iOS 15+). The file is not JSON — it may be a prior .crash text format, an Android tombstone, or another non-.ips format."
     exit 1
 }
 

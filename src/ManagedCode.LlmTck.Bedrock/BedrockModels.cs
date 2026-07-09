@@ -34,6 +34,14 @@ public sealed record BedrockContentBlock
     [JsonPropertyName("document")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public JsonElement? Document { get; init; }
+
+    [JsonPropertyName("cachePoint")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public JsonElement? CachePoint { get; init; }
+
+    [JsonPropertyName("cache_control")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public JsonElement? CacheControl { get; init; }
 }
 
 public sealed record BedrockConverseResponse
@@ -67,6 +75,14 @@ public sealed record BedrockUsage
 
     [JsonPropertyName("totalTokens")]
     public int TotalTokens { get; init; }
+
+    [JsonPropertyName("cacheReadInputTokens")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public int CacheReadInputTokens { get; init; }
+
+    [JsonPropertyName("cacheWriteInputTokens")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public int CacheWriteInputTokens { get; init; }
 }
 
 public sealed record BedrockMetrics

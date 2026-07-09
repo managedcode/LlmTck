@@ -1,3 +1,4 @@
+using System.Text;
 using ManagedCode.LlmTck.Configuration;
 using ManagedCode.LlmTck.Models;
 using ManagedCode.LlmTck.Runtime;
@@ -114,6 +115,57 @@ public sealed class LlmTckRuntimeTests
         await Assert.That(summary.OutputTokens).IsEqualTo(visibleOutputTokens + reasoningTokens);
         await Assert.That(summary.ReasoningTokens).IsEqualTo(reasoningTokens);
         await Assert.That(summary.Events[0].Usage?.ReasoningTokens).IsEqualTo(reasoningTokens);
+    }
+
+    [Test]
+    public async Task CompleteChatAsync_TracksPromptCacheReadAndWriteTokensAsync()
+    {
+        var cacheableSystemPrompt = CreatePromptWithAtLeastTokens(1100);
+        var runtime = new LlmTckRuntime();
+        await runtime.ConfigureAsync(
+            new LlmTckConfigurationBuilder()
+                .AddChatScenario(
+                    "prompt-cache",
+                    scenario => scenario
+                        .ForModel(LlmTckKnownModelIds.Gpt41Mini)
+                        .WhenUserContains("cache turn")
+                        .Responds("first")
+                        .Responds("second")
+                )
+                .Build()
+        );
+
+        var first = await runtime.CompleteChatAsync(
+            CreateCacheRequest(cacheableSystemPrompt, "cache turn one")
+        );
+        var second = await runtime.CompleteChatAsync(
+            CreateCacheRequest(cacheableSystemPrompt, "cache turn two")
+        );
+
+        await Assert.That(first.IsSuccess).IsTrue();
+        await Assert.That(first.Usage.CachedInputTokens).IsEqualTo(0);
+        await Assert.That(first.Usage.CacheCreationInputTokens).IsGreaterThanOrEqualTo(1024);
+        await Assert.That(second.IsSuccess).IsTrue();
+        await Assert.That(second.Usage.CachedInputTokens).IsGreaterThanOrEqualTo(1024);
+        await Assert.That(second.Usage.CacheCreationInputTokens).IsEqualTo(0);
+        await Assert.That(second.Usage.TotalTokens)
+            .IsEqualTo(second.Usage.InputTokens + second.Usage.OutputTokens);
+
+        var summary = runtime.GetAssertionSummary();
+        await Assert.That(summary.CachedInputTokens).IsEqualTo(second.Usage.CachedInputTokens);
+        await Assert.That(summary.CacheCreationInputTokens)
+            .IsEqualTo(first.Usage.CacheCreationInputTokens);
+
+        await runtime.ResetAsync();
+
+        var afterReset = await runtime.CompleteChatAsync(
+            CreateCacheRequest(cacheableSystemPrompt, "cache turn one")
+        );
+
+        await Assert.That(afterReset.IsSuccess).IsTrue();
+        await Assert.That(afterReset.Usage.CachedInputTokens).IsEqualTo(0);
+        await Assert.That(afterReset.Usage.CacheCreationInputTokens)
+            .IsGreaterThanOrEqualTo(1024);
     }
 
     [Test]
@@ -622,6 +674,34 @@ public sealed class LlmTckRuntimeTests
         await Assert.That(result.IsSuccess).IsTrue();
         await Assert.That(result.Content).IsEqualTo("blue whale");
         await Assert.That(runtime.GetAssertionSummary().Matched).IsEqualTo(1);
+    }
+
+    private static LlmTckChatRequest CreateCacheRequest(
+        string systemPrompt,
+        string userPrompt
+    )
+    {
+        return new()
+        {
+            ModelId = LlmTckKnownModelIds.Gpt41Mini,
+            PromptCachePolicy = LlmTckPromptCachePolicy.OpenAiCompatible,
+            Messages =
+            [
+                new LlmTckMessage { Role = "system", Content = systemPrompt },
+                new LlmTckMessage { Role = "user", Content = userPrompt },
+            ],
+        };
+    }
+
+    private static string CreatePromptWithAtLeastTokens(int minimumTokens)
+    {
+        var builder = new StringBuilder("cacheable fixture");
+        while (LlmTckTokenCounter.CountTextTokens(builder.ToString()) < minimumTokens)
+        {
+            builder.Append(" stable-prefix");
+        }
+
+        return builder.ToString();
     }
 
     private static async Task AssertFaultAsync(

@@ -37,6 +37,7 @@ public static class GeminiWireMapper
         {
             ModelId = model,
             Stream = stream,
+            PromptCachePolicy = LlmTckPromptCachePolicy.Gemini,
             Messages = messages,
         };
     }
@@ -68,6 +69,7 @@ public static class GeminiWireMapper
             UsageMetadata = new GeminiUsageMetadata
             {
                 PromptTokenCount = result.Usage.InputTokens,
+                CachedContentTokenCount = result.Usage.CachedInputTokens,
                 CandidatesTokenCount = outputTokens,
                 TotalTokenCount = result.Usage.InputTokens + outputTokens,
             },
@@ -191,6 +193,7 @@ public static class GeminiWireMapper
         return new()
         {
             PromptTokenCount = usage.InputTokens,
+            CachedContentTokenCount = usage.CachedInputTokens,
             CandidatesTokenCount = usage.OutputTokens,
             TotalTokenCount = usage.TotalTokens,
         };

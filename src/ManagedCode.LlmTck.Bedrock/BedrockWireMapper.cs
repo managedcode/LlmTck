@@ -32,6 +32,9 @@ public static class BedrockWireMapper
         {
             ModelId = modelId,
             Stream = stream,
+            PromptCachePolicy = HasPromptCacheMarker(request)
+                ? LlmTckPromptCachePolicy.Bedrock
+                : LlmTckPromptCachePolicy.None,
             Messages = messages,
         };
     }
@@ -46,6 +49,9 @@ public static class BedrockWireMapper
         {
             ModelId = modelId,
             Stream = stream,
+            PromptCachePolicy = HasPromptCacheMarker(request)
+                ? LlmTckPromptCachePolicy.Bedrock
+                : LlmTckPromptCachePolicy.None,
             Messages =
             [
                 new LlmTckMessage
@@ -74,6 +80,8 @@ public static class BedrockWireMapper
                 InputTokens = result.Usage.InputTokens,
                 OutputTokens = result.Usage.OutputTokens,
                 TotalTokens = result.Usage.TotalTokens,
+                CacheReadInputTokens = result.Usage.CachedInputTokens,
+                CacheWriteInputTokens = result.Usage.CacheCreationInputTokens,
             },
         };
     }
@@ -164,10 +172,13 @@ public static class BedrockWireMapper
             metadata = new
             {
                 usage = new
+                BedrockUsage
                 {
-                    inputTokens = result.Usage.InputTokens,
-                    outputTokens = result.Usage.OutputTokens,
-                    totalTokens = result.Usage.TotalTokens,
+                    InputTokens = result.Usage.InputTokens,
+                    OutputTokens = result.Usage.OutputTokens,
+                    TotalTokens = result.Usage.TotalTokens,
+                    CacheReadInputTokens = result.Usage.CachedInputTokens,
+                    CacheWriteInputTokens = result.Usage.CacheCreationInputTokens,
                 },
                 metrics = new { latencyMs = 0 },
             },
@@ -224,6 +235,30 @@ public static class BedrockWireMapper
     public static string ReadText(IReadOnlyList<BedrockContentBlock> content)
     {
         return string.Concat(content.Select(block => block.Text).Where(text => text is not null));
+    }
+
+    private static bool HasPromptCacheMarker(BedrockConverseRequest request)
+    {
+        return request.System.Any(HasPromptCacheMarker)
+            || request.Messages.SelectMany(message => message.Content).Any(HasPromptCacheMarker);
+    }
+
+    private static bool HasPromptCacheMarker(BedrockContentBlock block)
+    {
+        return block.CachePoint is { ValueKind: not JsonValueKind.Undefined and not JsonValueKind.Null }
+            || block.CacheControl is { ValueKind: not JsonValueKind.Undefined and not JsonValueKind.Null };
+    }
+
+    private static bool HasPromptCacheMarker(JsonElement request)
+    {
+        return request.ValueKind switch
+        {
+            JsonValueKind.Object => request.TryGetProperty("cachePoint", out _)
+                || request.TryGetProperty("cache_control", out _)
+                || request.EnumerateObject().Any(property => HasPromptCacheMarker(property.Value)),
+            JsonValueKind.Array => request.EnumerateArray().Any(HasPromptCacheMarker),
+            _ => false,
+        };
     }
 
     private static string ReadMessageText(JsonElement message)

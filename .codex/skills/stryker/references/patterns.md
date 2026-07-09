@@ -36,7 +36,7 @@
 }
 ```
 
-#### Legacy Code Under Improvement
+#### Prior Code Under Improvement
 
 ```json
 {

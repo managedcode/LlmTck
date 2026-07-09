@@ -98,7 +98,7 @@ src/
 | `junit-jupiter-*` | JUnit 5 | `@Test`, `@ParameterizedTest`, `@BeforeEach`, `@DisplayName` |
 | `junit:junit:4.x` | JUnit 4 | `@Test`, `@Before`, `@RunWith(JUnitPlatform::class)` rare |
 | `io.kotest:kotest-runner-junit5` | Kotest | `class FooSpec : FunSpec({ test("...") { ... } })` (DSL — many styles: `StringSpec`, `BehaviorSpec`, etc.) |
-| `org.spekframework.spek2:spek-dsl-jvm` | Spek 2 | `object FooSpec : Spek({ describe(...) { it(...) {} } })` (legacy) |
+| `org.spekframework.spek2:spek-dsl-jvm` | Spek 2 | `object FooSpec : Spek({ describe(...) { it(...) {} } })` (prior) |
 
 For Kotest, **stick to the spec style the repo already uses** — mixing styles is confusing.
 

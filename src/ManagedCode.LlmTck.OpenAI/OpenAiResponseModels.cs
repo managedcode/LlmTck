@@ -16,6 +16,12 @@ public sealed record OpenAiResponseRequest
 
     [JsonPropertyName("stream")]
     public bool Stream { get; init; }
+
+    [JsonPropertyName("prompt_cache_key")]
+    public string? PromptCacheKey { get; init; }
+
+    [JsonPropertyName("session_id")]
+    public string? SessionId { get; init; }
 }
 
 public sealed record OpenAiResponse
@@ -83,9 +89,23 @@ public sealed record OpenAiResponseUsage
     [JsonPropertyName("total_tokens")]
     public int TotalTokens { get; init; }
 
+    [JsonPropertyName("input_tokens_details")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public OpenAiInputTokensDetails? InputTokensDetails { get; init; }
+
     [JsonPropertyName("output_tokens_details")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public OpenAiOutputTokensDetails? OutputTokensDetails { get; init; }
+}
+
+public sealed record OpenAiInputTokensDetails
+{
+    [JsonPropertyName("cached_tokens")]
+    public int CachedTokens { get; init; }
+
+    [JsonPropertyName("cache_write_tokens")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public int? CacheWriteTokens { get; init; }
 }
 
 public sealed record OpenAiOutputTokensDetails

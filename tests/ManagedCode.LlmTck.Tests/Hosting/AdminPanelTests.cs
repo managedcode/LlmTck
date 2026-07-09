@@ -9,7 +9,6 @@ namespace ManagedCode.LlmTck.Tests.Hosting;
 
 public sealed class AdminPanelTests
 {
-    private const string _forbiddenPackagePathSegment = "llm" + "-tck";
     private static readonly JsonSerializerOptions _jsonOptions = new(JsonSerializerDefaults.Web);
 
     [Test]
@@ -38,9 +37,14 @@ public sealed class AdminPanelTests
         await Assert.That(body).Contains("Grouped overview");
         await Assert.That(body).Contains("Calls / requests");
         await Assert.That(body).Contains("Responses");
+        await Assert.That(body).Contains("blazor.web.js");
+        await Assert.That(body).DoesNotContain("setInterval(refresh, 4000)");
+        await Assert.That(body).DoesNotContain("setTimeout(function ()");
+        await Assert.That(body).DoesNotContain("autoCountdown");
         await Assert.That(body).Contains("Total tokens");
+        await Assert.That(body).Contains("Cached input");
+        await Assert.That(body).Contains("Cache writes");
         await Assert.That(body).Contains("Reasoning tokens");
-        await Assert.That(body).Contains("tokens:");
         await Assert.That(body).Contains("/openai");
         await Assert.That(body).Contains("/azure-openai");
         await Assert.That(body).Contains("/anthropic");
@@ -77,71 +81,42 @@ public sealed class AdminPanelTests
             repositoryRoot,
             "src/ManagedCode.LlmTck.Hosting/LlmTckAdminPage.razor"
         );
+        var razorComponent = await File.ReadAllTextAsync(razorComponentPath);
+        var panelComponentPath = Path.Combine(
+            repositoryRoot,
+            "src/ManagedCode.LlmTck.Hosting/LlmTckAdminPanel.razor"
+        );
+        var panelComponent = await File.ReadAllTextAsync(panelComponentPath);
 
         await Assert.That(File.Exists(razorComponentPath)).IsTrue();
+        await Assert.That(File.Exists(panelComponentPath)).IsTrue();
         await Assert.That(hostingProject).Contains("Sdk=\"Microsoft.NET.Sdk.Razor\"");
-        await Assert.That(endpointSource).Contains("RazorComponentResult<LlmTckAdminPage>");
+        await Assert.That(endpointSource).Contains("MapRazorComponents<LlmTckAdminPage>");
+        await Assert.That(endpointSource).Contains("MapStaticAssets");
+        await Assert.That(endpointSource).Contains("StaticWebAssetsLoader.UseStaticWebAssets");
+        await Assert.That(endpointSource).Contains("AddInteractiveServerComponents");
+        await Assert.That(endpointSource).Contains("AddInteractiveServerRenderMode");
+        await Assert.That(endpointSource).Contains("DisableAntiforgery");
+        await Assert.That(razorComponent).Contains("@page \"/\"");
+        await Assert.That(razorComponent).Contains("InteractiveServerRenderMode");
+        await Assert.That(razorComponent).Contains("LlmTckAdminPanel");
+        await Assert.That(panelComponent).Contains("PeriodicTimer");
+        await Assert.That(panelComponent).Contains("StateHasChanged");
+        await Assert.That(panelComponent).Contains("tokens:");
+        await Assert.That(panelComponent).Contains("cache write");
+        await Assert.That(panelComponent).DoesNotContain("fetch(");
         await Assert.That(endpointSource.Contains("Results.Content(LlmTckAdminPage.Html", StringComparison.Ordinal))
             .IsFalse();
     }
 
     [Test]
-    public async Task ControlRoutes_DoNotUsePackageNameInUrlPathsAsync()
+    public async Task ControlRoutes_UseRootAndAdminApiPathsAsync()
     {
-        foreach (
-            var route in new[]
-            {
-                LlmTckControlRoutes.Admin,
-                LlmTckControlRoutes.Models,
-                LlmTckControlRoutes.Assertions,
-                LlmTckControlRoutes.Configure,
-                LlmTckControlRoutes.Reset,
-            }
-        )
-        {
-            await Assert.That(route.Contains(_forbiddenPackagePathSegment, StringComparison.OrdinalIgnoreCase))
-                .IsFalse();
-        }
-
-        await Assert.That(LlmTckControlRoutes.Models).StartsWith("/admin-api/");
-        await Assert.That(LlmTckControlRoutes.Assertions).StartsWith("/admin-api/");
-        await Assert.That(LlmTckControlRoutes.Configure).StartsWith("/admin-api/");
-        await Assert.That(LlmTckControlRoutes.Reset).StartsWith("/admin-api/");
-    }
-
-    [Test]
-    public async Task LegacyAndRejectedControlRoutes_AreNotMappedAsync()
-    {
-        using var host = await LlmTckTestHost.StartAsync();
-        using var client = host.GetTestClient();
-
-        var doubleUnderscoreAdminPath = $"/__{_forbiddenPackagePathSegment}";
-        var segmentedAdminPath = $"/admin/{_forbiddenPackagePathSegment}";
-        var doubleUnderscoreAdminPage = await client.GetAsync(doubleUnderscoreAdminPath);
-        var doubleUnderscoreModels = await client.GetAsync($"{doubleUnderscoreAdminPath}/models");
-        var doubleUnderscoreAssertions = await client.GetAsync($"{doubleUnderscoreAdminPath}/assertions");
-        var doubleUnderscoreReset = await client.PostAsync($"{doubleUnderscoreAdminPath}/reset", content: null);
-        var segmentedAdminPage = await client.GetAsync(segmentedAdminPath);
-        var segmentedModels = await client.GetAsync($"{segmentedAdminPath}/models");
-        var segmentedAssertions = await client.GetAsync($"{segmentedAdminPath}/assertions");
-        var segmentedReset = await client.PostAsync($"{segmentedAdminPath}/reset", content: null);
-        var plainAdminRoot = await client.GetAsync("/admin");
-        var plainAdminModels = await client.GetAsync("/admin/models");
-        var plainAdminAssertions = await client.GetAsync("/admin/assertions");
-        var plainAdminReset = await client.PostAsync("/admin/reset", content: null);
-
-        await Assert.That(doubleUnderscoreAdminPage.StatusCode).IsEqualTo(HttpStatusCode.NotFound);
-        await Assert.That(doubleUnderscoreModels.StatusCode).IsEqualTo(HttpStatusCode.NotFound);
-        await Assert.That(doubleUnderscoreAssertions.StatusCode).IsEqualTo(HttpStatusCode.NotFound);
-        await Assert.That(doubleUnderscoreReset.StatusCode).IsEqualTo(HttpStatusCode.NotFound);
-        await Assert.That(segmentedAdminPage.StatusCode).IsEqualTo(HttpStatusCode.NotFound);
-        await Assert.That(segmentedModels.StatusCode).IsEqualTo(HttpStatusCode.NotFound);
-        await Assert.That(segmentedAssertions.StatusCode).IsEqualTo(HttpStatusCode.NotFound);
-        await Assert.That(segmentedReset.StatusCode).IsEqualTo(HttpStatusCode.NotFound);
-        await Assert.That(plainAdminRoot.StatusCode).IsEqualTo(HttpStatusCode.NotFound);
-        await Assert.That(plainAdminModels.StatusCode).IsEqualTo(HttpStatusCode.NotFound);
-        await Assert.That(plainAdminAssertions.StatusCode).IsEqualTo(HttpStatusCode.NotFound);
-        await Assert.That(plainAdminReset.StatusCode).IsEqualTo(HttpStatusCode.NotFound);
+        await Assert.That(LlmTckControlRoutes.Admin).IsEqualTo("/");
+        await Assert.That(LlmTckControlRoutes.Models).IsEqualTo("/admin-api/models");
+        await Assert.That(LlmTckControlRoutes.Assertions).IsEqualTo("/admin-api/assertions");
+        await Assert.That(LlmTckControlRoutes.Configure).IsEqualTo("/admin-api/configure");
+        await Assert.That(LlmTckControlRoutes.Reset).IsEqualTo("/admin-api/reset");
     }
 
     [Test]

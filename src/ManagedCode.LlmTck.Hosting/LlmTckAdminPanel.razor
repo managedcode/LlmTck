@@ -1,0 +1,479 @@
+@namespace ManagedCode.LlmTck.Hosting
+@using ManagedCode.LlmTck.Control
+@using ManagedCode.LlmTck.Models
+@using ManagedCode.LlmTck.Providers
+@using ManagedCode.LlmTck.Runtime
+@implements IAsyncDisposable
+@inject ILlmTckRuntime Runtime
+
+<div class="wrap">
+  <header class="bar">
+    <div class="logo"><b>LLM&nbsp;TCK</b><span>Control panel</span></div>
+    <div class="@StatusCss"><span class="dot"></span><span>@_statusText</span></div>
+  </header>
+
+  <div class="toolbar">
+    <div class="field">
+      <label for="token">Bearer token <span style="opacity:.7">(only if the server requires one)</span></label>
+      <input id="token" type="password" placeholder="leave empty when no token is configured" autocomplete="off" spellcheck="false" @bind="_bearerToken" @bind:event="oninput">
+    </div>
+    <div class="btns">
+      <button class="primary" type="button" @onclick="RefreshAsync">Refresh</button>
+      <button class="danger" type="button" disabled="@_resetting" @onclick="ResetAsync">@(_resetting ? "Resetting..." : "Reset runtime")</button>
+      <label class="toggle"><input type="checkbox" checked="@_autoRefresh" @onchange="SetAutoRefreshAsync"> auto</label>
+    </div>
+  </div>
+
+  <div class="@BannerCss"><span>@_bannerText</span></div>
+
+  <section class="stats">
+    @foreach (var stat in GetStats())
+    {
+      <article class="stat" style="@($"--accent: {stat.Accent}")">
+        <div class="k">@stat.Label</div>
+        <div class="v">@stat.Value</div>
+      </article>
+    }
+  </section>
+
+  <main class="workbench">
+    <section class="panel fixtures-panel">
+      <h2>Fixtures / models <span class="count">@_models.Count</span></h2>
+      <div class="body">
+        @if (_models.Count == 0)
+        {
+          <div class="empty">No models loaded.</div>
+        }
+        else
+        {
+          <table>
+            <thead><tr><th>Id</th><th>Kind</th><th>Owned by</th></tr></thead>
+            <tbody>
+            @foreach (var model in _models)
+            {
+              <tr>
+                <td><span class="mono">@model.Id</span></td>
+                <td><span class="@KindTagCss(model.Kind)">@model.Kind</span></td>
+                <td class="mono" style="color:var(--muted)">@model.OwnedBy</td>
+              </tr>
+            }
+            </tbody>
+          </table>
+        }
+      </div>
+    </section>
+    <section class="panel actions-panel">
+      <h2>Actions <span class="count">4</span></h2>
+      <div class="body">
+        <ul class="static-list">
+          <li class="static-row">
+            <span class="method method-get">GET</span>
+            <span><span class="action-name">Refresh state</span><span class="action-detail">Load models and assertion summary.</span></span>
+          </li>
+          <li class="static-row">
+            <span class="method method-post">POST</span>
+            <span><span class="action-name">Reset runtime</span><span class="action-detail">@LlmTckControlRoutes.Reset clears scenario positions and events.</span></span>
+          </li>
+          <li class="static-row">
+            <span class="method method-post">POST</span>
+            <span><span class="action-name">Configure runtime</span><span class="action-detail">@LlmTckControlRoutes.Configure replaces models, scenarios, fixtures, auth, and scripted errors.</span></span>
+          </li>
+          <li class="static-row">
+            <span class="method method-get">AUTH</span>
+            <span><span class="action-name">Bearer token</span><span class="action-detail">Optional bearer token is checked before server-side state operations.</span></span>
+          </li>
+        </ul>
+      </div>
+    </section>
+    <section class="panel api-panel">
+      <h2>API endpoints <span class="count">17</span></h2>
+      <div class="body">
+        <section class="group-section">
+          <div class="group-title">Control API</div>
+          <ul class="static-list">
+            <li class="static-row"><span class="method method-get">GET</span><span class="static-value">@LlmTckControlRoutes.Models</span></li>
+            <li class="static-row"><span class="method method-get">GET</span><span class="static-value">@LlmTckControlRoutes.Assertions</span></li>
+            <li class="static-row"><span class="method method-post">POST</span><span class="static-value">@LlmTckControlRoutes.Configure</span></li>
+            <li class="static-row"><span class="method method-post">POST</span><span class="static-value">@LlmTckControlRoutes.Reset</span></li>
+          </ul>
+        </section>
+        <section class="group-section">
+          <div class="group-title">Provider APIs</div>
+          <ul class="static-list">
+            <li class="static-row"><span class="static-key">OpenAI</span><span class="static-value">@LlmTckProviderRouteNamespaces.OpenAI</span></li>
+            <li class="static-row"><span class="static-key">Azure OpenAI</span><span class="static-value">@LlmTckProviderRouteNamespaces.AzureOpenAI</span></li>
+            <li class="static-row"><span class="static-key">Foundry</span><span class="static-value">@LlmTckProviderRouteNamespaces.MicrosoftFoundry</span></li>
+            <li class="static-row"><span class="static-key">Anthropic</span><span class="static-value">@LlmTckProviderRouteNamespaces.Anthropic</span></li>
+            <li class="static-row"><span class="static-key">Gemini</span><span class="static-value">@LlmTckProviderRouteNamespaces.Gemini</span></li>
+            <li class="static-row"><span class="static-key">Groq</span><span class="static-value">@LlmTckProviderRouteNamespaces.Groq</span></li>
+            <li class="static-row"><span class="static-key">Mistral</span><span class="static-value">@LlmTckProviderRouteNamespaces.Mistral</span></li>
+            <li class="static-row"><span class="static-key">Ollama</span><span class="static-value">@LlmTckProviderRouteNamespaces.Ollama</span></li>
+            <li class="static-row"><span class="static-key">Cohere</span><span class="static-value">@LlmTckProviderRouteNamespaces.Cohere</span></li>
+            <li class="static-row"><span class="static-key">Bedrock</span><span class="static-value">@LlmTckProviderRouteNamespaces.Bedrock</span></li>
+            <li class="static-row"><span class="static-key">OpenRouter</span><span class="static-value">@LlmTckProviderRouteNamespaces.OpenRouter</span></li>
+            <li class="static-row"><span class="static-key">DeepSeek</span><span class="static-value">@LlmTckProviderRouteNamespaces.DeepSeek</span></li>
+            <li class="static-row"><span class="static-key">Perplexity</span><span class="static-value">@LlmTckProviderRouteNamespaces.Perplexity</span></li>
+          </ul>
+        </section>
+      </div>
+    </section>
+    <section class="panel groups-panel">
+      <h2>Grouped overview <span class="count">@GroupCount</span></h2>
+      <div class="body">
+        @if (Events.Count == 0)
+        {
+          <div class="empty">No events to group yet.</div>
+        }
+        else
+        {
+          @RenderGroupSection("By event kind", GroupEvents(e => e.Kind.ToString()))
+          @RenderGroupSection("By model", GroupEvents(e => string.IsNullOrWhiteSpace(e.ModelId) ? "-" : e.ModelId))
+          @RenderGroupSection("By scenario", GroupEvents(e => string.IsNullOrWhiteSpace(e.ScenarioId) ? "No scenario" : e.ScenarioId!))
+        }
+      </div>
+    </section>
+    <section class="panel requests-panel">
+      <h2>Calls / requests <span class="count">@RequestEvents.Count</span></h2>
+      <div class="panel-hint">Every captured provider call request, newest first.</div>
+      <div class="body">@RenderIoList(RequestEvents, e => e.Request, "No captured requests yet.")</div>
+    </section>
+    <section class="panel responses-panel">
+      <h2>Responses <span class="count">@ResponseEvents.Count</span></h2>
+      <div class="panel-hint">Every deterministic runtime response or error text, newest first.</div>
+      <div class="body">@RenderIoList(ResponseEvents, e => e.Response, "No captured responses yet.")</div>
+    </section>
+    <section class="panel events-panel">
+      <h2>Runtime events <span class="count">@Events.Count</span></h2>
+      <div class="body">
+        <ul class="events">
+          @if (Events.Count == 0)
+          {
+            <li class="empty">No runtime events yet.</li>
+          }
+          else
+          {
+            @foreach (var item in IndexedEventsNewestFirst)
+            {
+              <li>
+                <time>@RelativeTime(item.Event.Timestamp)</time>
+                <span class="@EventTagCss(item.Event.Kind)">@item.Event.Kind</span>
+                <div class="msg">@item.Event.Message</div>
+                <div class="meta">@EventMeta(item.Event)</div>
+              </li>
+            }
+          }
+        </ul>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    Served by <code>MapLlmTck()</code> · data from <code>@LlmTckControlRoutes.Models</code> and <code>@LlmTckControlRoutes.Assertions</code>
+  </footer>
+</div>
+
+@code {
+    private static readonly TimeSpan _autoRefreshInterval = TimeSpan.FromSeconds(15);
+
+    private IReadOnlyList<LlmTckModel> _models = [];
+    private LlmTckAssertionSummary? _summary;
+    private string _bearerToken = string.Empty;
+    private bool _autoRefresh = true;
+    private bool _resetting;
+    private string _statusText = "Connecting...";
+    private string _statusClass = string.Empty;
+    private string? _bannerKind;
+    private string? _bannerText;
+    private CancellationTokenSource? _autoRefreshCancellation;
+
+    private string StatusCss => string.IsNullOrEmpty(_statusClass) ? "pill" : $"pill {_statusClass}";
+    private string BannerCss => string.IsNullOrWhiteSpace(_bannerText) ? "banner" : $"banner show {_bannerKind}";
+    private IReadOnlyList<LlmTckRuntimeEvent> Events => _summary?.Events ?? [];
+    private IReadOnlyList<IndexedEvent> IndexedEventsNewestFirst => Events.Select((e, i) => new IndexedEvent(e, i + 1)).Reverse().ToList();
+    private IReadOnlyList<IndexedEvent> RequestEvents => IndexedEventsNewestFirst.Where(e => !string.IsNullOrEmpty(e.Event.Request)).ToList();
+    private IReadOnlyList<IndexedEvent> ResponseEvents => IndexedEventsNewestFirst.Where(e => !string.IsNullOrEmpty(e.Event.Response)).ToList();
+    private int GroupCount => Events.Count == 0 ? 0 : GroupEvents(e => e.Kind.ToString()).Count + GroupEvents(e => string.IsNullOrWhiteSpace(e.ModelId) ? "-" : e.ModelId).Count + GroupEvents(e => string.IsNullOrWhiteSpace(e.ScenarioId) ? "No scenario" : e.ScenarioId!).Count;
+    private string? AccessToken => string.IsNullOrWhiteSpace(_bearerToken) ? null : _bearerToken.Trim();
+
+    protected override void OnInitialized()
+    {
+        RefreshState();
+    }
+
+    protected override Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            StartAutoRefresh();
+        }
+
+        return Task.CompletedTask;
+    }
+
+    private Task RefreshAsync()
+    {
+        RefreshState();
+        return Task.CompletedTask;
+    }
+
+    private async Task ResetAsync()
+    {
+        if (!Runtime.IsBearerTokenAccepted(AccessToken))
+        {
+            SetUnauthorizedState();
+            return;
+        }
+
+        _resetting = true;
+        try
+        {
+            await Runtime.ResetAsync().ConfigureAwait(false);
+            RefreshState();
+            SetBanner("warn", "Runtime reset - scenario positions and events cleared.");
+        }
+        catch (Exception ex)
+        {
+            _statusClass = "err";
+            _statusText = "Server error";
+            SetBanner("err", $"Reset failed: {ex.Message}");
+        }
+        finally
+        {
+            _resetting = false;
+        }
+    }
+
+    private Task SetAutoRefreshAsync(ChangeEventArgs args)
+    {
+        _autoRefresh = args.Value is true || string.Equals(args.Value?.ToString(), "true", StringComparison.OrdinalIgnoreCase);
+        if (_autoRefresh)
+        {
+            StartAutoRefresh();
+        }
+        else
+        {
+            StopAutoRefresh();
+        }
+
+        return Task.CompletedTask;
+    }
+
+    private void RefreshState()
+    {
+        _statusText = "Loading...";
+        if (!Runtime.IsBearerTokenAccepted(AccessToken))
+        {
+            SetUnauthorizedState();
+            return;
+        }
+
+        _models = Runtime.GetModels();
+        _summary = Runtime.GetAssertionSummary();
+        _statusClass = "ok";
+        _statusText = "Ready";
+        ClearBanner();
+    }
+
+    private void SetUnauthorizedState()
+    {
+        _models = [];
+        _summary = null;
+        _statusClass = "err";
+        _statusText = "Unauthorized";
+        SetBanner("err", "The configured bearer token is required before the admin panel can load runtime state.");
+    }
+
+    private void StartAutoRefresh()
+    {
+        StopAutoRefresh();
+        if (!_autoRefresh)
+        {
+            return;
+        }
+
+        var cancellation = new CancellationTokenSource();
+        _autoRefreshCancellation = cancellation;
+        _ = RunAutoRefreshAsync(cancellation.Token);
+    }
+
+    private void StopAutoRefresh()
+    {
+        var cancellation = _autoRefreshCancellation;
+        _autoRefreshCancellation = null;
+        if (cancellation is null)
+        {
+            return;
+        }
+
+        cancellation.Cancel();
+        cancellation.Dispose();
+    }
+
+    private async Task RunAutoRefreshAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            using var timer = new PeriodicTimer(_autoRefreshInterval);
+            while (await timer.WaitForNextTickAsync(cancellationToken).ConfigureAwait(false))
+            {
+                await InvokeAsync(() =>
+                {
+                    RefreshState();
+                    StateHasChanged();
+                });
+            }
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+        }
+        catch (ObjectDisposedException) when (cancellationToken.IsCancellationRequested)
+        {
+        }
+    }
+
+    private void SetBanner(string kind, string text)
+    {
+        _bannerKind = kind;
+        _bannerText = text;
+    }
+
+    private void ClearBanner()
+    {
+        _bannerKind = null;
+        _bannerText = null;
+    }
+
+    private IReadOnlyList<StatCard> GetStats()
+    {
+        var summary = _summary ?? new LlmTckAssertionSummary();
+        return
+        [
+            new("Total events", summary.TotalEvents, "var(--text)"),
+            new("Total tokens", summary.TotalTokens, "var(--teal)"),
+            new("Input tokens", summary.InputTokens, "var(--blue)"),
+            new("Cached input", summary.CachedInputTokens, "var(--blue)"),
+            new("Cache writes", summary.CacheCreationInputTokens, "var(--blue)"),
+            new("Output tokens", summary.OutputTokens, "var(--green)"),
+            new("Reasoning tokens", summary.ReasoningTokens, "var(--amber)"),
+            new("Matched", summary.Matched, "var(--green)"),
+            new("Unmatched", summary.Unmatched, "var(--amber)"),
+            new("Model not found", summary.ModelNotFound, "var(--blue)"),
+            new("Auth failed", summary.AuthFailed, "var(--red)"),
+            new("Scenario exhausted", summary.ScenarioExhausted, "var(--amber)"),
+            new("Errors returned", summary.ErrorsReturned, "var(--red)"),
+        ];
+    }
+
+    private IReadOnlyList<GroupRow> GroupEvents(Func<LlmTckRuntimeEvent, string> selector)
+    {
+        return Events
+            .GroupBy(selector)
+            .OrderByDescending(group => group.Count())
+            .ThenBy(group => group.Key, StringComparer.Ordinal)
+            .Select(group => new GroupRow(group.Key, group.Count()))
+            .ToList();
+    }
+
+    private static string KindTagCss(LlmTckModelKind kind)
+    {
+        return $"tag kind-{Slug(kind.ToString())}";
+    }
+
+    private static string EventTagCss(LlmTckEventKind kind)
+    {
+        return $"tag ev-{Slug(kind.ToString())}";
+    }
+
+    private static string Slug(string value)
+    {
+        return new string(value.ToLowerInvariant().Where(char.IsLetterOrDigit).ToArray());
+    }
+
+    private static string RelativeTime(DateTimeOffset timestamp)
+    {
+        var delta = DateTimeOffset.UtcNow - timestamp.ToUniversalTime();
+        if (delta.TotalSeconds < 60)
+        {
+            return $"{Math.Max(0, (int)delta.TotalSeconds)}s ago";
+        }
+
+        if (delta.TotalMinutes < 60)
+        {
+            return $"{(int)delta.TotalMinutes}m ago";
+        }
+
+        return timestamp.ToLocalTime().ToString("HH:mm:ss");
+    }
+
+    private static string EventMeta(LlmTckRuntimeEvent runtimeEvent)
+    {
+        var meta = new List<string> { $"model: {Empty(runtimeEvent.ModelId)}" };
+        if (!string.IsNullOrWhiteSpace(runtimeEvent.ScenarioId))
+        {
+            meta.Add($"scenario: {runtimeEvent.ScenarioId}");
+        }
+
+        if (runtimeEvent.Usage is not null)
+        {
+            meta.Add(FormatUsage(runtimeEvent.Usage));
+        }
+
+        return string.Join(" · ", meta);
+    }
+
+    private static string FormatUsage(LlmTckTokenUsage usage)
+    {
+        return $"tokens: {usage.InputTokens} in / {usage.OutputTokens} out / {usage.ReasoningTokens} reasoning / {usage.TotalTokens} total / {usage.CachedInputTokens} cache read / {usage.CacheCreationInputTokens} cache write";
+    }
+
+    private static string Empty(string? value)
+    {
+        return string.IsNullOrWhiteSpace(value) ? "-" : value;
+    }
+
+    private RenderFragment RenderGroupSection(string title, IReadOnlyList<GroupRow> rows) => @<section class="group-section">
+        <div class="group-title">@title</div>
+        @foreach (var row in rows)
+        {
+          <div class="metric-row">
+            <span class="metric-name">@row.Name</span>
+            <span class="metric-count">@row.Count</span>
+          </div>
+        }
+      </section>;
+
+    private RenderFragment RenderIoList(IReadOnlyList<IndexedEvent> rows, Func<LlmTckRuntimeEvent, string?> selector, string emptyText) => @<text>
+        @if (rows.Count == 0)
+        {
+          <div class="empty">@emptyText</div>
+        }
+        else
+        {
+          <ul class="item-list">
+          @foreach (var row in rows)
+          {
+            <li class="item">
+              <div class="item-head">
+                <span class="item-title">#@row.Number</span>
+                <span class="@EventTagCss(row.Event.Kind)">@row.Event.Kind</span>
+              </div>
+              <pre class="prebox">@selector(row.Event)</pre>
+              <div class="kv">@EventMeta(row.Event)</div>
+            </li>
+          }
+          </ul>
+        }
+      </text>;
+
+    public ValueTask DisposeAsync()
+    {
+        StopAutoRefresh();
+        return ValueTask.CompletedTask;
+    }
+
+    private sealed record StatCard(string Label, int Value, string Accent);
+
+    private sealed record GroupRow(string Name, int Count);
+
+    private sealed record IndexedEvent(LlmTckRuntimeEvent Event, int Number);
+}

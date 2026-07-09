@@ -106,7 +106,7 @@ Uses gitignore-style patterns:
 **/Migrations/
 
 # Ignore specific files
-src/Legacy/OldCode.cs
+src/Older/OldCode.cs
 
 # Ignore test fixtures
 tests/Fixtures/**/*.cs

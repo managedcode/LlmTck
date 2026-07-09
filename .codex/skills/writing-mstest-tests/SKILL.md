@@ -383,7 +383,7 @@ When asked to "fix MSTESTxxxx", look it up in the table of common diagnostics be
 | MSTEST0032 | Always-true assert condition | Remove or correct the assertion |
 | MSTEST0037 | Sub-optimal assert (`IsTrue(x == null)`) | Use the specific assert (`Assert.IsNull`, `HasCount`, etc.) (Step 3) |
 | MSTEST0038 | `Assert.AreSame` on value types | Use `Assert.AreEqual` (value types box to distinct references) |
-| MSTEST0039 | Legacy `Assert.ThrowsException` | Use `Assert.Throws` / `Assert.ThrowsExactly` (+ `Async` variants) |
+| MSTEST0039 | Prior `Assert.ThrowsException` | Use `Assert.Throws` / `Assert.ThrowsExactly` (+ `Async` variants) |
 | MSTEST0044 | `[DataTestMethod]` used | Replace with `[TestMethod]` (it now supports data rows) |
 | MSTEST0046 | `StringAssert` used | Use the equivalent `Assert` method (`Assert.Contains`, `StartsWith`, ...) |
 | MSTEST0052 | Explicit `DynamicDataSourceType` | Drop it — the source type is inferred |

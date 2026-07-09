@@ -122,7 +122,7 @@ Only switch to `auto-edit` mode when the project already follows one of these co
 - **Snapshot tests** count as assertions — but flag stale or always-passing snapshots (no `expect.assertions(n)` and only `toMatchSnapshot`).
 - **`expect.assertions(n)`** is a useful guardrail; tests using it lock in assertion count.
 - **Implicit assertion via mock matchers**: `expect(mock).toHaveBeenCalled()` is a valid assertion — do not treat as assertion-free.
-- **Done callbacks** in Mocha-style tests (`it('x', (done) => { ... done(); })`) are legacy; absence of `done()` call in a callback test is a silent pass.
+- **Done callbacks** in Mocha-style tests (`it('x', (done) => { ... done(); })`) are prior; absence of `done()` call in a callback test is a silent pass.
 - **`xit`/`xdescribe`** are commits of disabled tests — flag like `[Ignore]`.
 - **`.only`** committed to source is a critical smell — silently disables the rest of the file/suite.
 - **describe.each / test.each** are parametrized; not duplicate tests.

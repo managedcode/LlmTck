@@ -22,7 +22,7 @@ Diagnose .NET Framework runtime activation issues by analyzing CLR activation lo
 - FOD dialogs are expected but do NOT appear
 - Both CLR v2 and CLR v4 load into the same process, causing failures
 - A COM object fails to activate because the shim can't resolve the runtime
-- Legacy hosting APIs (CorBindToRuntime) bind to an unexpected version
+- Prior hosting APIs (CorBindToRuntime) bind to an unexpected version
 
 ## When Not to Use
 
@@ -35,7 +35,7 @@ Diagnose .NET Framework runtime activation issues by analyzing CLR activation lo
 ### The Shim Architecture
 
 The .NET Framework shim has two layers:
-- **mscoree.dll** (the "shell shim") — the public-facing DLL that is the registered `InprocServer32` for CLR-hosted COM objects and the entry point for `_CorExeMain`, legacy APIs, etc.
+- **mscoree.dll** (the "shell shim") — the public-facing DLL that is the registered `InprocServer32` for CLR-hosted COM objects and the entry point for `_CorExeMain`, prior APIs, etc.
 - **mscoreei.dll** — the actual shim implementation where the runtime selection logic, logging, and activation decisions live. mscoree.dll forwards into mscoreei.dll.
 
 When reading logs, the `caller-name:mscoreei.dll` in FOD command lines reflects this — it's mscoreei.dll doing the work.
@@ -54,11 +54,11 @@ When the shim fails, it returns specific HRESULTs in the `0x8013xxxx` range. The
 
 | HRESULT | Symbol | Meaning |
 |---------|--------|---------|
-| `0x80131700` | `CLR_E_SHIM_RUNTIMELOAD` | Cannot find or load a suitable runtime version. **This is the most common shim error** — it's what callers see when capped legacy activation fails on a v4-only machine. |
+| `0x80131700` | `CLR_E_SHIM_RUNTIMELOAD` | Cannot find or load a suitable runtime version. **This is the most common shim error** — it's what callers see when capped prior activation fails on a v4-only machine. |
 | `0x80131701` | `CLR_E_SHIM_RUNTIMEEXPORT` | Found a runtime but failed to get a required export or interface from it. |
 | `0x80131702` | `CLR_E_SHIM_INSTALLROOT` | The .NET Framework install root is missing or invalid in the registry. |
 | `0x80131703` | `CLR_E_SHIM_INSTALLCOMP` | A required component of the installation is missing. |
-| `0x80131704` | `CLR_E_SHIM_LEGACYRUNTIMEALREADYBOUND` | A different runtime is already bound as the legacy runtime. A legacy API tried to bind to a version that conflicts with the one already chosen. |
+| `0x80131704` | `CLR_E_SHIM_PRIORRUNTIMEALREADYBOUND` | A different runtime is already bound as the prior runtime. A prior API tried to bind to a version that conflicts with the one already chosen. |
 | `0x80131705` | `CLR_E_SHIM_SHUTDOWNINPROGRESS` | The shim is shutting down and cannot service the request. |
 
 If a user reports one of these HRESULTs (especially `0x80131700`), CLR activation logs are the right diagnostic tool.
@@ -144,19 +144,19 @@ The first `FunctionCall:` or `MethodCall:` line tells you how activation was tri
 | `_CorExeMain` | Managed EXE launch — the binary IS a .NET assembly |
 | `DllGetClassObject. Clsid: {guid}` | COM activation — something CoCreated a COM class routed through mscoree.dll |
 | `ClrCreateInstance` | Modern (v4+) hosting API |
-| `CorBindToRuntimeEx` | Legacy (v1/v2) hosting API — binds the process to one runtime |
+| `CorBindToRuntimeEx` | Prior (v1/v2) hosting API — binds the process to one runtime |
 | `ICLRMetaHostPolicy::GetRequestedRuntime` | Policy-based hosting API (often called internally after other entry points) |
-| `LoadLibraryShim` | Legacy API to load a framework DLL by name |
+| `LoadLibraryShim` | Prior API to load a framework DLL by name |
 
 #### 3b. Input Parameters
 
 Immediately after the entry point, the log dumps the version computation inputs:
 
-- **`IsLegacyBind`**: Is this a legacy (pre-v4) activation path? If 1, the shim uses the single-runtime "legacy" view of the world. Legacy APIs (`CorBindToRuntimeEx`, `DllGetClassObject` for legacy COM, `LoadLibraryShim`, etc.) set this.
-- **`IsCapped`**: If 1, the shim's roll-forward semantics are capped at Whidbey (v2.0.50727) — it will NOT consider v4.0+ when enumerating installed runtimes. This is the mechanism that makes v4 installation non-impactful: legacy codepaths continue to behave as if v4 doesn't exist. On a v4-only machine with no .NET 3.5, a capped enumeration sees **no runtimes at all**. Capping does NOT prevent loading v4+ if a specific v4 version string is explicitly provided (e.g., via `CorBindToRuntimeEx("v4.0.30319", ...)` or via config with `useLegacyV2RuntimeActivationPolicy`).
+- **`IsPriorBind`**: Is this a prior (pre-v4) activation path? If 1, the shim uses the single-runtime "prior" view of the world. Prior APIs (`CorBindToRuntimeEx`, `DllGetClassObject` for prior COM, `LoadLibraryShim`, etc.) set this.
+- **`IsCapped`**: If 1, the shim's roll-forward semantics are capped at Whidbey (v2.0.50727) — it will NOT consider v4.0+ when enumerating installed runtimes. This is the mechanism that makes v4 installation non-impactful: prior codepaths continue to behave as if v4 doesn't exist. On a v4-only machine with no .NET 3.5, a capped enumeration sees **no runtimes at all**. Capping does NOT prevent loading v4+ if a specific v4 version string is explicitly provided (e.g., via `CorBindToRuntimeEx("v4.0.30319", ...)` or via config with `usePriorV2RuntimeActivationPolicy`).
 - **`SkuCheckFlags`**: Controls SKU (edition) compatibility checking.
 - **`ShouldEmulateExeLaunch`**: Whether to pretend this is an EXE launch for policy purposes.
-- **`LegacyBindRequired`**: Whether a legacy bind is strictly required.
+- **`PriorBindRequired`**: Whether a prior bind is strictly required.
 
 #### 3c. Config File Processing
 
@@ -166,10 +166,10 @@ Look for config file parsing results:
 - `Config File (Open). Result:00000000` — config file found and opened successfully
 - `Config File (Open). Result:80070002` — **config file not found** (HRESULT for ERROR_FILE_NOT_FOUND)
 - `Found config file: {path}` — config was successfully read
-- `UseLegacyV2RuntimeActivationPolicy is set to {0|1}` — whether `<startup useLegacyV2RuntimeActivationPolicy="true">` is present. When 1, all runtimes are treated as candidates for legacy codepaths — meaning legacy shim APIs can enumerate and choose v4+. This can be used with multiple `<supportedRuntime>` entries, with other config options, or even with no `<supportedRuntime>` entries at all (in which case legacy APIs can simply enumerate v4). **Side effect:** turns off in-proc SxS with pre-v4 runtimes — locks them out of the process.
+- `UsePriorV2RuntimeActivationPolicy is set to {0|1}` — whether `<startup usePriorV2RuntimeActivationPolicy="true">` is present. When 1, all runtimes are treated as candidates for prior codepaths — meaning prior shim APIs can enumerate and choose v4+. This can be used with multiple `<supportedRuntime>` entries, with other config options, or even with no `<supportedRuntime>` entries at all (in which case prior APIs can simply enumerate v4). **Side effect:** turns off in-proc SxS with pre-v4 runtimes — locks them out of the process.
 - `Config file includes SupportedRuntime entry. Version: vX.Y.Z, SKU: {sku}` — each `<supportedRuntime>` found in config
 
-**Key insight:** If a process has no config file AND is doing a capped legacy bind, the shim has nothing to direct it to v4.0. It will enumerate installed runtimes (capped to ≤v2.0), find nothing if 3.5 isn't installed, and fail. This is by design — v4 is intentionally invisible to these codepaths to keep v4 installation non-impactful.
+**Key insight:** If a process has no config file AND is doing a capped prior bind, the shim has nothing to direct it to v4.0. It will enumerate installed runtimes (capped to ≤v2.0), find nothing if 3.5 isn't installed, and fail. This is by design — v4 is intentionally invisible to these codepaths to keep v4 installation non-impactful.
 
 #### 3d. Version Resolution
 
@@ -198,9 +198,9 @@ If version resolution fails:
 A single log can contain multiple activation sequences. Each begins with a new `FunctionCall:` or `MethodCall:` entry. A common pattern:
 
 1. First activation via `ClrCreateInstance` / `GetRequestedRuntime` → succeeds (loads v4.0 via config)
-2. Second activation via `DllGetClassObject` (COM) → legacy bind, capped → fails
+2. Second activation via `DllGetClassObject` (COM) → prior bind, capped → fails
 
-This happens when a native EXE (like link.exe or mt.exe) loads the CLR successfully for its primary work, then a secondary COM activation request (e.g., for diasymreader) triggers a separate legacy resolution that can't find v2.0.
+This happens when a native EXE (like link.exe or mt.exe) loads the CLR successfully for its primary work, then a secondary COM activation request (e.g., for diasymreader) triggers a separate prior resolution that can't find v2.0.
 
 ### Step 4: Check System State (if needed)
 
@@ -247,9 +247,9 @@ Produce a clear diagnosis covering:
 
 **Pattern:** `DllGetClassObject` → `IsCapped: 1` → no config file → `(null)` → `SEM_FAILCRITICALERRORS: 0` → FOD launched
 
-**Root cause:** A native EXE is doing COM activation of a CLSID registered under mscoree.dll. This takes the legacy codepath, which is capped at v2.0. With no config file (and no `useLegacyV2RuntimeActivationPolicy`), v4 is invisible to this codepath. On a machine without .NET 3.5, there are no runtimes visible, and with `SEM_FAILCRITICALERRORS` not set, the FOD dialog fires.
+**Root cause:** A native EXE is doing COM activation of a CLSID registered under mscoree.dll. This takes the prior codepath, which is capped at v2.0. With no config file (and no `usePriorV2RuntimeActivationPolicy`), v4 is invisible to this codepath. On a machine without .NET 3.5, there are no runtimes visible, and with `SEM_FAILCRITICALERRORS` not set, the FOD dialog fires.
 
-**Key question:** Why did `SEM_FAILCRITICALERRORS` change? It's inherited from the parent. Different launch methods (script vs. direct invocation, different build systems) produce different error modes. The underlying capped-legacy-bind-on-v4-only-machine failure is always there — it's just that `SEM_FAILCRITICALERRORS` controls whether it manifests as a visible dialog or a silent failure.
+**Key question:** Why did `SEM_FAILCRITICALERRORS` change? It's inherited from the parent. Different launch methods (script vs. direct invocation, different build systems) produce different error modes. The underlying capped-prior-bind-on-v4-only-machine failure is always there — it's just that `SEM_FAILCRITICALERRORS` controls whether it manifests as a visible dialog or a silent failure.
 
 ### Wrong Runtime Selected
 
@@ -263,23 +263,23 @@ Produce a clear diagnosis covering:
 
 **Key insight:** Look for separate `Decided on runtime` lines with different versions in the same log file.
 
-### Legacy Runtime Already Bound
+### Prior Runtime Already Bound
 
-**Pattern:** A legacy codepath succeeds early in the process (e.g., `CorBindToRuntimeEx` with an explicit v4 version, or config with `useLegacyV2RuntimeActivationPolicy`). This sets the legacy runtime to v4.0. All subsequent legacy activations — including capped COM activations that would otherwise fail — silently succeed by reusing the already-bound legacy runtime.
+**Pattern:** A prior codepath succeeds early in the process (e.g., `CorBindToRuntimeEx` with an explicit v4 version, or config with `usePriorV2RuntimeActivationPolicy`). This sets the prior runtime to v4.0. All subsequent prior activations — including capped COM activations that would otherwise fail — silently succeed by reusing the already-bound prior runtime.
 
-**Key insight:** The ORDER of activations within a process matters. If v4.0 is bound as the legacy runtime first, capped COM activations work. If the capped COM activation happens first (before any legacy runtime is bound), it fails. This means behavior can depend on which component activates first — a race condition in concurrent code can change the outcome.
+**Key insight:** The ORDER of activations within a process matters. If v4.0 is bound as the prior runtime first, capped COM activations work. If the capped COM activation happens first (before any prior runtime is bound), it fails. This means behavior can depend on which component activates first — a race condition in concurrent code can change the outcome.
 
 ## Common Pitfalls
 
 | Pitfall | Correct Approach |
 |---------|-----------------|
-| Assuming `IsCapped: 1` means v4.0 can never load | Capping only restricts roll-forward enumeration. v4.0 can still be loaded if: a specific version string is passed explicitly, config has `useLegacyV2RuntimeActivationPolicy="true"` with `<supportedRuntime version="v4.0"/>`, or the legacy runtime is already bound to v4+. |
-| Thinking capping is broken or a bug | Capping is intentional — it makes v4 installation non-impactful. On a v4-only machine, legacy codepaths correctly see no runtimes. This is working as designed. |
+| Assuming `IsCapped: 1` means v4.0 can never load | Capping only restricts roll-forward enumeration. v4.0 can still be loaded if: a specific version string is passed explicitly, config has `usePriorV2RuntimeActivationPolicy="true"` with `<supportedRuntime version="v4.0"/>`, or the prior runtime is already bound to v4+. |
+| Thinking capping is broken or a bug | Capping is intentional — it makes v4 installation non-impactful. On a v4-only machine, prior codepaths correctly see no runtimes. This is working as designed. |
 | Assuming FOD is controlled per-process | `SEM_FAILCRITICALERRORS` is inherited from the parent process. A change in the parent (build system, script, shell) changes behavior for all children. |
 | Looking only at the first activation in a log | A single log can contain multiple independent activation sequences. The problematic one is often a secondary COM activation, not the initial CLR load. |
-| Assuming a missing config file is benign | For native EXEs doing COM activation with legacy/capped bind, the config file (with `useLegacyV2RuntimeActivationPolicy`) is the primary way to make legacy codepaths see v4.0. No config = capped = v4 invisible. |
-| Adding `<supportedRuntime>` without `useLegacyV2RuntimeActivationPolicy` | Without `useLegacyV2RuntimeActivationPolicy="true"`, rolling forward to v4 via config works for the primary EXE load, but legacy codepaths (COM activation, P/Invoke to mscoree.h APIs) remain capped at v2.0. Both are needed for legacy codepaths. |
-| Setting `useLegacyV2RuntimeActivationPolicy` without understanding the trade-off | This attribute turns off in-proc SxS — it locks pre-v4 runtimes out of the process. This is usually fine for build tools but should be considered for apps that need to host both v2 and v4. |
+| Assuming a missing config file is benign | For native EXEs doing COM activation with prior/capped bind, the config file (with `usePriorV2RuntimeActivationPolicy`) is the primary way to make prior codepaths see v4.0. No config = capped = v4 invisible. |
+| Adding `<supportedRuntime>` without `usePriorV2RuntimeActivationPolicy` | Without `usePriorV2RuntimeActivationPolicy="true"`, rolling forward to v4 via config works for the primary EXE load, but prior codepaths (COM activation, P/Invoke to mscoree.h APIs) remain capped at v2.0. Both are needed for prior codepaths. |
+| Setting `usePriorV2RuntimeActivationPolicy` without understanding the trade-off | This attribute turns off in-proc SxS — it locks pre-v4 runtimes out of the process. This is usually fine for build tools but should be considered for apps that need to host both v2 and v4. |
 
 ## Validation
 
@@ -287,7 +287,7 @@ Before delivering a diagnosis, verify:
 
 - [ ] All log files with errors or FOD triggers were analyzed (not just the first one)
 - [ ] The entry point for each problematic activation was identified
-- [ ] The capping and legacy bind state was noted for each activation sequence
+- [ ] The capping and prior bind state was noted for each activation sequence
 - [ ] Config file presence/absence was checked
 - [ ] SEM_FAILCRITICALERRORS state was noted for FOD-related issues
 - [ ] Multiple activations within a single log were individually traced

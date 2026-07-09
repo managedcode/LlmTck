@@ -38,9 +38,9 @@ Non-negotiable. Violating these undermines the user's explicit intent.
 
 ```mermaid
 flowchart TD
-    A[Start] --> B{New or legacy project?}
+    A[Start] --> B{New or prior project?}
     B -->|New| C[TreatWarningsAsErrors=true immediately]
-    B -->|Legacy| D[dotnet build, count warnings by ID]
+    B -->|Prior| D[dotnet build, count warnings by ID]
     D --> E{"< 30 warnings?"}
     E -->|Yes| F[Fix all, then enable TreatWarningsAsErrors]
     E -->|No| G[Report counts to user, ask which batch first]
@@ -56,7 +56,7 @@ flowchart TD
 ```
 
 1. Start with SDK analyzers before third-party packages.
-2. Detect project maturity: new or existing/legacy.
+2. Detect project maturity: new or existing/prior.
 3. Enable `EnableNETAnalyzers`, `AnalysisLevel`, `AnalysisMode` in `Directory.Build.props`.
 4. Apply the right warning promotion strategy (see below).
 5. Per-rule severity goes in repo-root `.editorconfig`.
@@ -73,9 +73,9 @@ Set these in `Directory.Build.props` immediately:
 
 Fix all warnings before merging.
 
-### Legacy Projects — Gradual Promotion
+### Prior Projects — Gradual Promotion
 
-Blanket `TreatWarningsAsErrors` on a legacy codebase produces hundreds/thousands of errors. An agent cannot fix them all at once — context floods, fix quality drops. Promote in batches.
+Blanket `TreatWarningsAsErrors` on a prior codebase produces hundreds/thousands of errors. An agent cannot fix them all at once — context floods, fix quality drops. Promote in batches.
 
 #### Phase 1: Trivial Hygiene (start here)
 
@@ -119,7 +119,7 @@ Once all batches pass, transition to:
 <WarningsNotAsErrors>CA1707</WarningsNotAsErrors> <!-- explicit exceptions only -->
 ```
 
-### Interaction Protocol (legacy codebases)
+### Interaction Protocol (prior codebases)
 
 1. Run `dotnet build`, count warnings by ID.
 2. Report summary: "Found 47 CS8019, 23 CA1822, 12 CA2000, 8 CS8600."
@@ -136,7 +136,7 @@ Never skip the ask step. The user decides the pace.
    - `dotnet --info`
    - `rg -n "EnableNETAnalyzers|AnalysisLevel|AnalysisMode|TreatWarningsAsErrors|WarningsAsErrors" -g '*.csproj' -g 'Directory.Build.*' .`
    - `dotnet build SOLUTION_OR_PROJECT 2>&1` — count warnings by ID
-2. Classify: new (few/zero warnings) vs legacy (many warnings).
+2. Classify: new (few/zero warnings) vs prior (many warnings).
 3. Enable `EnableNETAnalyzers`, `AnalysisLevel`, `AnalysisMode` in MSBuild config.
 4. Apply promotion strategy matching project maturity.
 5. Per-rule severity in repo-root `.editorconfig`.
@@ -187,5 +187,5 @@ Never skip the ask step. The user decides the pace.
 - "Make analyzer warnings fail the build."
 - "Set the right AnalysisLevel for this repo."
 - "Start treating unused usings and unused variables as errors."
-- "Help me gradually promote Roslyn warnings in my legacy project."
+- "Help me gradually promote Roslyn warnings in my prior project."
 - "Which warnings should I promote to errors next?"

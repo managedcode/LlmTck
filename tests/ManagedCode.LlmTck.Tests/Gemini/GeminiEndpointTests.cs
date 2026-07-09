@@ -1,6 +1,8 @@
 using System.Net.Http.Json;
+using System.Text;
 using System.Text.Json;
 using ManagedCode.LlmTck.Models;
+using ManagedCode.LlmTck.Runtime;
 using ManagedCode.LlmTck.Tests.TestSupport;
 
 namespace ManagedCode.LlmTck.Tests.Gemini;
@@ -74,6 +76,49 @@ public sealed class GeminiEndpointTests
         await Assert.That(candidateTokens).IsGreaterThan(0);
         await Assert.That(usage.GetProperty("totalTokenCount").GetInt32())
             .IsEqualTo(promptTokens + candidateTokens);
+    }
+
+    [Test]
+    public async Task GenerateContentEndpoint_ReturnsGeminiCachedContentTokenCountAsync()
+    {
+        var cacheableSystemPrompt = CreatePromptWithAtLeastTokens(2100);
+        using var host = await LlmTckTestHost.StartAsync(options => options
+                .AddModel("gemini-cache-test", LlmTckModelKind.Chat)
+                .AddChatScenario(
+                    "gemini-cache",
+                    scenario => scenario
+                        .ForModel("gemini-cache-test")
+                        .WhenUserContains("gemini cache turn")
+                        .Responds("first")
+                        .Responds("second")
+                ));
+        using var client = host.GetTestClient();
+
+        var first = await PostCachedGeminiContentAsync(
+            client,
+            cacheableSystemPrompt,
+            "gemini cache turn one"
+        );
+        var second = await PostCachedGeminiContentAsync(
+            client,
+            cacheableSystemPrompt,
+            "gemini cache turn two"
+        );
+
+        first.EnsureSuccessStatusCode();
+        second.EnsureSuccessStatusCode();
+
+        var firstUsage = (await first.Content.ReadFromJsonAsync<JsonElement>(_jsonOptions))
+            .GetProperty("usageMetadata");
+        var secondUsage = (await second.Content.ReadFromJsonAsync<JsonElement>(_jsonOptions))
+            .GetProperty("usageMetadata");
+
+        await Assert.That(firstUsage.TryGetProperty("cachedContentTokenCount", out _))
+            .IsFalse();
+        await Assert.That(secondUsage.GetProperty("cachedContentTokenCount").GetInt32())
+            .IsGreaterThanOrEqualTo(2048);
+        await Assert.That(secondUsage.GetProperty("promptTokenCount").GetInt32())
+            .IsGreaterThan(secondUsage.GetProperty("cachedContentTokenCount").GetInt32());
     }
 
     [Test]
@@ -240,5 +285,43 @@ public sealed class GeminiEndpointTests
         await Assert.That(mediaResponse.Content.Headers.ContentType?.MediaType).IsEqualTo("video/mp4");
         await Assert.That(await mediaResponse.Content.ReadAsByteArrayAsync())
             .IsEquivalentTo((byte[])[0, 0, 0, 24, 102, 116, 121, 112]);
+    }
+
+    private static Task<HttpResponseMessage> PostCachedGeminiContentAsync(
+        HttpClient client,
+        string systemPrompt,
+        string userPrompt
+    )
+    {
+        return client.PostAsJsonAsync(
+            "/gemini/v1beta/models/gemini-cache-test:generateContent?key=test-key",
+            new
+            {
+                systemInstruction = new
+                {
+                    parts = new[] { new { text = systemPrompt } },
+                },
+                contents = new[]
+                {
+                    new
+                    {
+                        role = "user",
+                        parts = new[] { new { text = userPrompt } },
+                    },
+                },
+            },
+            _jsonOptions
+        );
+    }
+
+    private static string CreatePromptWithAtLeastTokens(int minimumTokens)
+    {
+        var builder = new StringBuilder("cacheable fixture");
+        while (LlmTckTokenCounter.CountTextTokens(builder.ToString()) < minimumTokens)
+        {
+            builder.Append(" stable-prefix");
+        }
+
+        return builder.ToString();
     }
 }

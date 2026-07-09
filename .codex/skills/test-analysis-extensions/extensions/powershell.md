@@ -58,7 +58,7 @@ Pester v5+ uses block-scoped variables — `Describe`/`Context` blocks run durin
 | Mechanism | Example |
 |-----------|---------|
 | `-Skip` | `It 'does x' -Skip { ... }` |
-| `-Pending` | `It 'does x' -Pending { ... }` (legacy v4; in v5, prefer `-Skip`) |
+| `-Pending` | `It 'does x' -Pending { ... }` (prior v4; in v5, prefer `-Skip`) |
 | `Set-ItResult -Skipped -Because '<reason>'` | Inline skip from within an `It` body |
 | Conditional skip | `It 'is windows-only' -Skip:(-not $IsWindows) { ... }` |
 | `-Skip` on `Describe`/`Context` | skips all contained tests |

@@ -117,12 +117,12 @@ Add a nested `.editorconfig` when a subtree has a real local purpose, for exampl
 - tighter rules in a core domain
 - relaxed rules for generated code
 - different test-project conventions
-- legacy-code containment during gradual cleanup
+- prior-code containment during gradual cleanup
 
 Example:
 
 ```ini
-# src/LegacyModule/.editorconfig
+# src/OlderModule/.editorconfig
 [*.cs]
 dotnet_diagnostic.CA1502.severity = error
 ```

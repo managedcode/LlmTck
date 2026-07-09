@@ -5,14 +5,31 @@ using ManagedCode.LlmTck.Scenarios;
 
 namespace ManagedCode.LlmTck.OpenAI;
 
+public enum OpenAiCacheUsageShape
+{
+    None,
+    PromptTokensDetails,
+    PromptTokensDetailsWithCacheWriteTokens,
+    DeepSeekPromptCache,
+}
+
 public static class OpenAiWireMapper
 {
-    public static LlmTckChatRequest ToRuntimeRequest(OpenAiChatCompletionRequest request)
+    public static LlmTckChatRequest ToRuntimeRequest(
+        OpenAiChatCompletionRequest request,
+        LlmTckPromptCachePolicy promptCachePolicy = LlmTckPromptCachePolicy.None
+    )
     {
         return new()
         {
             ModelId = request.Model,
             Stream = request.Stream,
+            PromptCachePolicy = promptCachePolicy,
+            PromptCacheKey = ReadPromptCacheKey(
+                request.PromptCacheKey,
+                request.SessionId,
+                promptCachePolicy
+            ),
             Messages = request
                 .Messages
                 .Select(message => new LlmTckMessage
@@ -24,7 +41,10 @@ public static class OpenAiWireMapper
         };
     }
 
-    public static LlmTckChatRequest ToRuntimeRequest(OpenAiResponseRequest request)
+    public static LlmTckChatRequest ToRuntimeRequest(
+        OpenAiResponseRequest request,
+        LlmTckPromptCachePolicy promptCachePolicy = LlmTckPromptCachePolicy.None
+    )
     {
         var messages = ReadResponseInputMessages(request.Input);
         if (!string.IsNullOrWhiteSpace(request.Instructions))
@@ -43,11 +63,20 @@ public static class OpenAiWireMapper
         {
             ModelId = request.Model,
             Stream = request.Stream,
+            PromptCachePolicy = promptCachePolicy,
+            PromptCacheKey = ReadPromptCacheKey(
+                request.PromptCacheKey,
+                request.SessionId,
+                promptCachePolicy
+            ),
             Messages = messages,
         };
     }
 
-    public static OpenAiChatCompletionResponse ToChatResponse(LlmTckChatResult result)
+    public static OpenAiChatCompletionResponse ToChatResponse(
+        LlmTckChatResult result,
+        OpenAiCacheUsageShape cacheUsageShape = OpenAiCacheUsageShape.None
+    )
     {
         var now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
 
@@ -64,7 +93,7 @@ public static class OpenAiWireMapper
                     Message = OpenAiChatMessage.FromText("assistant", result.Content),
                 },
             ],
-            Usage = CreateUsage(result.Usage),
+            Usage = CreateUsage(result.Usage, cacheUsageShape),
         };
     }
 
@@ -96,7 +125,8 @@ public static class OpenAiWireMapper
     public static OpenAiResponse ToResponse(
         LlmTckChatResult result,
         string responseId,
-        long created
+        long created,
+        OpenAiCacheUsageShape cacheUsageShape = OpenAiCacheUsageShape.None
     )
     {
         return new()
@@ -110,6 +140,10 @@ public static class OpenAiWireMapper
                 InputTokens = result.Usage.InputTokens,
                 OutputTokens = result.Usage.OutputTokens,
                 TotalTokens = result.Usage.TotalTokens,
+                InputTokensDetails = CreateInputTokensDetails(
+                    result.Usage,
+                    cacheUsageShape
+                ),
                 OutputTokensDetails = result.Usage.ReasoningTokens > 0
                     ? new OpenAiOutputTokensDetails
                     {
@@ -189,13 +223,14 @@ public static class OpenAiWireMapper
     public static object ToResponseDoneEvent(
         LlmTckChatResult result,
         string responseId,
-        long created
+        long created,
+        OpenAiCacheUsageShape cacheUsageShape = OpenAiCacheUsageShape.None
     )
     {
         return new
         {
             type = "response.done",
-            response = ToResponse(result, responseId, created),
+            response = ToResponse(result, responseId, created, cacheUsageShape),
         };
     }
 
@@ -453,20 +488,85 @@ public static class OpenAiWireMapper
         return $"llmtck-{Guid.NewGuid():N}";
     }
 
-    private static OpenAiUsage CreateUsage(LlmTckTokenUsage usage)
+    private static OpenAiUsage CreateUsage(
+        LlmTckTokenUsage usage,
+        OpenAiCacheUsageShape cacheUsageShape = OpenAiCacheUsageShape.None
+    )
     {
         return new()
         {
             PromptTokens = usage.InputTokens,
             CompletionTokens = usage.OutputTokens,
             TotalTokens = usage.TotalTokens,
+            PromptTokensDetails = CreatePromptTokensDetails(usage, cacheUsageShape),
             CompletionTokensDetails = usage.ReasoningTokens > 0
                 ? new OpenAiCompletionTokensDetails
                 {
                     ReasoningTokens = usage.ReasoningTokens,
                 }
                 : null,
+            PromptCacheHitTokens = cacheUsageShape == OpenAiCacheUsageShape.DeepSeekPromptCache
+                ? usage.CachedInputTokens
+                : null,
+            PromptCacheMissTokens = cacheUsageShape == OpenAiCacheUsageShape.DeepSeekPromptCache
+                ? Math.Max(0, usage.InputTokens - usage.CachedInputTokens)
+                : null,
         };
+    }
+
+    private static OpenAiPromptTokensDetails? CreatePromptTokensDetails(
+        LlmTckTokenUsage usage,
+        OpenAiCacheUsageShape cacheUsageShape
+    )
+    {
+        return cacheUsageShape switch
+        {
+            OpenAiCacheUsageShape.PromptTokensDetails => new OpenAiPromptTokensDetails
+            {
+                CachedTokens = usage.CachedInputTokens,
+            },
+            OpenAiCacheUsageShape.PromptTokensDetailsWithCacheWriteTokens => new OpenAiPromptTokensDetails
+            {
+                CachedTokens = usage.CachedInputTokens,
+                CacheWriteTokens = usage.CacheCreationInputTokens,
+            },
+            _ => null,
+        };
+    }
+
+    private static OpenAiInputTokensDetails? CreateInputTokensDetails(
+        LlmTckTokenUsage usage,
+        OpenAiCacheUsageShape cacheUsageShape
+    )
+    {
+        return cacheUsageShape switch
+        {
+            OpenAiCacheUsageShape.PromptTokensDetails => new OpenAiInputTokensDetails
+            {
+                CachedTokens = usage.CachedInputTokens,
+            },
+            OpenAiCacheUsageShape.PromptTokensDetailsWithCacheWriteTokens => new OpenAiInputTokensDetails
+            {
+                CachedTokens = usage.CachedInputTokens,
+                CacheWriteTokens = usage.CacheCreationInputTokens,
+            },
+            _ => null,
+        };
+    }
+
+    private static string? ReadPromptCacheKey(
+        string? promptCacheKey,
+        string? sessionId,
+        LlmTckPromptCachePolicy promptCachePolicy
+    )
+    {
+        if (promptCachePolicy == LlmTckPromptCachePolicy.OpenRouter
+            && !string.IsNullOrWhiteSpace(sessionId))
+        {
+            return sessionId;
+        }
+
+        return string.IsNullOrWhiteSpace(promptCacheKey) ? null : promptCacheKey;
     }
 
     private static (int Width, int Height) ReadVideoSize(string size)

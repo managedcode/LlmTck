@@ -37,7 +37,7 @@ Categories: Design, Documentation, Globalization, Interoperability, Maintainabil
 ```
 All warnings fail the build. Use for new projects or clean codebases. Agent rule: never disable to make a build pass.
 
-### WarningsAsErrors (selective — preferred for legacy)
+### WarningsAsErrors (selective — preferred for prior)
 
 ```xml
 <WarningsAsErrors>CS8019;CS0219;CS0168;CA2000;CA3001</WarningsAsErrors>
