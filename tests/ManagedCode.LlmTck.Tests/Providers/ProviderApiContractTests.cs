@@ -7,6 +7,7 @@ using ManagedCode.LlmTck.DeepSeek;
 using ManagedCode.LlmTck.Foundry;
 using ManagedCode.LlmTck.Gemini;
 using ManagedCode.LlmTck.Groq;
+using ManagedCode.LlmTck.Hosting;
 using ManagedCode.LlmTck.Mistral;
 using ManagedCode.LlmTck.Ollama;
 using ManagedCode.LlmTck.OpenAI;
@@ -135,6 +136,9 @@ public sealed class ProviderApiContractTests
         var routes = host.Services
             .GetRequiredService<EndpointDataSource>()
             .Endpoints.OfType<RouteEndpoint>()
+            .Where(endpoint =>
+                endpoint.Metadata.GetMetadata<LlmTckProviderFallbackMetadata>() is null
+            )
             .SelectMany(endpoint =>
             {
                 var methods = endpoint.Metadata.GetMetadata<IHttpMethodMetadata>()?.HttpMethods
@@ -161,6 +165,46 @@ public sealed class ProviderApiContractTests
             .ToArray();
 
         await Assert.That(routes).IsEquivalentTo(implementedOperations);
+    }
+
+    [Test]
+    public async Task HostingProviderFallbackRoutes_AreExplicitlyMarkedDiagnosticsAsync()
+    {
+        using var host = await LlmTckTestHost.StartAsync();
+        var providerNamespaces = GetProfiles()
+            .Select(profile => GetExpectedProviderNamespace(profile.Id))
+            .ToArray();
+        var providerEndpoints = host.Services
+            .GetRequiredService<EndpointDataSource>()
+            .Endpoints.OfType<RouteEndpoint>()
+            .Where(endpoint =>
+                IsProviderRoute(endpoint.RoutePattern.RawText ?? string.Empty, providerNamespaces)
+            )
+            .ToArray();
+        var fallbackEndpoints = providerEndpoints
+            .Where(endpoint => endpoint.RoutePattern.Parameters.Any(parameter => parameter.IsCatchAll))
+            .ToArray();
+        var markedEndpoints = providerEndpoints
+            .Where(endpoint =>
+                endpoint.Metadata.GetMetadata<LlmTckProviderFallbackMetadata>() is not null
+            )
+            .ToArray();
+
+        await Assert.That(fallbackEndpoints.Length).IsEqualTo(providerNamespaces.Length);
+        await Assert.That(markedEndpoints.Length).IsEqualTo(providerNamespaces.Length);
+        foreach (var endpoint in fallbackEndpoints)
+        {
+            await Assert.That(endpoint.Metadata.GetMetadata<LlmTckProviderFallbackMetadata>())
+                .IsNotNull();
+        }
+
+        foreach (var endpoint in markedEndpoints)
+        {
+            await Assert.That(
+                    endpoint.RoutePattern.Parameters.Any(parameter => parameter.IsCatchAll)
+                )
+                .IsTrue();
+        }
     }
 
     [Test]

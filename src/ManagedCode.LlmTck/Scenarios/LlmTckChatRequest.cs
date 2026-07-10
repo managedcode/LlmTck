@@ -4,6 +4,11 @@ namespace ManagedCode.LlmTck.Scenarios;
 
 public sealed record LlmTckChatRequest
 {
+    /// <summary>
+    /// Optional caller-provided identifier copied to runtime trace events for stable correlation.
+    /// </summary>
+    public string? RequestId { get; init; }
+
     public string ModelId { get; init; } = LlmTckKnownModelIds.Gpt41Mini;
 
     public List<LlmTckMessage> Messages { get; init; } = [];

@@ -8,6 +8,22 @@ namespace ManagedCode.LlmTck.Tests.Runtime;
 
 public sealed class LlmTckRuntimeTests
 {
+    [Test]
+    public async Task ConfiguredConstructor_SnapshotsInitialConfigurationAsync()
+    {
+        var configuration = new LlmTckConfigurationBuilder()
+            .AddModel(LlmTckKnownModelIds.Gpt41Mini, LlmTckModelKind.Chat)
+            .Build();
+        var expectedModels = configuration.Models.Count;
+        var runtime = new LlmTckRuntime(configuration);
+
+        configuration.Models.Clear();
+
+        await Assert.That(runtime.GetModels().Count).IsEqualTo(expectedModels);
+        await Assert.That(runtime.GetModels().Any(model => model.Id == LlmTckKnownModelIds.Gpt41Mini))
+            .IsTrue();
+    }
+
     private static readonly LlmTckChatRequest _largestAnimalRequest = new()
     {
         ModelId = LlmTckKnownModelIds.Gpt41Mini,
@@ -631,6 +647,204 @@ public sealed class LlmTckRuntimeTests
     }
 
     [Test]
+    public async Task ResetAsync_PreventsInFlightRequestFromAppendingEventsOrCacheToNewGenerationAsync()
+    {
+        var cacheableSystemPrompt = CreatePromptWithAtLeastTokens(1100);
+        var request = CreateCacheRequest(cacheableSystemPrompt, "generation reset");
+        var runtime = new LlmTckRuntime();
+        await runtime.ConfigureAsync(
+            new LlmTckConfigurationBuilder()
+                .AddChatScenario(
+                    "generation-reset",
+                    scenario => scenario
+                        .ForModel(LlmTckKnownModelIds.Gpt41Mini)
+                        .WhenUserContains("generation reset")
+                        .Responds("fresh generation")
+                        .DelaysBy(1500)
+                )
+                .Build()
+        );
+
+        var supersededTask = runtime.CompleteChatAsync(request);
+        await Assert.That(supersededTask.IsCompleted).IsFalse();
+
+        await runtime.ResetAsync();
+
+        var afterResetSummary = runtime.GetAssertionSummary();
+        await Assert.That(afterResetSummary.TotalEvents).IsEqualTo(0);
+        await Assert.That(afterResetSummary.TotalTokens).IsEqualTo(0);
+
+        var freshTask = runtime.CompleteChatAsync(request);
+        var superseded = await supersededTask;
+        var fresh = await freshTask;
+
+        await Assert.That(superseded.IsSuccess).IsFalse();
+        await Assert.That(superseded.StatusCode).IsEqualTo(409);
+        await Assert.That(superseded.ErrorCode).IsEqualTo("llm_tck_request_superseded");
+        await Assert.That(fresh.IsSuccess).IsTrue();
+        await Assert.That(fresh.Content).IsEqualTo("fresh generation");
+        await Assert.That(fresh.Usage.CachedInputTokens).IsEqualTo(0);
+        await Assert.That(fresh.Usage.CacheCreationInputTokens).IsGreaterThanOrEqualTo(1024);
+
+        var finalSummary = runtime.GetAssertionSummary();
+        await Assert.That(finalSummary.TotalEvents).IsEqualTo(1);
+        await Assert.That(finalSummary.Matched).IsEqualTo(1);
+        await Assert.That(finalSummary.CachedInputTokens).IsEqualTo(0);
+        await Assert.That(finalSummary.CacheCreationInputTokens)
+            .IsEqualTo(fresh.Usage.CacheCreationInputTokens);
+        await Assert.That(finalSummary.TotalTokens).IsEqualTo(fresh.Usage.TotalTokens);
+    }
+
+    [Test]
+    public async Task RequestScopeStartedBeforeReset_CannotAppendAnEventAfterResetAsync()
+    {
+        var runtime = new LlmTckRuntime();
+        await runtime.ConfigureAsync(
+            new LlmTckConfigurationBuilder()
+                .AddChatScenario(
+                    "scope-reset",
+                    scenario => scenario
+                        .ForModel(LlmTckKnownModelIds.Gpt41Mini)
+                        .WhenUserContains("scope reset")
+                        .Responds("must not survive reset")
+                )
+                .Build()
+        );
+
+        using var requestScope = ((ILlmTckRuntimeRequestScope)runtime).BeginRequest(
+            "request-before-reset"
+        );
+        await runtime.ResetAsync();
+        var result = await runtime.CompleteChatAsync(
+            new LlmTckChatRequest
+            {
+                ModelId = LlmTckKnownModelIds.Gpt41Mini,
+                Messages = [new LlmTckMessage { Role = "user", Content = "scope reset" }],
+            }
+        );
+
+        await Assert.That(result.IsSuccess).IsFalse();
+        await Assert.That(result.ErrorCode).IsEqualTo("llm_tck_request_superseded");
+        await Assert.That(runtime.GetAssertionSummary().TotalEvents).IsEqualTo(0);
+    }
+
+    [Test]
+    public async Task NonChatRequestScopeStartedBeforeReset_CannotConsumeNewFaultBudgetAsync()
+    {
+        var runtime = new LlmTckRuntime();
+        await runtime.ConfigureAsync(
+            new LlmTckConfigurationBuilder().SimulateRateLimitAfter(1).Build()
+        );
+
+        LlmTckEmbeddingResult stale;
+        using (((ILlmTckRuntimeRequestScope)runtime).BeginRequest("embedding-before-reset"))
+        {
+            await runtime.ResetAsync();
+            stale = await runtime.CreateEmbeddingAsync(
+                LlmTckKnownModelIds.TextEmbedding3Small,
+                ["stale"]
+            );
+        }
+
+        var fresh = await runtime.CreateEmbeddingAsync(
+            LlmTckKnownModelIds.TextEmbedding3Small,
+            ["fresh"]
+        );
+
+        await Assert.That(stale.IsSuccess).IsFalse();
+        await Assert.That(stale.StatusCode).IsEqualTo(409);
+        await Assert.That(stale.ErrorCode).IsEqualTo("llm_tck_request_superseded");
+        await Assert.That(fresh.IsSuccess).IsTrue();
+        var summary = runtime.GetAssertionSummary();
+        await Assert.That(summary.TotalEvents).IsEqualTo(1);
+        await Assert.That(summary.Matched).IsEqualTo(1);
+        await Assert.That(summary.ErrorsReturned).IsEqualTo(0);
+    }
+
+    [Test]
+    public async Task RuntimeEventJournal_RetainsLatestFiveHundredWhileTotalsRemainCumulativeAsync()
+    {
+        const int TotalRequests = 501;
+        var runtime = new LlmTckRuntime();
+        await runtime.ConfigureAsync(LlmTckConfiguration.CreateDefault());
+
+        for (var index = 0; index < TotalRequests; index++)
+        {
+            var result = await runtime.CompleteChatAsync(
+                new LlmTckChatRequest
+                {
+                    RequestId = $"request-{index}",
+                    ModelId = "missing-chat-model",
+                    Messages = [new LlmTckMessage { Role = "user", Content = "retention" }],
+                }
+            );
+
+            await Assert.That(result.ErrorCode).IsEqualTo("llm_tck_unknown_model");
+        }
+
+        var summary = runtime.GetAssertionSummary();
+
+        await Assert.That(summary.TotalEvents).IsEqualTo(TotalRequests);
+        await Assert.That(summary.ModelNotFound).IsEqualTo(TotalRequests);
+        await Assert.That(summary.Events.Count).IsEqualTo(500);
+        await Assert.That(summary.Events[0].RequestId).IsEqualTo("request-1");
+        await Assert.That(summary.Events[^1].RequestId).IsEqualTo("request-500");
+    }
+
+    [Test]
+    public async Task RuntimeEventJournal_BoundsExceptionalMetadataAndMarksTruncationAsync()
+    {
+        const int MetadataCharacterBudget = 4096;
+        var oversizedModelId = new string('x', MetadataCharacterBudget + 1024);
+        var runtime = new LlmTckRuntime();
+        await runtime.ConfigureAsync(LlmTckConfiguration.CreateDefault());
+
+        var result = await runtime.CompleteChatAsync(
+            new LlmTckChatRequest
+            {
+                ModelId = oversizedModelId,
+                Messages = [],
+            }
+        );
+
+        await Assert.That(result.IsSuccess).IsFalse();
+        var runtimeEvent = runtime.GetAssertionSummary().Events.Single();
+
+        await Assert.That(runtimeEvent.PayloadTruncated).IsTrue();
+        await Assert.That(runtimeEvent.ModelId.Length).IsEqualTo(MetadataCharacterBudget);
+        await Assert.That(runtimeEvent.Message.Length).IsEqualTo(MetadataCharacterBudget);
+        await Assert.That(runtimeEvent.ModelId.Length).IsLessThan(oversizedModelId.Length);
+    }
+
+    [Test]
+    public async Task RuntimeEventJournal_BoundsEmptyMessageFanoutByPerItemCostAsync()
+    {
+        const int SourceMessageCount = 33_000;
+        var messages = Enumerable
+            .Range(0, SourceMessageCount)
+            .Select(_ => new LlmTckMessage { Role = string.Empty, Content = string.Empty })
+            .ToList();
+        var runtime = new LlmTckRuntime();
+        await runtime.ConfigureAsync(
+            new LlmTckConfigurationBuilder().AddDefaultOpenAiModels().Build()
+        );
+
+        var result = await runtime.CompleteChatAsync(
+            new LlmTckChatRequest
+            {
+                ModelId = LlmTckKnownModelIds.Gpt41Mini,
+                Messages = messages,
+            }
+        );
+
+        await Assert.That(result.ErrorCode).IsEqualTo("llm_tck_unmatched_request");
+        var runtimeEvent = runtime.GetAssertionSummary().Events.Single();
+        await Assert.That(runtimeEvent.PayloadTruncated).IsTrue();
+        await Assert.That(runtimeEvent.Messages.Count).IsLessThan(SourceMessageCount);
+        await Assert.That(runtimeEvent.Messages.Count).IsGreaterThan(0);
+    }
+
+    [Test]
     public async Task CancelledDelayedChat_DoesNotConsumeScenarioResponseAsync()
     {
         var runtime = new LlmTckRuntime();
@@ -647,21 +861,27 @@ public sealed class LlmTckRuntimeTests
                 .Build()
         );
 
-        using var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(25));
+        using var cts = new CancellationTokenSource();
+        var pending = runtime.CompleteChatAsync(
+            new LlmTckChatRequest
+            {
+                ModelId = LlmTckKnownModelIds.Gpt41Mini,
+                Messages = [new LlmTckMessage { Role = "user", Content = "largest animal" }],
+            },
+            cancellationToken: cts.Token
+        );
+        cts.Cancel();
+        var cancelled = false;
         try
         {
-            await runtime.CompleteChatAsync(
-                new LlmTckChatRequest
-                {
-                    ModelId = LlmTckKnownModelIds.Gpt41Mini,
-                    Messages = [new LlmTckMessage { Role = "user", Content = "largest animal" }],
-                },
-                cancellationToken: cts.Token
-            );
+            await pending;
         }
-        catch (OperationCanceledException)
+        catch (OperationCanceledException) when (cts.IsCancellationRequested)
         {
+            cancelled = true;
         }
+
+        await Assert.That(cancelled).IsTrue();
 
         var result = await runtime.CompleteChatAsync(
             new LlmTckChatRequest

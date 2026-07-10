@@ -5,8 +5,10 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <InternalsVisibleTo Include="ManagedCode.LlmTck.Tests" />
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
     <PackageReference Include="Microsoft.AspNetCore.App.Internal.Assets" />
+    <PackageReference Include="Microsoft.FluentUI.AspNetCore.Components" />
   </ItemGroup>
 
   <ItemGroup>

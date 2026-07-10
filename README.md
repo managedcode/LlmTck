@@ -17,6 +17,18 @@ script deterministic provider responses, exercise retry/error/model-routing path
 or assert that no unexpected LLM calls occurred. When a bearer token is configured,
 both provider endpoints and `/admin-api/*` control endpoints require it.
 
+## Request Dashboard
+
+The Blazor dashboard at `/` is an operator-focused request inbox. It keeps provider,
+model, status, latency, token/cache usage, multi-turn context, sanitized wire payloads,
+stream chunks, and the deterministic runtime result together for each request.
+
+![LLM TCK provider request dashboard showing a selected multi-turn OpenAI request](https://raw.githubusercontent.com/managedcode/LlmTck/main/docs/images/admin-dashboard-overview.jpg)
+
+| Conversation timeline | Runtime diagnostics |
+| --- | --- |
+| ![Chronological multi-turn request and provider response](https://raw.githubusercontent.com/managedcode/LlmTck/main/docs/images/admin-dashboard-conversation.jpg) | ![Fluent UI runtime diagnostics dialog with fixtures, provider APIs, assertions, and events](https://raw.githubusercontent.com/managedcode/LlmTck/main/docs/images/admin-dashboard-runtime.jpg) |
+
 ## Packages
 
 | Package | NuGet | Description |
@@ -304,7 +316,7 @@ app.Run();
 Install the Aspire integration package in the AppHost:
 
 ```bash
-dotnet add package ManagedCode.LlmTck.Aspire --version 0.0.11
+dotnet add package ManagedCode.LlmTck.Aspire --version 0.0.12
 ```
 
 Then add the package-owned TCK resource directly:
@@ -330,7 +342,7 @@ builder.Build().Run();
 
 `AddLlmTck()` creates a `LlmTckResource` backed by the packaged .NET LLM TCK service executable and exposes its `http` endpoint. It does not require a consumer service project reference, generated `Projects.*` metadata type, project path, Docker, or a container runtime. Consumer resources should reference the TCK resource, wait for it, and use `llmTck.GetHttpEndpoint()` when they need the provider-compatible base URL. `.WithApiKey("test-key")` sets `LlmTck:RequiredBearerToken` so both provider endpoints and `/admin-api/*` control endpoints require the same bearer token.
 
-Use `AddLlmTckContainer()` only when you explicitly want a container-backed resource, for example for a deployment or container-runtime smoke test. The container mode uses the matching versioned image such as `ghcr.io/managedcode/llm-tck:0.0.11`; it is not the default local Aspire path.
+Use `AddLlmTckContainer()` only when you explicitly want a container-backed resource, for example for a deployment or container-runtime smoke test. The container mode uses the matching versioned image such as `ghcr.io/managedcode/llm-tck:0.0.12`; it is not the default local Aspire path.
 
 ## Control Panel And Token Usage
 
