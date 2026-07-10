@@ -77,6 +77,7 @@ Rule format:
 
 ### Likes
 
+- Keep checked-in UI screenshots synchronized with the current rendered product; after visible dashboard changes, refresh and verify the affected images in a real browser before commit and push.
 - When token usage is requested, count response tokens with `tiktoken` and include the measured usage in replies; if `tiktoken` is unavailable, report that blocker instead of guessing token counts.
 - Token usage workflow changes need executable code and tests, not only contributor-guide documentation, so callers can verify usage accounting behavior directly.
 

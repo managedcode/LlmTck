@@ -392,9 +392,9 @@ Provider envelopes expose the same runtime usage through provider-native field n
 | Gemini generateContent | `usageMetadata.cachedContentTokenCount` |
 | Bedrock Converse and ConverseStream metadata | `usage.cacheReadInputTokens` and `usage.cacheWriteInputTokens` |
 
-![LLM TCK control panel showing token usage totals and a matched runtime event](docs/images/llm-tck-control-panel-token-usage.png)
+![LLM TCK request dashboard showing per-request token and cache usage](docs/images/admin-dashboard-token-usage.png)
 
-![LLM TCK control panel token usage on a mobile viewport](docs/images/llm-tck-control-panel-token-usage-mobile.png)
+![LLM TCK mobile request detail showing token, cache, conversation, and response data](docs/images/admin-dashboard-mobile-request-detail.png)
 
 ## Chat Scenarios
 
