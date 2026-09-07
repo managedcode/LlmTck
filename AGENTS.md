@@ -68,7 +68,7 @@ Rule format:
 - Format check: `dotnet format ManagedCode.LlmTck.slnx --verify-no-changes`
 - Tool restore: `dotnet tool restore`
 - Coverage gate: production code line coverage must stay at or above 90%; measure with coverlet/reportgenerator when coverage expectations change.
-- Coverage: `rm -rf tests/ManagedCode.LlmTck.Tests/TestResults/coverage-analysis && mkdir -p tests/ManagedCode.LlmTck.Tests/TestResults/coverage-analysis/raw && dotnet tool run coverlet tests/ManagedCode.LlmTck.Tests/bin/Release/net10.0/ManagedCode.LlmTck.Tests.dll --target "dotnet" --targetargs "test --project tests/ManagedCode.LlmTck.Tests/ManagedCode.LlmTck.Tests.csproj --configuration Release --no-build --verbosity normal" --format cobertura --format json --output tests/ManagedCode.LlmTck.Tests/TestResults/coverage-analysis/raw/coverage --include "[ManagedCode.LlmTck]*" --include "[ManagedCode.LlmTck.*]*" --exclude "[ManagedCode.LlmTck.Tests]*" --exclude "[ManagedCode.LlmTck.Service]*" --exclude "[ManagedCode.LlmTck.AppHost]*" --threshold 90 --threshold-type line --threshold-stat Total`
+- Coverage: `bash scripts/coverage.sh` (maps deterministic CI source paths before collection and enforces 90% total production line coverage).
 - Quality gate: `dotnet format ManagedCode.LlmTck.slnx --verify-no-changes --no-restore && dotnet build ManagedCode.LlmTck.slnx --configuration Release --no-restore && dotnet test --project tests/ManagedCode.LlmTck.Tests/ManagedCode.LlmTck.Tests.csproj --configuration Release --no-build --verbosity normal && git diff --check`
 
 `global.json` opts `dotnet test` into `Microsoft.Testing.Platform`; do not add VSTest-specific logger arguments to normal test commands.
