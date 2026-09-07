@@ -18,15 +18,15 @@ public static class GroqCompatibility
                 LlmTckProviderCapability.Models,
                 LlmTckProviderCapability.Chat,
                 LlmTckProviderCapability.StreamingChat,
-                LlmTckProviderCapability.Audio,
                 LlmTckProviderCapability.Tools,
                 LlmTckProviderCapability.StructuredOutput,
+                LlmTckProviderCapability.Audio,
             ],
             CompatibilityTags = [ProviderId, LlmTckCompatibilityTags.OpenAICompatible],
             ApiContract = new()
             {
                 DocumentationUrl = "https://console.groq.com/docs/api-reference",
-                DocumentationRetrievedOn = "2026-07-08",
+                DocumentationRetrievedOn = "2026-09-07",
                 DocumentationVersion = "OpenAI-compatible v1",
                 Operations =
                 [
@@ -42,8 +42,8 @@ public static class GroqCompatibility
                         [
                             LlmTckProviderCapability.Chat,
                             LlmTckProviderCapability.StreamingChat,
-                            LlmTckProviderCapability.Tools,
-                            LlmTckProviderCapability.StructuredOutput,
+                LlmTckProviderCapability.Tools,
+                LlmTckProviderCapability.StructuredOutput,
                         ],
                     },
                     new()
@@ -58,6 +58,8 @@ public static class GroqCompatibility
                         [
                             LlmTckProviderCapability.Chat,
                             LlmTckProviderCapability.StreamingChat,
+                LlmTckProviderCapability.Tools,
+                LlmTckProviderCapability.StructuredOutput,
                         ],
                     },
                     new()

@@ -17,8 +17,9 @@ public static class OllamaCompatibility
             [
                 LlmTckProviderCapability.Chat,
                 LlmTckProviderCapability.StreamingChat,
-                LlmTckProviderCapability.Embeddings,
                 LlmTckProviderCapability.Tools,
+                LlmTckProviderCapability.StructuredOutput,
+                LlmTckProviderCapability.Embeddings,
             ],
             CompatibilityTags =
             [
@@ -29,7 +30,7 @@ public static class OllamaCompatibility
             ApiContract = new()
             {
                 DocumentationUrl = "https://docs.ollama.com/api/chat",
-                DocumentationRetrievedOn = "2026-07-08",
+                DocumentationRetrievedOn = "2026-09-07",
                 DocumentationVersion = "local Ollama HTTP API",
                 Operations =
                 [
@@ -45,7 +46,8 @@ public static class OllamaCompatibility
                         [
                             LlmTckProviderCapability.Chat,
                             LlmTckProviderCapability.StreamingChat,
-                            LlmTckProviderCapability.Tools,
+                LlmTckProviderCapability.Tools,
+                LlmTckProviderCapability.StructuredOutput,
                         ],
                     },
                     new()

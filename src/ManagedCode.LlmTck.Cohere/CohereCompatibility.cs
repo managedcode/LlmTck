@@ -17,15 +17,15 @@ public static class CohereCompatibility
             [
                 LlmTckProviderCapability.Chat,
                 LlmTckProviderCapability.StreamingChat,
-                LlmTckProviderCapability.Embeddings,
                 LlmTckProviderCapability.Tools,
                 LlmTckProviderCapability.StructuredOutput,
+                LlmTckProviderCapability.Embeddings,
             ],
             CompatibilityTags = [ProviderId],
             ApiContract = new()
             {
                 DocumentationUrl = "https://docs.cohere.com/reference/chat",
-                DocumentationRetrievedOn = "2026-07-08",
+                DocumentationRetrievedOn = "2026-09-07",
                 DocumentationVersion = "v2",
                 Operations =
                 [
@@ -41,8 +41,8 @@ public static class CohereCompatibility
                         [
                             LlmTckProviderCapability.Chat,
                             LlmTckProviderCapability.StreamingChat,
-                            LlmTckProviderCapability.Tools,
-                            LlmTckProviderCapability.StructuredOutput,
+                LlmTckProviderCapability.Tools,
+                LlmTckProviderCapability.StructuredOutput,
                         ],
                     },
                     new()

@@ -17,12 +17,12 @@ public static class GeminiCompatibility
             [
                 LlmTckProviderCapability.Chat,
                 LlmTckProviderCapability.StreamingChat,
+                LlmTckProviderCapability.Tools,
+                LlmTckProviderCapability.StructuredOutput,
                 LlmTckProviderCapability.Embeddings,
                 LlmTckProviderCapability.Images,
                 LlmTckProviderCapability.Video,
                 LlmTckProviderCapability.Audio,
-                LlmTckProviderCapability.Tools,
-                LlmTckProviderCapability.StructuredOutput,
             ],
             CompatibilityTags =
             [
@@ -33,7 +33,7 @@ public static class GeminiCompatibility
             ApiContract = new()
             {
                 DocumentationUrl = "https://ai.google.dev/api",
-                DocumentationRetrievedOn = "2026-07-08",
+                DocumentationRetrievedOn = "2026-09-07",
                 DocumentationVersion = "v1beta Generative Language API",
                 Operations =
                 [
@@ -47,10 +47,10 @@ public static class GeminiCompatibility
                         Capabilities =
                         [
                             LlmTckProviderCapability.Chat,
-                            LlmTckProviderCapability.Images,
-                            LlmTckProviderCapability.Audio,
                             LlmTckProviderCapability.Tools,
                             LlmTckProviderCapability.StructuredOutput,
+                            LlmTckProviderCapability.Images,
+                            LlmTckProviderCapability.Audio,
                         ],
                     },
                     new()
@@ -61,7 +61,7 @@ public static class GeminiCompatibility
                         DocumentationUrl = "https://ai.google.dev/api/generate-content",
                         SupportsStreaming = true,
                         ImplementedByHosting = true,
-                        Capabilities = [LlmTckProviderCapability.StreamingChat],
+                        Capabilities = [LlmTckProviderCapability.StreamingChat, LlmTckProviderCapability.Tools, LlmTckProviderCapability.StructuredOutput],
                     },
                     new()
                     {

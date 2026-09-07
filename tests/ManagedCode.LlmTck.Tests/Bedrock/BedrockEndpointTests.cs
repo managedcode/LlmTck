@@ -12,6 +12,57 @@ public sealed class BedrockEndpointTests
     private static readonly JsonSerializerOptions _jsonOptions = new(JsonSerializerDefaults.Web);
 
     [Test]
+    [Arguments("converse-stream")]
+    [Arguments("invoke-with-response-stream")]
+    public async Task StreamingEndpoints_RejectInvalidRequestsWithoutConsumingFixtureAsync(string operation)
+    {
+        using var host = await LlmTckTestHost.StartAsync(options => options
+            .RequireBearerToken("test-key")
+            .AddModel("amazon.nova-lite-v1:0", LlmTckModelKind.Chat)
+            .AddChatScenario("stream-validation", scenario => scenario.ForModel("amazon.nova-lite-v1:0")
+                .WhenUserContains("whale").Responds("blue whale")));
+        using var client = host.GetTestClient();
+        var path = $"/bedrock/model/amazon.nova-lite-v1:0/{operation}";
+        foreach (var invalidBody in new[] { "{", "null", """{"inputText":""}""" })
+        {
+            using var body = new StringContent(invalidBody, Encoding.UTF8, "application/json");
+            using var invalid = await client.PostAsync(path, body);
+            await Assert.That(invalid.StatusCode).IsEqualTo(System.Net.HttpStatusCode.BadRequest);
+            await Assert.That(invalid.Content.Headers.ContentType?.MediaType).IsEqualTo("application/json");
+            var error = await invalid.Content.ReadFromJsonAsync<JsonElement>();
+            await Assert.That(error.GetProperty("message").GetString()).IsNotNullOrEmpty();
+        }
+
+        var validBody = operation == "converse-stream"
+            ? """{"messages":[{"role":"user","content":[{"text":"whale"}]}]}"""
+            : """{"inputText":"whale"}""";
+        using var unauthorizedBody = new StringContent(validBody, Encoding.UTF8, "application/json");
+        using var unauthorized = await client.PostAsync(path, unauthorizedBody);
+        await Assert.That(unauthorized.StatusCode).IsEqualTo(System.Net.HttpStatusCode.Unauthorized);
+        var unauthorizedError = await unauthorized.Content.ReadFromJsonAsync<JsonElement>();
+        await Assert.That(unauthorizedError.GetProperty("message").GetString()).IsNotNullOrEmpty();
+
+        client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", "test-key");
+        using var validContent = new StringContent(validBody, Encoding.UTF8, "application/json");
+        using var response = await client.PostAsync(path, validContent);
+        response.EnsureSuccessStatusCode();
+        await Assert.That(response.Content.Headers.ContentType?.MediaType).IsEqualTo("application/vnd.amazon.eventstream");
+        var events = await ReadEventStreamAsync(response);
+        if (operation == "converse-stream")
+        {
+            var delta = events.Single(item => item.TryGetProperty("contentBlockDelta", out _));
+            await Assert.That(delta.GetProperty("contentBlockDelta").GetProperty("delta").GetProperty("text").GetString())
+                .IsEqualTo("blue whale");
+        }
+        else
+        {
+            var bytes = events[0].GetProperty("chunk").GetProperty("bytes").GetBytesFromBase64();
+            var chunk = JsonSerializer.Deserialize<JsonElement>(bytes);
+            await Assert.That(chunk.GetProperty("outputText").GetString()).IsEqualTo("blue whale");
+        }
+    }
+
+    [Test]
     public async Task ConverseEndpoint_ReturnsBedrockConverseShapeAsync()
     {
         using var host = await LlmTckTestHost.StartAsync(options => options
@@ -151,7 +202,7 @@ public sealed class BedrockEndpointTests
         );
 
         response.EnsureSuccessStatusCode();
-        var lines = await ReadJsonLinesAsync(response);
+        var lines = await ReadEventStreamAsync(response);
 
         await Assert.That(response.Content.Headers.ContentType?.MediaType)
             .IsEqualTo("application/vnd.amazon.eventstream");
@@ -247,7 +298,7 @@ public sealed class BedrockEndpointTests
         );
 
         response.EnsureSuccessStatusCode();
-        var lines = await ReadJsonLinesAsync(response);
+        var lines = await ReadEventStreamAsync(response);
         var firstChunk = ReadBedrockChunkPayload(lines[0]);
         var secondChunk = ReadBedrockChunkPayload(lines[1]);
 
@@ -316,13 +367,27 @@ public sealed class BedrockEndpointTests
             .IsEqualTo(JsonValueKind.Null);
     }
 
-    private static async Task<JsonElement[]> ReadJsonLinesAsync(HttpResponseMessage response)
+    private static async Task<JsonElement[]> ReadEventStreamAsync(HttpResponseMessage response)
     {
-        var body = await response.Content.ReadAsStringAsync();
-        return body
-            .Split('\n', StringSplitOptions.RemoveEmptyEntries)
-            .Select(line => JsonDocument.Parse(line).RootElement.Clone())
-            .ToArray();
+        var body = await response.Content.ReadAsByteArrayAsync();
+        var events = new List<JsonElement>();
+        using var decoder = new Amazon.Runtime.EventStreams.Internal.EventStreamDecoder();
+        decoder.MessageReceived += (_, args) =>
+        {
+            var eventType = args.Message.Headers[":event-type"].AsString();
+            using var document = JsonDocument.Parse(args.Message.Payload);
+            events.Add(JsonSerializer.SerializeToElement(
+                new Dictionary<string, JsonElement> { [eventType] = document.RootElement }
+            ));
+        };
+        // Exercise arbitrary network fragmentation, including split preludes and checksums.
+        for (var offset = 0; offset < body.Length; offset += 7)
+        {
+            var fragment = body.AsSpan(offset, Math.Min(7, body.Length - offset)).ToArray();
+            decoder.ProcessData(fragment, 0, fragment.Length);
+        }
+
+        return events.ToArray();
     }
 
     private static JsonElement ReadBedrockChunkPayload(JsonElement streamEvent)

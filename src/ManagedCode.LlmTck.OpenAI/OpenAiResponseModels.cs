@@ -5,6 +5,13 @@ namespace ManagedCode.LlmTck.OpenAI;
 
 public sealed record OpenAiResponseRequest
 {
+    [JsonPropertyName("parallel_tool_calls")]
+    public bool ParallelToolCalls { get; init; } = true;
+
+    [JsonPropertyName("tools")] public List<OpenAiResponseTool> Tools { get; init; } = [];
+    [JsonPropertyName("tool_choice")][JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] public JsonElement ToolChoice { get; init; }
+    [JsonPropertyName("text")] public OpenAiResponseTextOptions? Text { get; init; }
+
     [JsonPropertyName("model")]
     public string Model { get; init; } = string.Empty;
 
@@ -16,6 +23,12 @@ public sealed record OpenAiResponseRequest
 
     [JsonPropertyName("stream")]
     public bool Stream { get; init; }
+
+    [JsonPropertyName("store")]
+    public bool? Store { get; init; }
+
+    [JsonPropertyName("previous_response_id")]
+    public string? PreviousResponseId { get; init; }
 
     [JsonPropertyName("prompt_cache_key")]
     public string? PromptCacheKey { get; init; }
@@ -50,6 +63,10 @@ public sealed record OpenAiResponse
 
 public sealed record OpenAiResponseOutputMessage
 {
+    [JsonPropertyName("call_id")][JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public string? CallId { get; init; }
+    [JsonPropertyName("name")][JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public string? Name { get; init; }
+    [JsonPropertyName("arguments")][JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public string? Arguments { get; init; }
+
     [JsonPropertyName("type")]
     public string Type { get; init; } = "message";
 
@@ -112,4 +129,23 @@ public sealed record OpenAiOutputTokensDetails
 {
     [JsonPropertyName("reasoning_tokens")]
     public int ReasoningTokens { get; init; }
+}
+
+public sealed record OpenAiResponseTool
+{
+    [JsonPropertyName("type")] public string Type { get; init; } = "function";
+    [JsonPropertyName("name")] public string Name { get; init; } = string.Empty;
+    [JsonPropertyName("description")] public string? Description { get; init; }
+    [JsonPropertyName("parameters")] public JsonElement Parameters { get; init; } = JsonSerializer.SerializeToElement(new { type = "object" });
+}
+public sealed record OpenAiResponseTextOptions
+{
+    [JsonPropertyName("format")] public OpenAiResponseTextFormat? Format { get; init; }
+}
+public sealed record OpenAiResponseTextFormat
+{
+    [JsonPropertyName("type")] public string Type { get; init; } = "text";
+    [JsonPropertyName("name")] public string? Name { get; init; }
+    [JsonPropertyName("schema")][JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] public JsonElement Schema { get; init; }
+    [JsonPropertyName("strict")] public bool? Strict { get; init; }
 }

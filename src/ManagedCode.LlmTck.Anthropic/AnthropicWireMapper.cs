@@ -18,16 +18,19 @@ public static class AnthropicWireMapper
             messages.Add(new LlmTckMessage { Role = "system", Content = system });
         }
 
-        messages.AddRange(request.Messages.Select(message => new LlmTckMessage
-        {
-            Role = message.Role,
-            Content = message.TextContent,
-        }));
+        messages.AddRange(request.Messages.SelectMany(ReadMessages));
 
         return new()
         {
+            Tools = request.Tools.Select(tool => new LlmTckToolDefinition { Name = tool.Name, Description = tool.Description, ParametersJson = tool.InputSchema.GetRawText() }).ToList(),
+            ToolChoice = request.ToolChoice?.Type switch { "any" or "tool" => LlmTckToolChoice.Required, "none" => LlmTckToolChoice.None, _ => LlmTckToolChoice.Auto },
+            RequiredToolName = request.ToolChoice?.Name,
+            AllowParallelToolCalls = request.ToolChoice?.DisableParallelToolUse != true,
+            RequireJson = request.OutputConfig?.Format is not null,
+            ResponseSchemaJson = request.OutputConfig?.Format?.Schema.GetRawText(),
             ModelId = request.Model,
             Stream = request.Stream,
+            PopulateCacheOnly = request.MaxTokens == 0,
             PromptCachePolicy = HasPromptCacheControl(request)
                 ? LlmTckPromptCachePolicy.Anthropic
                 : LlmTckPromptCachePolicy.None,
@@ -35,13 +38,14 @@ public static class AnthropicWireMapper
         };
     }
 
-    public static AnthropicMessageResponse ToMessageResponse(LlmTckChatResult result)
+    public static AnthropicMessageResponse ToMessageResponse(LlmTckChatResult result, bool cacheOnly = false)
     {
         return new()
         {
             Id = CreateMessageId(),
             Model = result.ModelId,
-            Content = [new AnthropicContentBlock { Text = result.Content }],
+            Content = cacheOnly ? [] : result.ToolCalls.Count > 0 ? (result.Content.Length > 0 ? new[] { new AnthropicContentBlock { Text = result.Content } } : []).Concat(result.ToolCalls.Select(ToToolBlock)).ToList() : [new AnthropicContentBlock { Text = result.Content }],
+            StopReason = cacheOnly ? "max_tokens" : result.ToolCalls.Count > 0 ? "tool_use" : "end_turn",
             Usage = CreateUsage(result.Usage),
         };
     }
@@ -111,14 +115,14 @@ public static class AnthropicWireMapper
         };
     }
 
-    public static object ToMessageDeltaEvent(LlmTckChatResult result)
+    public static object ToMessageDeltaEvent(LlmTckChatResult result, bool cacheOnly = false)
     {
         return new
         {
             type = "message_delta",
             delta = new
             {
-                stop_reason = "end_turn",
+                stop_reason = cacheOnly ? "max_tokens" : result.ToolCalls.Count > 0 ? "tool_use" : "end_turn",
                 stop_sequence = (string?)null,
             },
             usage = new { output_tokens = result.Usage.OutputTokens },
@@ -131,6 +135,43 @@ public static class AnthropicWireMapper
         {
             type = "message_stop",
         };
+    }
+
+    public static AnthropicContentBlock ToToolBlock(LlmTckToolCall call)
+    {
+        return new()
+        { Type = "tool_use", Id = call.Id, Name = call.Name, Input = JsonSerializer.Deserialize<JsonElement>(call.ArgumentsJson), Text = null };
+    }
+
+    public static IEnumerable<object> ToToolStreamEvents(LlmTckChatResult result, int offset = 0)
+    {
+        for (var position = 0; position < result.ToolCalls.Count; position++)
+        {
+            var index = position + offset;
+            var call = result.ToolCalls[position];
+            yield return new { type = "content_block_start", index, content_block = ToToolBlock(call) with { Input = JsonSerializer.SerializeToElement(new { }) } };
+            yield return new { type = "content_block_delta", index, delta = new { type = "input_json_delta", partial_json = call.ArgumentsJson } };
+            yield return new { type = "content_block_stop", index };
+        }
+    }
+
+    private static IEnumerable<LlmTckMessage> ReadMessages(AnthropicInputMessage message)
+    {
+        if (message.Content.ValueKind != JsonValueKind.Array)
+        { yield return new() { Role = message.Role, Content = message.TextContent }; yield break; }
+        var blocks = message.Content.EnumerateArray().ToArray();
+        var calls = blocks.Where(block => block.TryGetProperty("type", out var type) && type.GetString() == "tool_use")
+            .Select(block => new LlmTckToolCall { Id = block.GetProperty("id").GetString()!, Name = block.GetProperty("name").GetString()!, ArgumentsJson = block.GetProperty("input").GetRawText() }).ToList();
+        var text = string.Concat(blocks.Where(block => block.TryGetProperty("type", out var type) && type.GetString() == "text").Select(block => block.GetProperty("text").GetString()));
+        if (calls.Count > 0 || text.Length > 0)
+        {
+            yield return new() { Role = message.Role, Content = text, ToolCalls = calls };
+        }
+
+        foreach (var block in blocks.Where(block => block.TryGetProperty("type", out var type) && type.GetString() == "tool_result"))
+        {
+            yield return new() { Role = "tool", ToolCallId = block.GetProperty("tool_use_id").GetString(), Content = AnthropicContentReader.ReadTextContent(block.GetProperty("content")) };
+        }
     }
 
     private static string CreateMessageId()

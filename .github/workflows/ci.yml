@@ -35,10 +35,25 @@ jobs:
         run: dotnet build ManagedCode.LlmTck.slnx --configuration Release --no-restore
 
       - name: Test
-        run: dotnet test tests/ManagedCode.LlmTck.Tests/ManagedCode.LlmTck.Tests.csproj --configuration Release --no-build --verbosity normal
+        run: bash scripts/coverage.sh
 
       - name: Pack
         run: for project in src/*/*.csproj; do dotnet pack "$project" --configuration Release --no-build --output artifacts/packages; done
+
+      - name: Verify installed NuGet consumer
+        run: python3 scripts/verify-package.py
+
+      - name: Verify release recovery
+        run: python3 scripts/test-release.py
+
+      - name: Upload verification evidence
+        if: always()
+        uses: actions/upload-artifact@v7.0.1
+        with:
+          name: verification-evidence
+          path: |
+            artifacts/coverage
+            artifacts/package-consumer
 
       - name: Upload packages
         uses: actions/upload-artifact@v7.0.1

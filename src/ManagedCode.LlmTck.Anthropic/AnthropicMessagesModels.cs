@@ -5,6 +5,10 @@ namespace ManagedCode.LlmTck.Anthropic;
 
 public sealed record AnthropicMessagesRequest
 {
+    [JsonPropertyName("tools")] public List<AnthropicTool> Tools { get; init; } = [];
+    [JsonPropertyName("tool_choice")] public AnthropicToolChoice? ToolChoice { get; init; }
+    [JsonPropertyName("output_config")] public AnthropicOutputConfig? OutputConfig { get; init; }
+
     [JsonPropertyName("model")]
     public string Model { get; init; } = string.Empty;
 
@@ -65,11 +69,16 @@ public sealed record AnthropicMessageResponse
 
 public sealed record AnthropicContentBlock
 {
+    [JsonPropertyName("id")][JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public string? Id { get; init; }
+    [JsonPropertyName("name")][JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public string? Name { get; init; }
+    [JsonPropertyName("input")][JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public JsonElement? Input { get; init; }
+
     [JsonPropertyName("type")]
     public string Type { get; init; } = "text";
 
     [JsonPropertyName("text")]
-    public string Text { get; init; } = string.Empty;
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? Text { get; init; } = string.Empty;
 }
 
 public sealed record AnthropicUsage
@@ -153,4 +162,26 @@ internal static class AnthropicContentReader
             ? ReadTextContent(nested)
             : block.ToString();
     }
+}
+
+public sealed record AnthropicTool
+{
+    [JsonPropertyName("name")] public string Name { get; init; } = string.Empty;
+    [JsonPropertyName("description")] public string? Description { get; init; }
+    [JsonPropertyName("input_schema")] public JsonElement InputSchema { get; init; } = JsonSerializer.SerializeToElement(new { type = "object" });
+}
+public sealed record AnthropicToolChoice
+{
+    [JsonPropertyName("disable_parallel_tool_use")] public bool DisableParallelToolUse { get; init; }
+    [JsonPropertyName("type")] public string Type { get; init; } = "auto";
+    [JsonPropertyName("name")] public string? Name { get; init; }
+}
+public sealed record AnthropicOutputConfig
+{
+    [JsonPropertyName("format")] public AnthropicOutputFormat? Format { get; init; }
+}
+public sealed record AnthropicOutputFormat
+{
+    [JsonPropertyName("type")] public string Type { get; init; } = "json_schema";
+    [JsonPropertyName("schema")] public JsonElement Schema { get; init; }
 }

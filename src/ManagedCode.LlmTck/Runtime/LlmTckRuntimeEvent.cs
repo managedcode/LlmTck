@@ -26,7 +26,7 @@ public sealed record LlmTckRuntimeEvent
     public string? Request { get; init; }
 
     /// <summary>
-    /// Immutable, ordered copy of the chat conversation that produced this event. See
+    /// Independent, ordered copy of the chat conversation that produced this event. See
     /// <see cref="PayloadTruncated"/> for the exceptional journal-budget case.
     /// </summary>
     public IReadOnlyList<LlmTckMessage> Messages { get; init; } = [];
@@ -43,7 +43,7 @@ public sealed record LlmTckRuntimeEvent
     public bool IsStreaming { get; init; }
 
     /// <summary>
-    /// Immutable, ordered response chunks retained for a successful streaming chat request.
+    /// Independent, ordered response chunks retained for a successful streaming chat request.
     /// See <see cref="PayloadTruncated"/> for the exceptional journal-budget case.
     /// </summary>
     public IReadOnlyList<string> StreamChunks { get; init; } = [];

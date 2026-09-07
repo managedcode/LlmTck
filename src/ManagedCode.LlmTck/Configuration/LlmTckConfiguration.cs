@@ -5,6 +5,15 @@ namespace ManagedCode.LlmTck.Configuration;
 
 public sealed record LlmTckConfiguration
 {
+    /// <summary>Maximum retained prompt-cache prefixes. Zero disables prompt caching.</summary>
+    public int MaxPromptCacheEntries { get; init; } = 4096;
+
+    /// <summary>Maximum stored video jobs across providers. Zero rejects all new jobs.</summary>
+    public int MaxVideoJobs { get; init; } = 256;
+
+    /// <summary>Maximum total retained video payload bytes. Overflow is rejected without eviction.</summary>
+    public long MaxVideoBytes { get; init; } = 64 * 1024 * 1024;
+
     public List<LlmTckModel> Models { get; init; } = [];
 
     public List<LlmTckScenario> ChatScenarios { get; init; } = [];

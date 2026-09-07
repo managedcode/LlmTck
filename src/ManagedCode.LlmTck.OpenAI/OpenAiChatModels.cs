@@ -1,19 +1,33 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using ManagedCode.LlmTck.Models;
 
 namespace ManagedCode.LlmTck.OpenAI;
 
 public sealed record OpenAiChatCompletionRequest
 {
+    [JsonPropertyName("parallel_tool_calls")]
+    public bool ParallelToolCalls { get; init; } = true;
+
+    [JsonPropertyName("tools")]
+    public List<OpenAiTool> Tools { get; init; } = [];
+    [JsonPropertyName("tool_choice")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public JsonElement ToolChoice { get; init; }
+    [JsonPropertyName("response_format")]
+    public OpenAiResponseFormat? ResponseFormat { get; init; }
+
     [JsonPropertyName("model")]
-    public string Model { get; init; } = LlmTckKnownModelIds.Gpt41Mini;
+    public string Model { get; init; } = string.Empty;
 
     [JsonPropertyName("messages")]
     public List<OpenAiChatMessage> Messages { get; init; } = [];
 
     [JsonPropertyName("stream")]
     public bool Stream { get; init; }
+
+    [JsonPropertyName("stream_options")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public OpenAiChatStreamOptions? StreamOptions { get; init; }
 
     [JsonPropertyName("prompt_cache_key")]
     public string? PromptCacheKey { get; init; }
@@ -22,8 +36,21 @@ public sealed record OpenAiChatCompletionRequest
     public string? SessionId { get; init; }
 }
 
+public sealed record OpenAiChatStreamOptions
+{
+    [JsonPropertyName("include_usage")]
+    public bool IncludeUsage { get; init; }
+}
+
 public sealed record OpenAiChatMessage
 {
+    [JsonPropertyName("tool_calls")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public List<OpenAiToolCall>? ToolCalls { get; init; }
+    [JsonPropertyName("tool_call_id")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? ToolCallId { get; init; }
+
     [JsonPropertyName("role")]
     public string Role { get; init; } = "user";
 
@@ -105,6 +132,9 @@ public sealed record OpenAiChatCompletionChunk
 
     [JsonPropertyName("choices")]
     public List<OpenAiChatChunkChoice> Choices { get; init; } = [];
+
+    [JsonPropertyName("usage")]
+    public OpenAiUsage? Usage { get; init; }
 }
 
 public sealed record OpenAiChatChunkChoice

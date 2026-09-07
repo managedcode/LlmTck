@@ -28,7 +28,7 @@ using ProviderRoutes = ManagedCode.LlmTck.Providers.LlmTckProviderRouteNamespace
 
 namespace ManagedCode.LlmTck.Hosting;
 
-public static class LlmTckEndpointRouteBuilderExtensions
+public static partial class LlmTckEndpointRouteBuilderExtensions
 {
     private static readonly JsonSerializerOptions _jsonOptions = CreateJsonOptions();
     private static readonly byte[] _defaultJpegBytes = [0xFF, 0xD8, 0xFF, 0xD9];
@@ -188,6 +188,48 @@ public static class LlmTckEndpointRouteBuilderExtensions
 
         var providerEndpoints = endpoints.MapGroup(string.Empty);
         providerEndpoints.AddLlmTckProviderHttpTracing();
+        providerEndpoints.AddEndpointFilter(async (invocation, next) =>
+        {
+            var error = LlmTckRequestPolicy.ValidateApiVersion(invocation.HttpContext);
+            return error ?? await next(invocation).ConfigureAwait(false);
+        });
+
+        providerEndpoints
+            .MapPost(
+                ProviderRoutes.ForProvider(ProviderRoutes.AzureOpenAI, "/openai/v1/chat/completions"),
+                CompleteOpenAiChatAsync
+            )
+            .WithLlmTckProviderOperation(LlmTckProviderOperationIds.AzureOpenAI.V1ChatCompletionsCreate);
+        providerEndpoints
+            .MapPost(
+                ProviderRoutes.ForProvider(ProviderRoutes.AzureOpenAI, "/openai/v1/responses"),
+                CreateOpenAiResponseAsync
+            )
+            .WithLlmTckProviderOperation(LlmTckProviderOperationIds.AzureOpenAI.V1ResponsesCreate);
+        providerEndpoints
+            .MapPost(
+                ProviderRoutes.ForProvider(ProviderRoutes.AzureOpenAI, "/openai/v1/embeddings"),
+                CreateEmbeddingAsync
+            )
+            .WithLlmTckProviderOperation(LlmTckProviderOperationIds.AzureOpenAI.V1EmbeddingsCreate);
+        providerEndpoints
+            .MapPost(
+                ProviderRoutes.ForProvider(ProviderRoutes.MicrosoftFoundry, "/openai/v1/chat/completions"),
+                CompleteOpenAiChatAsync
+            )
+            .WithLlmTckProviderOperation(LlmTckProviderOperationIds.MicrosoftFoundry.V1ChatCompletionsCreate);
+        providerEndpoints
+            .MapPost(
+                ProviderRoutes.ForProvider(ProviderRoutes.MicrosoftFoundry, "/openai/v1/responses"),
+                CreateOpenAiResponseAsync
+            )
+            .WithLlmTckProviderOperation(LlmTckProviderOperationIds.MicrosoftFoundry.V1ResponsesCreate);
+        providerEndpoints
+            .MapPost(
+                ProviderRoutes.ForProvider(ProviderRoutes.MicrosoftFoundry, "/openai/v1/embeddings"),
+                CreateEmbeddingAsync
+            )
+            .WithLlmTckProviderOperation(LlmTckProviderOperationIds.MicrosoftFoundry.V1EmbeddingsCreate);
 
         providerEndpoints
             .MapGet(
@@ -839,8 +881,16 @@ public static class LlmTckEndpointRouteBuilderExtensions
         }
 
         cancellationToken.ThrowIfCancellationRequested();
+        try
+        {
+            await runtime.ConfigureAsync(read.Value, CancellationToken.None).ConfigureAwait(false);
+        }
+        catch (ArgumentException)
+        {
+            return InvalidRequest("Invalid runtime configuration.");
+        }
+
         traceStore.Reset();
-        await runtime.ConfigureAsync(read.Value, CancellationToken.None).ConfigureAwait(false);
         return Results.Ok(new { status = "configured" });
     }
 
@@ -1037,7 +1087,7 @@ public static class LlmTckEndpointRouteBuilderExtensions
         CancellationToken cancellationToken
     )
     {
-        var read = await ReadJsonAsync<OpenAiResponseRequest>(context, cancellationToken)
+        var read = await ReadJsonAsync<OpenAiResponseRequest>(context, cancellationToken, validation: OpenAiRequestValidation.ValidateResponse)
             .ConfigureAwait(false);
         if (read.Error is not null)
         {
@@ -1050,6 +1100,12 @@ public static class LlmTckEndpointRouteBuilderExtensions
         }
 
         var request = read.Value;
+        if (promptCachePolicy == LlmTckPromptCachePolicy.OpenRouter
+            && (request.Store == true || request.PreviousResponseId is not null))
+        {
+            return InvalidRequest("OpenRouter Responses is stateless: store=true and previous_response_id are not supported.");
+        }
+
         if (promptCachePolicy == LlmTckPromptCachePolicy.OpenRouter
             && string.IsNullOrWhiteSpace(request.SessionId)
             && context.Request.Headers.TryGetValue("x-session-id", out var sessionId)
@@ -1117,7 +1173,7 @@ public static class LlmTckEndpointRouteBuilderExtensions
         var read = await ReadJsonAsync<AnthropicMessagesRequest>(
                 context,
                 AnthropicInvalidRequest,
-                cancellationToken
+                cancellationToken, validation: AnthropicRequestValidation.Validate
             )
             .ConfigureAwait(false);
         if (read.Error is not null)
@@ -1157,12 +1213,12 @@ public static class LlmTckEndpointRouteBuilderExtensions
 
         if (read.Value.Stream)
         {
-            await WriteAnthropicStreamingMessageAsync(context, result, cancellationToken)
+            await WriteAnthropicStreamingMessageAsync(context, result, cancellationToken, read.Value.MaxTokens == 0)
                 .ConfigureAwait(false);
             return Results.Empty;
         }
 
-        return Results.Json(AnthropicWireMapper.ToMessageResponse(result));
+        return Results.Json(AnthropicWireMapper.ToMessageResponse(result, read.Value.MaxTokens == 0));
     }
 
     private static async Task<IResult> CompleteOllamaChatAsync(
@@ -1174,7 +1230,7 @@ public static class LlmTckEndpointRouteBuilderExtensions
         var read = await ReadJsonAsync<OllamaChatRequest>(
                 context,
                 OllamaInvalidRequest,
-                cancellationToken
+                cancellationToken, validation: OllamaRequestValidation.Validate
             )
             .ConfigureAwait(false);
         if (read.Error is not null)
@@ -1228,7 +1284,7 @@ public static class LlmTckEndpointRouteBuilderExtensions
         var read = await ReadJsonAsync<CohereChatRequest>(
                 context,
                 CohereInvalidRequest,
-                cancellationToken
+                cancellationToken, validation: CohereRequestValidation.Validate
             )
             .ConfigureAwait(false);
         if (read.Error is not null)
@@ -1318,7 +1374,7 @@ public static class LlmTckEndpointRouteBuilderExtensions
         var read = await ReadJsonAsync<GeminiGenerateContentRequest>(
                 context,
                 GeminiInvalidRequest,
-                cancellationToken
+                cancellationToken, validation: GeminiRequestValidation.Validate
             )
             .ConfigureAwait(false);
         if (read.Error is not null)
@@ -1376,7 +1432,7 @@ public static class LlmTckEndpointRouteBuilderExtensions
         var read = await ReadJsonAsync<BedrockConverseRequest>(
                 context,
                 BedrockInvalidRequest,
-                cancellationToken
+                cancellationToken, validation: BedrockRequestValidation.Validate
             )
             .ConfigureAwait(false);
         if (read.Error is not null)
@@ -1424,7 +1480,7 @@ public static class LlmTckEndpointRouteBuilderExtensions
         var read = await ReadJsonAsync<BedrockConverseRequest>(
                 context,
                 BedrockInvalidRequest,
-                cancellationToken
+                cancellationToken, validation: BedrockRequestValidation.Validate
             )
             .ConfigureAwait(false);
         if (read.Error is not null)
@@ -1613,7 +1669,7 @@ public static class LlmTckEndpointRouteBuilderExtensions
         CancellationToken cancellationToken
     )
     {
-        var read = await ReadJsonAsync<OpenAiChatCompletionRequest>(context, cancellationToken)
+        var read = await ReadJsonAsync<OpenAiChatCompletionRequest>(context, cancellationToken, validation: OpenAiRequestValidation.ValidateChat)
             .ConfigureAwait(false);
         if (read.Error is not null)
         {
@@ -1663,7 +1719,7 @@ public static class LlmTckEndpointRouteBuilderExtensions
 
         if (request.Stream)
         {
-            await WriteStreamingChatAsync(context, result, cancellationToken).ConfigureAwait(false);
+            await WriteStreamingChatAsync(context, result, request.StreamOptions?.IncludeUsage == true, cacheUsageShape, cancellationToken).ConfigureAwait(false);
             return Results.Empty;
         }
 
@@ -2223,625 +2279,6 @@ public static class LlmTckEndpointRouteBuilderExtensions
             );
     }
 
-    private static async Task<IResult> CreateOpenAiVideoAsync(
-        HttpContext context,
-        ILlmTckRuntime runtime,
-        CancellationToken cancellationToken
-    )
-    {
-        var read = await ReadOpenAiVideoCreateRequestAsync(context, cancellationToken)
-            .ConfigureAwait(false);
-        if (read.Error is not null)
-        {
-            return read.Error;
-        }
-
-        if (read.Value is null)
-        {
-            return InvalidRequest("Missing video body.");
-        }
-
-        var validationError = ValidateOpenAiVideoCreateRequest(read.Value);
-        if (validationError is not null)
-        {
-            return validationError;
-        }
-
-        var result = await runtime
-            .GenerateVideoAsync(
-                read.Value.Model,
-                read.Value.Prompt,
-                ReadAccessToken(context),
-                cancellationToken
-            )
-            .ConfigureAwait(false);
-
-        if (!result.IsSuccess)
-        {
-            return ToOpenAiVideoError(result);
-        }
-
-        return Results.Json(
-            OpenAiWireMapper.ToVideoResponse(
-                result with
-                {
-                    Seconds = read.Value.Seconds ?? result.Seconds,
-                    Size = read.Value.Size ?? result.Size,
-                }
-            )
-        );
-    }
-
-    private static async Task<IResult> ListOpenAiVideosAsync(
-        HttpContext context,
-        ILlmTckRuntime runtime,
-        CancellationToken cancellationToken
-    )
-    {
-        var validationError = ValidateOpenAiVideoListQuery(context);
-        if (validationError is not null)
-        {
-            return validationError;
-        }
-
-        var read = await GenerateDefaultVideoFixtureAsync(
-                context,
-                runtime,
-                "listed video fixture",
-                cancellationToken
-            )
-            .ConfigureAwait(false);
-        return read.Error ?? Results.Json(OpenAiWireMapper.ToVideoListResponse(read.Value!));
-    }
-
-    private static async Task<IResult> GetOpenAiVideoAsync(
-        string videoId,
-        HttpContext context,
-        ILlmTckRuntime runtime,
-        CancellationToken cancellationToken
-    )
-    {
-        if (string.IsNullOrWhiteSpace(videoId))
-        {
-            return InvalidRequest("Missing video_id path parameter.");
-        }
-
-        var read = await GenerateDefaultVideoFixtureAsync(
-                context,
-                runtime,
-                "retrieved video fixture",
-                cancellationToken
-            )
-            .ConfigureAwait(false);
-        return read.Error
-            ?? Results.Json(OpenAiWireMapper.ToVideoResponse(read.Value! with { VideoId = videoId }));
-    }
-
-    private static IResult DeleteOpenAiVideoAsync(
-        string videoId,
-        HttpContext context,
-        ILlmTckRuntime runtime
-    )
-    {
-        if (string.IsNullOrWhiteSpace(videoId))
-        {
-            return InvalidRequest("Missing video_id path parameter.");
-        }
-
-        var unauthorized = AuthorizeControlRequest(context, runtime);
-        return unauthorized ?? Results.Json(OpenAiWireMapper.ToVideoDeleteResponse(videoId));
-    }
-
-    private static async Task<IResult> GetOpenAiVideoContentAsync(
-        string videoId,
-        HttpContext context,
-        ILlmTckRuntime runtime,
-        CancellationToken cancellationToken
-    )
-    {
-        if (string.IsNullOrWhiteSpace(videoId))
-        {
-            return InvalidRequest("Missing video_id path parameter.");
-        }
-
-        var variant = context.Request.Query["variant"].ToString();
-        if (
-            !string.IsNullOrWhiteSpace(variant)
-            && variant is not ("video" or "thumbnail" or "spritesheet")
-        )
-        {
-            return InvalidRequest("Unsupported video content variant.");
-        }
-
-        var read = await GenerateDefaultVideoFixtureAsync(
-                context,
-                runtime,
-                "downloaded video fixture",
-                cancellationToken
-            )
-            .ConfigureAwait(false);
-        if (read.Error is not null)
-        {
-            return read.Error;
-        }
-
-        return variant is "thumbnail" or "spritesheet"
-            ? Results.Bytes(_defaultJpegBytes, "image/jpeg")
-            : Results.Bytes(read.Value!.Bytes, read.Value.MediaType);
-    }
-
-    private static async Task<IResult> EditOpenAiVideoAsync(
-        HttpContext context,
-        ILlmTckRuntime runtime,
-        CancellationToken cancellationToken
-    )
-    {
-        var read = await ReadJsonAsync<OpenAiVideoEditRequest>(context, cancellationToken)
-            .ConfigureAwait(false);
-        if (read.Error is not null)
-        {
-            return read.Error;
-        }
-
-        if (read.Value is null)
-        {
-            return InvalidRequest("Missing video edit body.");
-        }
-
-        if (
-            string.IsNullOrWhiteSpace(read.Value.Prompt)
-            || string.IsNullOrWhiteSpace(read.Value.Video?.Id)
-        )
-        {
-            return InvalidRequest("Video edits require prompt and video.id.");
-        }
-
-        return await GenerateOpenAiVideoFromDefaultModelAsync(
-                context,
-                runtime,
-                read.Value.Prompt,
-                seconds: null,
-                remixedFromVideoId: read.Value.Video.Id,
-                cancellationToken
-            )
-            .ConfigureAwait(false);
-    }
-
-    private static async Task<IResult> ExtendOpenAiVideoAsync(
-        HttpContext context,
-        ILlmTckRuntime runtime,
-        CancellationToken cancellationToken
-    )
-    {
-        var read = await ReadJsonAsync<OpenAiVideoExtensionRequest>(context, cancellationToken)
-            .ConfigureAwait(false);
-        if (read.Error is not null)
-        {
-            return read.Error;
-        }
-
-        if (read.Value is null)
-        {
-            return InvalidRequest("Missing video extension body.");
-        }
-
-        if (
-            string.IsNullOrWhiteSpace(read.Value.Prompt)
-            || string.IsNullOrWhiteSpace(read.Value.Video?.Id)
-        )
-        {
-            return InvalidRequest("Video extensions require prompt and video.id.");
-        }
-
-        if (!IsAllowedOpenAiVideoExtensionSeconds(read.Value.Seconds))
-        {
-            return InvalidRequest("Unsupported video extension seconds.");
-        }
-
-        return await GenerateOpenAiVideoFromDefaultModelAsync(
-                context,
-                runtime,
-                read.Value.Prompt,
-                read.Value.Seconds,
-                remixedFromVideoId: read.Value.Video.Id,
-                cancellationToken
-            )
-            .ConfigureAwait(false);
-    }
-
-    private static async Task<IResult> RemixOpenAiVideoAsync(
-        string videoId,
-        HttpContext context,
-        ILlmTckRuntime runtime,
-        CancellationToken cancellationToken
-    )
-    {
-        if (string.IsNullOrWhiteSpace(videoId))
-        {
-            return InvalidRequest("Missing video_id path parameter.");
-        }
-
-        var read = await ReadJsonAsync<OpenAiVideoRemixRequest>(context, cancellationToken)
-            .ConfigureAwait(false);
-        if (read.Error is not null)
-        {
-            return read.Error;
-        }
-
-        if (read.Value is null || string.IsNullOrWhiteSpace(read.Value.Prompt))
-        {
-            return InvalidRequest("Video remix requires prompt.");
-        }
-
-        return await GenerateOpenAiVideoFromDefaultModelAsync(
-                context,
-                runtime,
-                read.Value.Prompt,
-                seconds: null,
-                remixedFromVideoId: videoId,
-                cancellationToken
-            )
-            .ConfigureAwait(false);
-    }
-
-    private static async Task<IResult> CreateOpenAiVideoCharacterAsync(
-        HttpContext context,
-        ILlmTckRuntime runtime,
-        CancellationToken cancellationToken
-    )
-    {
-        if (!context.Request.HasFormContentType)
-        {
-            return InvalidRequest("Video character creation requires multipart/form-data.");
-        }
-
-        IFormCollection form;
-        try
-        {
-            form = await context.Request.ReadFormAsync(cancellationToken).ConfigureAwait(false);
-        }
-        catch (InvalidDataException)
-        {
-            return InvalidRequest("Malformed multipart form data.");
-        }
-        catch (BadHttpRequestException)
-        {
-            return InvalidRequest("Malformed multipart form data.");
-        }
-
-        var unauthorized = AuthorizeControlRequest(context, runtime);
-        if (unauthorized is not null)
-        {
-            return unauthorized;
-        }
-
-        var name = form["name"].ToString();
-        if (string.IsNullOrWhiteSpace(name) || form.Files.GetFile("video") is null)
-        {
-            return InvalidRequest("Video character creation requires name and video file.");
-        }
-
-        return Results.Json(
-            OpenAiWireMapper.ToVideoCharacterResponse(
-                "char_llm_tck",
-                name,
-                DateTimeOffset.UtcNow.ToUnixTimeSeconds()
-            )
-        );
-    }
-
-    private static IResult GetOpenAiVideoCharacterAsync(
-        string characterId,
-        HttpContext context,
-        ILlmTckRuntime runtime
-    )
-    {
-        if (string.IsNullOrWhiteSpace(characterId))
-        {
-            return InvalidRequest("Missing character_id path parameter.");
-        }
-
-        var unauthorized = AuthorizeControlRequest(context, runtime);
-        return unauthorized
-            ?? Results.Json(
-                OpenAiWireMapper.ToVideoCharacterResponse(
-                    characterId,
-                    "LLM TCK Character",
-                    DateTimeOffset.UtcNow.ToUnixTimeSeconds()
-                )
-            );
-    }
-
-    private static async Task<IResult> GenerateOpenAiVideoFromDefaultModelAsync(
-        HttpContext context,
-        ILlmTckRuntime runtime,
-        string prompt,
-        string? seconds,
-        string? remixedFromVideoId,
-        CancellationToken cancellationToken
-    )
-    {
-        var read = await GenerateDefaultVideoFixtureAsync(context, runtime, prompt, cancellationToken)
-            .ConfigureAwait(false);
-        if (read.Error is not null)
-        {
-            return read.Error;
-        }
-
-        var result = read.Value!;
-        if (!string.IsNullOrWhiteSpace(seconds))
-        {
-            result = result with { Seconds = seconds };
-        }
-
-        var response = OpenAiWireMapper.ToVideoResponse(result) with
-        {
-            RemixedFromVideoId = remixedFromVideoId,
-        };
-        return Results.Json(response);
-    }
-
-    private static async Task<IResult> CreateAzureOpenAiVideoJobAsync(
-        HttpContext context,
-        ILlmTckRuntime runtime,
-        CancellationToken cancellationToken
-    )
-    {
-        var read = await ReadJsonAsync<AzureVideoGenerationJobRequest>(context, cancellationToken)
-            .ConfigureAwait(false);
-        if (read.Error is not null)
-        {
-            return read.Error;
-        }
-
-        if (read.Value is null)
-        {
-            return InvalidRequest("Missing video generation job body.");
-        }
-
-        var validationError = ValidateAzureVideoGenerationJobRequest(read.Value);
-        if (validationError is not null)
-        {
-            return validationError;
-        }
-
-        var result = await runtime
-            .GenerateVideoAsync(
-                read.Value.Model,
-                read.Value.Prompt,
-                ReadAccessToken(context),
-                cancellationToken
-            )
-            .ConfigureAwait(false);
-
-        if (!result.IsSuccess)
-        {
-            return ToOpenAiVideoError(result);
-        }
-
-        return Results.Json(
-            OpenAiWireMapper.ToAzureVideoGenerationJobResponse(
-                result with
-                {
-                    Size = $"{read.Value.Width}x{read.Value.Height}",
-                    Seconds = $"{read.Value.NSeconds}",
-                }
-            )
-        );
-    }
-
-    private static async Task<IResult> ListAzureOpenAiVideoJobsAsync(
-        HttpContext context,
-        ILlmTckRuntime runtime,
-        CancellationToken cancellationToken
-    )
-    {
-        var read = await GenerateDefaultVideoFixtureAsync(
-                context,
-                runtime,
-                "listed Azure video fixture",
-                cancellationToken
-            )
-            .ConfigureAwait(false);
-        return read.Error
-            ?? Results.Json(OpenAiWireMapper.ToAzureVideoGenerationJobListResponse(read.Value!));
-    }
-
-    private static async Task<IResult> GetAzureOpenAiVideoJobAsync(
-        string jobId,
-        HttpContext context,
-        ILlmTckRuntime runtime,
-        CancellationToken cancellationToken
-    )
-    {
-        if (string.IsNullOrWhiteSpace(jobId))
-        {
-            return InvalidRequest("Missing job-id path parameter.");
-        }
-
-        var read = await GenerateDefaultVideoFixtureAsync(
-                context,
-                runtime,
-                "retrieved Azure video job fixture",
-                cancellationToken
-            )
-            .ConfigureAwait(false);
-        return read.Error
-            ?? Results.Json(
-                OpenAiWireMapper.ToAzureVideoGenerationJobResponse(
-                    read.Value! with { VideoId = jobId }
-                )
-            );
-    }
-
-    private static IResult DeleteAzureOpenAiVideoJobAsync(
-        string jobId,
-        HttpContext context,
-        ILlmTckRuntime runtime
-    )
-    {
-        if (string.IsNullOrWhiteSpace(jobId))
-        {
-            return InvalidRequest("Missing job-id path parameter.");
-        }
-
-        var unauthorized = AuthorizeControlRequest(context, runtime);
-        return unauthorized ?? Results.NoContent();
-    }
-
-    private static async Task<IResult> GetAzureOpenAiVideoGenerationAsync(
-        string generationId,
-        HttpContext context,
-        ILlmTckRuntime runtime,
-        CancellationToken cancellationToken
-    )
-    {
-        if (string.IsNullOrWhiteSpace(generationId))
-        {
-            return InvalidRequest("Missing generation-id path parameter.");
-        }
-
-        var read = await GenerateDefaultVideoFixtureAsync(
-                context,
-                runtime,
-                "retrieved Azure video generation fixture",
-                cancellationToken
-            )
-            .ConfigureAwait(false);
-        return read.Error
-            ?? Results.Json(
-                OpenAiWireMapper.ToAzureVideoGenerationResponse(
-                    read.Value! with { GenerationId = generationId }
-                )
-            );
-    }
-
-    private static async Task<IResult> GetAzureOpenAiVideoThumbnailAsync(
-        string generationId,
-        HttpContext context,
-        ILlmTckRuntime runtime,
-        CancellationToken cancellationToken
-    )
-    {
-        if (string.IsNullOrWhiteSpace(generationId))
-        {
-            return InvalidRequest("Missing generation-id path parameter.");
-        }
-
-        var read = await GenerateDefaultVideoFixtureAsync(
-                context,
-                runtime,
-                "retrieved Azure video thumbnail fixture",
-                cancellationToken
-            )
-            .ConfigureAwait(false);
-        return read.Error ?? Results.Bytes(_defaultJpegBytes, "image/jpg");
-    }
-
-    private static async Task<IResult> GetAzureOpenAiVideoContentAsync(
-        string generationId,
-        HttpContext context,
-        ILlmTckRuntime runtime,
-        CancellationToken cancellationToken
-    )
-    {
-        if (string.IsNullOrWhiteSpace(generationId))
-        {
-            return InvalidRequest("Missing generation-id path parameter.");
-        }
-
-        var read = await GenerateDefaultVideoFixtureAsync(
-                context,
-                runtime,
-                "retrieved Azure video content fixture",
-                cancellationToken
-            )
-            .ConfigureAwait(false);
-        return read.Error ?? Results.Bytes(read.Value!.Bytes, read.Value.MediaType);
-    }
-
-    private static async Task<IResult> HeadAzureOpenAiVideoContentAsync(
-        string generationId,
-        HttpContext context,
-        ILlmTckRuntime runtime,
-        CancellationToken cancellationToken
-    )
-    {
-        if (string.IsNullOrWhiteSpace(generationId))
-        {
-            return InvalidRequest("Missing generation-id path parameter.");
-        }
-
-        var read = await GenerateDefaultVideoFixtureAsync(
-                context,
-                runtime,
-                "retrieved Azure video content fixture",
-                cancellationToken
-            )
-            .ConfigureAwait(false);
-        if (read.Error is not null)
-        {
-            return read.Error;
-        }
-
-        context.Response.StatusCode = StatusCodes.Status200OK;
-        context.Response.ContentType = read.Value!.MediaType;
-        context.Response.ContentLength = read.Value.Bytes.Length;
-        return Results.Empty;
-    }
-
-    private static async Task<VideoFixtureReadResult> GenerateDefaultVideoFixtureAsync(
-        HttpContext context,
-        ILlmTckRuntime runtime,
-        string prompt,
-        CancellationToken cancellationToken
-    )
-    {
-        var modelId = runtime
-            .GetModels()
-            .FirstOrDefault(model => model.Kind == LlmTckModelKind.Video)
-            ?.Id ?? LlmTckKnownModelIds.Sora2;
-        var result = await runtime
-            .GenerateVideoAsync(modelId, prompt, ReadAccessToken(context), cancellationToken)
-            .ConfigureAwait(false);
-
-        return result.IsSuccess
-            ? new(result, null)
-            : new(null, ToOpenAiVideoError(result));
-    }
-
-    private static async Task<IResult> GenerateAudioAsync(
-        HttpContext context,
-        ILlmTckRuntime runtime,
-        CancellationToken cancellationToken
-    )
-    {
-        return await GenerateAudioCoreAsync(
-                context,
-                runtime,
-                modelOverride: null,
-                allowedResponseFormats: _openAiSpeechResponseFormats,
-                cancellationToken
-            )
-            .ConfigureAwait(false);
-    }
-
-    private static async Task<IResult> GenerateGroqAudioAsync(
-        HttpContext context,
-        ILlmTckRuntime runtime,
-        CancellationToken cancellationToken
-    )
-    {
-        return await GenerateAudioCoreAsync(
-                context,
-                runtime,
-                modelOverride: null,
-                allowedResponseFormats: _groqSpeechResponseFormats,
-                cancellationToken
-            )
-            .ConfigureAwait(false);
-    }
-
     private static async Task<IResult> GenerateAzureOpenAiAudioAsync(
         string deployment,
         HttpContext context,
@@ -3133,521 +2570,6 @@ public static class LlmTckEndpointRouteBuilderExtensions
             ),
             _ => Results.Json(OpenAiWireMapper.ToAudioTranscriptionResponse(result)),
         };
-    }
-
-    private static async Task WriteStreamingChatAsync(
-        HttpContext context,
-        LlmTckChatResult result,
-        CancellationToken cancellationToken
-    )
-    {
-        context.Response.StatusCode = StatusCodes.Status200OK;
-        context.Response.ContentType = "text/event-stream";
-        var responseId = OpenAiWireMapper.CreateResponseId();
-        var created = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
-
-        foreach (var chunk in result.StreamChunks)
-        {
-            var payload = JsonSerializer.Serialize(
-                OpenAiWireMapper.ToChatChunk(result, chunk, responseId, created),
-                _jsonOptions
-            );
-            await context.Response.WriteAsync($"data: {payload}\n\n", cancellationToken)
-                .ConfigureAwait(false);
-            await context.Response.Body.FlushAsync(cancellationToken).ConfigureAwait(false);
-        }
-
-        var finalPayload = JsonSerializer.Serialize(
-            OpenAiWireMapper.ToChatChunk(result, string.Empty, responseId, created, "stop"),
-            _jsonOptions
-        );
-        await context.Response.WriteAsync($"data: {finalPayload}\n\n", cancellationToken)
-            .ConfigureAwait(false);
-        await context.Response.WriteAsync("data: [DONE]\n\n", cancellationToken).ConfigureAwait(false);
-    }
-
-    private static async Task WriteStreamingResponseAsync(
-        HttpContext context,
-        LlmTckChatResult result,
-        string responseId,
-        long created,
-        OpenAiCacheUsageShape cacheUsageShape,
-        CancellationToken cancellationToken
-    )
-    {
-        context.Response.StatusCode = StatusCodes.Status200OK;
-        context.Response.ContentType = "text/event-stream";
-
-        await WriteResponseSseDataAsync(
-                context,
-                OpenAiWireMapper.ToResponseCreatedEvent(result, responseId, created),
-                cancellationToken
-            )
-            .ConfigureAwait(false);
-        await WriteResponseSseDataAsync(
-                context,
-                OpenAiWireMapper.ToResponseOutputItemAddedEvent(responseId),
-                cancellationToken
-            )
-            .ConfigureAwait(false);
-        await WriteResponseSseDataAsync(
-                context,
-                OpenAiWireMapper.ToResponseContentPartAddedEvent(responseId),
-                cancellationToken
-            )
-            .ConfigureAwait(false);
-
-        foreach (var chunk in result.StreamChunks)
-        {
-            await WriteResponseSseDataAsync(
-                    context,
-                    OpenAiWireMapper.ToResponseContentPartDeltaEvent(responseId, chunk),
-                    cancellationToken
-                )
-                .ConfigureAwait(false);
-        }
-
-        await WriteResponseSseDataAsync(
-                context,
-                OpenAiWireMapper.ToResponseOutputItemDoneEvent(responseId, result),
-                cancellationToken
-            )
-            .ConfigureAwait(false);
-        await WriteResponseSseDataAsync(
-                context,
-                OpenAiWireMapper.ToResponseDoneEvent(
-                    result,
-                    responseId,
-                    created,
-                    cacheUsageShape
-                ),
-                cancellationToken
-            )
-            .ConfigureAwait(false);
-    }
-
-    private static async Task WriteResponseSseDataAsync(
-        HttpContext context,
-        object data,
-        CancellationToken cancellationToken
-    )
-    {
-        var payload = JsonSerializer.Serialize(data, _jsonOptions);
-        await context.Response.WriteAsync($"data: {payload}\n\n", cancellationToken)
-            .ConfigureAwait(false);
-        await context.Response.Body.FlushAsync(cancellationToken).ConfigureAwait(false);
-    }
-
-    private static async Task WriteStreamingTranscriptionAsync(
-        HttpContext context,
-        LlmTckTranscriptionResult result,
-        CancellationToken cancellationToken
-    )
-    {
-        context.Response.StatusCode = StatusCodes.Status200OK;
-        context.Response.ContentType = "text/event-stream";
-
-        await WriteResponseSseDataAsync(
-                context,
-                OpenAiWireMapper.ToTranscriptTextDeltaEvent(result.Text),
-                cancellationToken
-            )
-            .ConfigureAwait(false);
-        await WriteResponseSseDataAsync(
-                context,
-                OpenAiWireMapper.ToTranscriptTextDoneEvent(result),
-                cancellationToken
-            )
-            .ConfigureAwait(false);
-    }
-
-    private static async Task WriteImageStreamingAsync(
-        HttpContext context,
-        string dataUri,
-        string eventPrefix,
-        string? background,
-        string? outputFormat,
-        string? quality,
-        string? size,
-        CancellationToken cancellationToken
-    )
-    {
-        context.Response.StatusCode = StatusCodes.Status200OK;
-        context.Response.ContentType = "text/event-stream";
-
-        await WriteResponseSseDataAsync(
-                context,
-                OpenAiWireMapper.ToImageStreamingEvent(
-                    $"{eventPrefix}.partial_image",
-                    dataUri,
-                    completed: false,
-                    background,
-                    outputFormat,
-                    quality,
-                    size
-                ),
-                cancellationToken
-            )
-            .ConfigureAwait(false);
-        await WriteResponseSseDataAsync(
-                context,
-                OpenAiWireMapper.ToImageStreamingEvent(
-                    $"{eventPrefix}.completed",
-                    dataUri,
-                    completed: true,
-                    background,
-                    outputFormat,
-                    quality,
-                    size
-                ),
-                cancellationToken
-            )
-            .ConfigureAwait(false);
-    }
-
-    private static async Task WriteOllamaStreamingChatAsync(
-        HttpContext context,
-        LlmTckChatResult result,
-        CancellationToken cancellationToken
-    )
-    {
-        context.Response.StatusCode = StatusCodes.Status200OK;
-        context.Response.ContentType = "application/x-ndjson";
-
-        foreach (var chunk in result.StreamChunks)
-        {
-            var payload = JsonSerializer.Serialize(
-                OllamaWireMapper.ToChatChunk(result, chunk, done: false),
-                _jsonOptions
-            );
-            await context.Response.WriteAsync($"{payload}\n", cancellationToken)
-                .ConfigureAwait(false);
-            await context.Response.Body.FlushAsync(cancellationToken).ConfigureAwait(false);
-        }
-
-        var finalPayload = JsonSerializer.Serialize(
-            OllamaWireMapper.ToChatChunk(result, string.Empty, done: true),
-            _jsonOptions
-        );
-        await context.Response.WriteAsync($"{finalPayload}\n", cancellationToken)
-            .ConfigureAwait(false);
-    }
-
-    private static async Task WriteAnthropicStreamingMessageAsync(
-        HttpContext context,
-        LlmTckChatResult result,
-        CancellationToken cancellationToken
-    )
-    {
-        context.Response.StatusCode = StatusCodes.Status200OK;
-        context.Response.ContentType = "text/event-stream";
-
-        await WriteAnthropicSseEventAsync(
-                context,
-                "message_start",
-                AnthropicWireMapper.ToMessageStartEvent(result),
-                cancellationToken
-            )
-            .ConfigureAwait(false);
-        await WriteAnthropicSseEventAsync(
-                context,
-                "content_block_start",
-                AnthropicWireMapper.ToContentBlockStartEvent(),
-                cancellationToken
-            )
-            .ConfigureAwait(false);
-
-        foreach (var chunk in result.StreamChunks)
-        {
-            await WriteAnthropicSseEventAsync(
-                    context,
-                    "content_block_delta",
-                    AnthropicWireMapper.ToContentBlockDeltaEvent(chunk),
-                    cancellationToken
-                )
-                .ConfigureAwait(false);
-        }
-
-        await WriteAnthropicSseEventAsync(
-                context,
-                "content_block_stop",
-                AnthropicWireMapper.ToContentBlockStopEvent(),
-                cancellationToken
-            )
-            .ConfigureAwait(false);
-        await WriteAnthropicSseEventAsync(
-                context,
-                "message_delta",
-                AnthropicWireMapper.ToMessageDeltaEvent(result),
-                cancellationToken
-            )
-            .ConfigureAwait(false);
-        await WriteAnthropicSseEventAsync(
-                context,
-                "message_stop",
-                AnthropicWireMapper.ToMessageStopEvent(),
-                cancellationToken
-            )
-            .ConfigureAwait(false);
-    }
-
-    private static async Task WriteAnthropicSseEventAsync(
-        HttpContext context,
-        string eventName,
-        object data,
-        CancellationToken cancellationToken
-    )
-    {
-        var payload = JsonSerializer.Serialize(data, _jsonOptions);
-        await context.Response.WriteAsync($"event: {eventName}\n", cancellationToken)
-            .ConfigureAwait(false);
-        await context.Response.WriteAsync($"data: {payload}\n\n", cancellationToken)
-            .ConfigureAwait(false);
-        await context.Response.Body.FlushAsync(cancellationToken).ConfigureAwait(false);
-    }
-
-    private static async Task WriteCohereStreamingChatAsync(
-        HttpContext context,
-        LlmTckChatResult result,
-        CancellationToken cancellationToken
-    )
-    {
-        context.Response.StatusCode = StatusCodes.Status200OK;
-        context.Response.ContentType = "text/event-stream";
-
-        await WriteCohereSseEventAsync(
-                context,
-                "message-start",
-                CohereWireMapper.ToMessageStartEvent(),
-                cancellationToken
-            )
-            .ConfigureAwait(false);
-        await WriteCohereSseEventAsync(
-                context,
-                "content-start",
-                CohereWireMapper.ToContentStartEvent(),
-                cancellationToken
-            )
-            .ConfigureAwait(false);
-
-        foreach (var chunk in result.StreamChunks)
-        {
-            await WriteCohereSseEventAsync(
-                    context,
-                    "content-delta",
-                    CohereWireMapper.ToContentDeltaEvent(chunk),
-                    cancellationToken
-                )
-                .ConfigureAwait(false);
-        }
-
-        await WriteCohereSseEventAsync(
-                context,
-                "content-end",
-                CohereWireMapper.ToContentEndEvent(),
-                cancellationToken
-            )
-            .ConfigureAwait(false);
-        await WriteCohereSseEventAsync(
-                context,
-                "message-end",
-                CohereWireMapper.ToMessageEndEvent(result),
-                cancellationToken
-            )
-            .ConfigureAwait(false);
-    }
-
-    private static async Task WriteCohereSseEventAsync(
-        HttpContext context,
-        string eventName,
-        object data,
-        CancellationToken cancellationToken
-    )
-    {
-        var payload = JsonSerializer.Serialize(data, _jsonOptions);
-        await context.Response.WriteAsync($"event: {eventName}\n", cancellationToken)
-            .ConfigureAwait(false);
-        await context.Response.WriteAsync($"data: {payload}\n\n", cancellationToken)
-            .ConfigureAwait(false);
-        await context.Response.Body.FlushAsync(cancellationToken).ConfigureAwait(false);
-    }
-
-    private static async Task WriteGeminiStreamingContentAsync(
-        HttpContext context,
-        LlmTckChatResult result,
-        CancellationToken cancellationToken
-    )
-    {
-        context.Response.StatusCode = StatusCodes.Status200OK;
-        context.Response.ContentType = "text/event-stream";
-
-        foreach (var chunk in result.StreamChunks)
-        {
-            var payload = JsonSerializer.Serialize(
-                GeminiWireMapper.ToGenerateContentResponse(result, chunk, finishReason: null),
-                _jsonOptions
-            );
-            await context.Response.WriteAsync($"data: {payload}\n\n", cancellationToken)
-                .ConfigureAwait(false);
-            await context.Response.Body.FlushAsync(cancellationToken).ConfigureAwait(false);
-        }
-
-        var finalPayload = JsonSerializer.Serialize(
-            GeminiWireMapper.ToGenerateContentResponse(result, string.Empty),
-            _jsonOptions
-        );
-        await context.Response.WriteAsync($"data: {finalPayload}\n\n", cancellationToken)
-            .ConfigureAwait(false);
-    }
-
-    private static async Task WriteBedrockConverseStreamAsync(
-        HttpContext context,
-        LlmTckChatResult result,
-        CancellationToken cancellationToken
-    )
-    {
-        context.Response.StatusCode = StatusCodes.Status200OK;
-        context.Response.ContentType = "application/vnd.amazon.eventstream";
-
-        await WriteBedrockEventAsync(
-                context,
-                BedrockWireMapper.ToConverseMessageStartEvent(),
-                cancellationToken
-            )
-            .ConfigureAwait(false);
-        await WriteBedrockEventAsync(
-                context,
-                BedrockWireMapper.ToConverseContentBlockStartEvent(),
-                cancellationToken
-            )
-            .ConfigureAwait(false);
-
-        foreach (var chunk in ReadStreamChunks(result))
-        {
-            await WriteBedrockEventAsync(
-                    context,
-                    BedrockWireMapper.ToConverseContentBlockDeltaEvent(chunk),
-                    cancellationToken
-                )
-                .ConfigureAwait(false);
-        }
-
-        await WriteBedrockEventAsync(
-                context,
-                BedrockWireMapper.ToConverseContentBlockStopEvent(),
-                cancellationToken
-            )
-            .ConfigureAwait(false);
-        await WriteBedrockEventAsync(
-                context,
-                BedrockWireMapper.ToConverseMessageStopEvent(),
-                cancellationToken
-            )
-            .ConfigureAwait(false);
-        await WriteBedrockEventAsync(
-                context,
-                BedrockWireMapper.ToConverseMetadataEvent(result),
-                cancellationToken
-            )
-            .ConfigureAwait(false);
-    }
-
-    private static async Task WriteBedrockInvokeModelStreamAsync(
-        HttpContext context,
-        LlmTckChatResult result,
-        CancellationToken cancellationToken
-    )
-    {
-        context.Response.StatusCode = StatusCodes.Status200OK;
-        context.Response.ContentType = "application/vnd.amazon.eventstream";
-        context.Response.Headers["x-amzn-bedrock-content-type"] = "application/json";
-
-        foreach (var chunk in ReadStreamChunks(result))
-        {
-            await WriteBedrockEventAsync(
-                    context,
-                    BedrockWireMapper.ToInvokeStreamChunk(chunk),
-                    cancellationToken
-                )
-                .ConfigureAwait(false);
-        }
-    }
-
-    private static async Task WriteBedrockEventAsync(
-        HttpContext context,
-        object data,
-        CancellationToken cancellationToken
-    )
-    {
-        var payload = JsonSerializer.Serialize(data, _jsonOptions);
-        await context.Response.WriteAsync($"{payload}\n", cancellationToken)
-            .ConfigureAwait(false);
-        await context.Response.Body.FlushAsync(cancellationToken).ConfigureAwait(false);
-    }
-
-    private static IReadOnlyList<string> ReadStreamChunks(LlmTckChatResult result)
-    {
-        return result.StreamChunks.Count == 0 ? [result.Content] : result.StreamChunks;
-    }
-
-    private static string? ReadBearerToken(HttpContext context)
-    {
-        var header = context.Request.Headers.Authorization.ToString();
-        const string Prefix = "Bearer ";
-        return header.StartsWith(Prefix, StringComparison.OrdinalIgnoreCase)
-            ? header[Prefix.Length..]
-            : null;
-    }
-
-    private static LlmTckChatRequest CorrelateChatRequest(
-        HttpContext context,
-        LlmTckChatRequest request
-    )
-    {
-        return request with
-        {
-            RequestId = context.GetLlmTckProviderHttpTraceId() ?? context.TraceIdentifier,
-        };
-    }
-
-    private static string? ReadAccessToken(HttpContext context)
-    {
-        var bearerToken = ReadBearerToken(context);
-        if (!string.IsNullOrWhiteSpace(bearerToken))
-        {
-            return bearerToken;
-        }
-
-        var apiKey = context.Request.Headers["api-key"].ToString();
-        if (!string.IsNullOrWhiteSpace(apiKey))
-        {
-            return apiKey;
-        }
-
-        var anthropicApiKey = context.Request.Headers["x-api-key"].ToString();
-        if (!string.IsNullOrWhiteSpace(anthropicApiKey))
-        {
-            return anthropicApiKey;
-        }
-
-        var googleApiKey = context.Request.Headers["x-goog-api-key"].ToString();
-        if (!string.IsNullOrWhiteSpace(googleApiKey))
-        {
-            return googleApiKey;
-        }
-
-        var queryKey = context.Request.Query["key"].ToString();
-        return string.IsNullOrWhiteSpace(queryKey) ? null : queryKey;
-    }
-
-    private static List<string> ReadEmbeddingInputs(JsonElement input)
-    {
-        return input.ValueKind == JsonValueKind.Array
-            ? input
-                .EnumerateArray()
-                .Select(item => item.ValueKind == JsonValueKind.String ? item.GetString() ?? string.Empty : item.ToString())
-                .ToList()
-            : [input.ValueKind == JsonValueKind.String ? input.GetString() ?? string.Empty : input.ToString()];
     }
 
     private static async Task<FormReadResult> ReadAudioFormAsync(
@@ -3946,28 +2868,46 @@ public static class LlmTckEndpointRouteBuilderExtensions
 
     private static async Task<JsonReadResult<T>> ReadJsonAsync<T>(
         HttpContext context,
-        CancellationToken cancellationToken
+        CancellationToken cancellationToken,
+        Func<JsonElement, LlmTckRequestValidationResult>? validation = null
     )
     {
-        return await ReadJsonAsync<T>(context, InvalidRequest, cancellationToken)
+        return await ReadJsonAsync<T>(context, InvalidRequest, cancellationToken, validation)
             .ConfigureAwait(false);
     }
 
     private static async Task<JsonReadResult<T>> ReadJsonAsync<T>(
         HttpContext context,
         Func<string, IResult> invalidRequest,
-        CancellationToken cancellationToken
+        CancellationToken cancellationToken,
+        Func<JsonElement, LlmTckRequestValidationResult>? validation = null
     )
     {
         try
         {
-            var value = await context
-                .Request
-                .ReadFromJsonAsync<T>(_jsonOptions, cancellationToken)
+            var body = await context.Request.ReadFromJsonAsync<JsonElement>(_jsonOptions, cancellationToken)
                 .ConfigureAwait(false);
-            return new JsonReadResult<T>(value, null);
+            if (LlmTckRequestPolicy.IsChatRequest<T>())
+            {
+                if (typeof(T) == typeof(JsonElement) && LlmTckRequestPolicy.HasUnsupportedChatFeatures(body))
+                {
+                    return new JsonReadResult<T>(default, invalidRequest("Tool calls and structured output fixtures are not supported by LlmTck on this operation."));
+                }
+
+                if (context.Request.Path.StartsWithSegments("/perplexity") && body.TryGetProperty("tools", out var tools) && tools.ValueKind == JsonValueKind.Array && tools.GetArrayLength() > 0)
+                {
+                    return new JsonReadResult<T>(default, invalidRequest("Function tool fixtures are not supported by this provider."));
+                }
+            }
+
+            if (validation?.Invoke(body) is { IsValid: false } failure)
+            {
+                return new JsonReadResult<T>(default, invalidRequest(failure.Error!));
+            }
+
+            return new JsonReadResult<T>(body.Deserialize<T>(_jsonOptions), null);
         }
-        catch (JsonException)
+        catch (Exception exception) when (exception is JsonException or InvalidOperationException or KeyNotFoundException)
         {
             return new JsonReadResult<T>(default, invalidRequest("Malformed JSON request body."));
         }
@@ -3976,609 +2916,6 @@ public static class LlmTckEndpointRouteBuilderExtensions
             return new JsonReadResult<T>(default, invalidRequest("Malformed JSON request body."));
         }
     }
-
-    private static IResult? ValidateAnthropicVersion(HttpContext context)
-    {
-        var version = context.Request.Headers[AnthropicWireMapper.VersionHeaderName].ToString();
-        return string.Equals(version, AnthropicWireMapper.SupportedVersion, StringComparison.Ordinal)
-            ? null
-            : AnthropicInvalidRequest(
-                $"The {AnthropicWireMapper.VersionHeaderName} header must be {AnthropicWireMapper.SupportedVersion}."
-            );
-    }
-
-    private static IResult? ValidateAnthropicMessageRequest(AnthropicMessagesRequest request)
-    {
-        if (string.IsNullOrWhiteSpace(request.Model))
-        {
-            return AnthropicInvalidRequest("Missing message model.");
-        }
-
-        if (request.MaxTokens is null or < 0)
-        {
-            return AnthropicInvalidRequest("Missing or invalid max_tokens.");
-        }
-
-        if (request.Messages.Count == 0)
-        {
-            return AnthropicInvalidRequest("At least one message is required.");
-        }
-
-        return request.Messages.Any(message =>
-                message is null
-                || message.Role is not ("user" or "assistant")
-                || message.Content.ValueKind is JsonValueKind.Undefined or JsonValueKind.Null
-            )
-            ? AnthropicInvalidRequest("Every message requires a user or assistant role and content.")
-            : null;
-    }
-
-    private static IResult? ValidateOllamaChatRequest(OllamaChatRequest request)
-    {
-        if (string.IsNullOrWhiteSpace(request.Model))
-        {
-            return OllamaInvalidRequest("Missing chat model.");
-        }
-
-        if (request.Messages.Count == 0)
-        {
-            return OllamaInvalidRequest("At least one chat message is required.");
-        }
-
-        return request.Messages.Any(message =>
-                message is null
-                || string.IsNullOrWhiteSpace(message.Role)
-                || message.Content.ValueKind is JsonValueKind.Undefined or JsonValueKind.Null
-            )
-            ? OllamaInvalidRequest("Every chat message requires a role and content.")
-            : null;
-    }
-
-    private static IResult? ValidateOllamaEmbeddingRequest(OllamaEmbedRequest request)
-    {
-        if (string.IsNullOrWhiteSpace(request.Model))
-        {
-            return OllamaInvalidRequest("Missing embedding model.");
-        }
-
-        if (request.Input.ValueKind is JsonValueKind.Undefined or JsonValueKind.Null)
-        {
-            return OllamaInvalidRequest("Missing embedding input.");
-        }
-
-        return OllamaWireMapper.ReadEmbeddingInputs(request).Count == 0
-            ? OllamaInvalidRequest("Missing embedding input.")
-            : null;
-    }
-
-    private static IResult? ValidateCohereChatRequest(CohereChatRequest request)
-    {
-        if (string.IsNullOrWhiteSpace(request.Model))
-        {
-            return CohereInvalidRequest("Missing chat model.");
-        }
-
-        if (request.Messages.Count == 0)
-        {
-            return CohereInvalidRequest("At least one chat message is required.");
-        }
-
-        return request.Messages.Any(message =>
-                message is null
-                || string.IsNullOrWhiteSpace(message.Role)
-                || message.Content.ValueKind is JsonValueKind.Undefined or JsonValueKind.Null
-            )
-            ? CohereInvalidRequest("Every chat message requires a role and content.")
-            : null;
-    }
-
-    private static IResult? ValidateCohereEmbeddingRequest(CohereEmbedRequest request)
-    {
-        if (string.IsNullOrWhiteSpace(request.Model))
-        {
-            return CohereInvalidRequest("Missing embedding model.");
-        }
-
-        if (string.IsNullOrWhiteSpace(request.InputType))
-        {
-            return CohereInvalidRequest("Missing embedding input_type.");
-        }
-
-        return CohereWireMapper.ReadEmbeddingInputs(request).Count == 0
-            ? CohereInvalidRequest("Missing embedding texts or inputs.")
-            : null;
-    }
-
-    private static IResult? ValidateGeminiGenerateContentRequest(
-        string model,
-        GeminiGenerateContentRequest request
-    )
-    {
-        if (string.IsNullOrWhiteSpace(model))
-        {
-            return GeminiInvalidRequest("Missing model path parameter.");
-        }
-
-        if (request.Contents.Count == 0)
-        {
-            return GeminiInvalidRequest("At least one content item is required.");
-        }
-
-        return request.Contents.Any(content => content is null || content.Parts.Count == 0)
-            ? GeminiInvalidRequest("Every content item requires at least one part.")
-            : null;
-    }
-
-    private static IResult? ValidateGeminiEmbeddingRequest(
-        string model,
-        GeminiEmbedContentRequest request
-    )
-    {
-        if (string.IsNullOrWhiteSpace(model))
-        {
-            return GeminiInvalidRequest("Missing model path parameter.");
-        }
-
-        if (request.Content.Parts.Count == 0)
-        {
-            return GeminiInvalidRequest("Embedding content requires at least one part.");
-        }
-
-        return string.IsNullOrWhiteSpace(GeminiWireMapper.ReadText(request.Content))
-            ? GeminiInvalidRequest("Embedding content requires text.")
-            : null;
-    }
-
-    private static IResult? ValidateGeminiPredictLongRunningRequest(
-        string model,
-        GeminiPredictLongRunningRequest request
-    )
-    {
-        if (string.IsNullOrWhiteSpace(model))
-        {
-            return GeminiInvalidRequest("Missing model path parameter.");
-        }
-
-        if (request.Instances.Count == 0)
-        {
-            return GeminiInvalidRequest("At least one prediction instance is required.");
-        }
-
-        return string.IsNullOrWhiteSpace(GeminiWireMapper.ReadPredictPrompt(request))
-            ? GeminiInvalidRequest("Video prediction instances require a prompt.")
-            : null;
-    }
-
-    private static IResult? ValidateBedrockConverseRequest(
-        string modelId,
-        BedrockConverseRequest request
-    )
-    {
-        if (string.IsNullOrWhiteSpace(modelId))
-        {
-            return BedrockInvalidRequest("Missing modelId path parameter.");
-        }
-
-        if (request.Messages.Count == 0)
-        {
-            return BedrockInvalidRequest("At least one message is required.");
-        }
-
-        return request.Messages.Any(message =>
-                message is null
-                || message.Role is not ("user" or "assistant")
-                || message.Content.Count == 0
-            )
-            ? BedrockInvalidRequest("Every message requires a user or assistant role and content.")
-            : null;
-    }
-
-    private static IResult? ValidateBedrockInvokeRequest(string modelId, JsonElement request)
-    {
-        if (string.IsNullOrWhiteSpace(modelId))
-        {
-            return BedrockInvalidRequest("Missing modelId path parameter.");
-        }
-
-        return string.IsNullOrWhiteSpace(BedrockWireMapper.ReadInvokeInput(request))
-            ? BedrockInvalidRequest("Missing invoke input.")
-            : null;
-    }
-
-    private static IResult? ValidateChatRequest(OpenAiChatCompletionRequest request)
-    {
-        if (string.IsNullOrWhiteSpace(request.Model))
-        {
-            return InvalidRequest("Missing chat completion model.");
-        }
-
-        if (request.Messages is null || request.Messages.Count == 0)
-        {
-            return InvalidRequest("At least one chat message is required.");
-        }
-
-        return request.Messages.Any(message =>
-                message is null
-                || string.IsNullOrWhiteSpace(message.Role)
-                || message.Content.ValueKind is JsonValueKind.Undefined or JsonValueKind.Null
-            )
-            ? InvalidRequest("Every chat message requires a role and content.")
-            : null;
-    }
-
-    private static IResult? ValidateResponseRequest(OpenAiResponseRequest request)
-    {
-        if (string.IsNullOrWhiteSpace(request.Model))
-        {
-            return InvalidRequest("Missing response model.");
-        }
-
-        return request.Input.ValueKind is JsonValueKind.Undefined or JsonValueKind.Null
-            ? InvalidRequest("Missing response input.")
-            : null;
-    }
-
-    private static IResult? ValidateEmbeddingRequest(OpenAiEmbeddingRequest request)
-    {
-        if (string.IsNullOrWhiteSpace(request.Model))
-        {
-            return InvalidRequest("Missing embedding model.");
-        }
-
-        return request.Input.ValueKind is JsonValueKind.Undefined or JsonValueKind.Null
-            ? InvalidRequest("Missing embedding input.")
-            : null;
-    }
-
-    private static IResult? ValidateImageRequest(OpenAiImageGenerationRequest request)
-    {
-        if (string.IsNullOrWhiteSpace(request.Model))
-        {
-            return InvalidRequest("Missing image model.");
-        }
-
-        if (string.IsNullOrWhiteSpace(request.Prompt))
-        {
-            return InvalidRequest("Missing image prompt.");
-        }
-
-        if (!IsNullOrAllowed(request.ResponseFormat, _openAiImageResponseFormats))
-        {
-            return InvalidRequest("Unsupported image response_format.");
-        }
-
-        if (!IsNullOrAllowed(request.OutputFormat, _openAiImageOutputFormats))
-        {
-            return InvalidRequest("Unsupported image output_format.");
-        }
-
-        if (!IsNullOrAllowed(request.Quality, _openAiImageQualities))
-        {
-            return InvalidRequest("Unsupported image quality.");
-        }
-
-        if (!IsNullOrAllowed(request.Background, _openAiImageBackgrounds))
-        {
-            return InvalidRequest("Unsupported image background.");
-        }
-
-        if (!IsNullOrAllowed(request.Size, _openAiImageSizes))
-        {
-            return InvalidRequest("Unsupported image size.");
-        }
-
-        return request.PartialImages is null or >= 0 and <= 3
-            ? null
-            : InvalidRequest("Image partial_images must be between 0 and 3.");
-    }
-
-    private static IResult? ValidateImageEditRequest(OpenAiImageEditRequest request)
-    {
-        if (string.IsNullOrWhiteSpace(request.Model))
-        {
-            return InvalidRequest("Missing image edit model.");
-        }
-
-        if (string.IsNullOrWhiteSpace(request.Prompt))
-        {
-            return InvalidRequest("Missing image edit prompt.");
-        }
-
-        var hasJsonImage = request.Image.ValueKind is not JsonValueKind.Undefined and not JsonValueKind.Null;
-        if (request.Images.Count == 0 && !hasJsonImage)
-        {
-            return InvalidRequest("Image edits require at least one image.");
-        }
-
-        if (!IsNullOrAllowed(request.OutputFormat, _openAiImageOutputFormats))
-        {
-            return InvalidRequest("Unsupported image edit output_format.");
-        }
-
-        if (!IsNullOrAllowed(request.Quality, _openAiImageQualities))
-        {
-            return InvalidRequest("Unsupported image edit quality.");
-        }
-
-        if (!IsNullOrAllowed(request.Background, _openAiImageBackgrounds))
-        {
-            return InvalidRequest("Unsupported image edit background.");
-        }
-
-        if (!IsNullOrAllowed(request.Size, _openAiImageSizes))
-        {
-            return InvalidRequest("Unsupported image edit size.");
-        }
-
-        return request.PartialImages is null or >= 0 and <= 3
-            ? null
-            : InvalidRequest("Image edit partial_images must be between 0 and 3.");
-    }
-
-    private static IResult? ValidateImageVariationRequest(OpenAiImageVariationRequest request)
-    {
-        if (string.IsNullOrWhiteSpace(request.Model))
-        {
-            return InvalidRequest("Missing image variation model.");
-        }
-
-        if (request.Count is < 1 or > 10)
-        {
-            return InvalidRequest("Image variation n must be between 1 and 10.");
-        }
-
-        if (!IsNullOrAllowed(request.ResponseFormat, _openAiImageResponseFormats))
-        {
-            return InvalidRequest("Unsupported image variation response_format.");
-        }
-
-        return IsNullOrAllowed(request.Size, _openAiImageVariationSizes)
-            ? null
-            : InvalidRequest("Unsupported image variation size.");
-    }
-
-    private static IResult? ValidateAudioRequest(
-        OpenAiAudioSpeechRequest request,
-        string[] allowedResponseFormats
-    )
-    {
-        if (string.IsNullOrWhiteSpace(request.Model))
-        {
-            return InvalidRequest("Missing audio model.");
-        }
-
-        if (string.IsNullOrWhiteSpace(request.Input))
-        {
-            return InvalidRequest("Missing audio input.");
-        }
-
-        if (string.IsNullOrWhiteSpace(request.Voice))
-        {
-            return InvalidRequest("Missing audio voice.");
-        }
-
-        return string.IsNullOrWhiteSpace(request.ResponseFormat)
-            || IsSupportedAudioResponseFormat(request.ResponseFormat, allowedResponseFormats)
-            ? null
-            : InvalidRequest("Unsupported audio response_format.");
-    }
-
-    private static IResult ToOpenAiVideoError(LlmTckVideoResult result)
-    {
-        return Results.Json(
-            OpenAiWireMapper.ToError(result.ErrorCode!, result.ErrorMessage!),
-            statusCode: result.StatusCode
-        );
-    }
-
-    private static IResult ToGeminiVideoError(LlmTckVideoResult result)
-    {
-        return Results.Json(
-            GeminiWireMapper.ToError(result.StatusCode, result.ErrorMessage!),
-            statusCode: result.StatusCode
-        );
-    }
-
-    private static string CreateGeminiFileUri(HttpContext context, string fileId, bool media)
-    {
-        var path = ProviderRoutes.ForProvider(
-            ProviderRoutes.Gemini,
-            $"/v1beta/files/{Uri.EscapeDataString(fileId)}"
-        );
-        var query = media ? "?alt=media" : string.Empty;
-
-        return context.Request.Host.HasValue
-            ? $"{context.Request.Scheme}://{context.Request.Host}{path}{query}"
-            : $"{path}{query}";
-    }
-
-    private static IResult? ValidateOpenAiVideoCreateRequest(OpenAiVideoCreateRequest request)
-    {
-        if (string.IsNullOrWhiteSpace(request.Model))
-        {
-            return InvalidRequest("Missing video model.");
-        }
-
-        if (string.IsNullOrWhiteSpace(request.Prompt))
-        {
-            return InvalidRequest("Missing video prompt.");
-        }
-
-        if (!IsAllowedOpenAiVideoSeconds(request.Seconds))
-        {
-            return InvalidRequest("Unsupported video seconds.");
-        }
-
-        return IsAllowedOpenAiVideoSize(request.Size)
-            ? null
-            : InvalidRequest("Unsupported video size.");
-    }
-
-    private static IResult? ValidateOpenAiVideoListQuery(HttpContext context)
-    {
-        var order = context.Request.Query["order"].ToString();
-        if (!string.IsNullOrWhiteSpace(order) && order is not ("asc" or "desc"))
-        {
-            return InvalidRequest("Unsupported video list order.");
-        }
-
-        var limit = context.Request.Query["limit"].ToString();
-        return string.IsNullOrWhiteSpace(limit)
-            || (int.TryParse(limit, out var value) && value is >= 0 and <= 100)
-            ? null
-            : InvalidRequest("Unsupported video list limit.");
-    }
-
-    private static IResult? ValidateAzureVideoGenerationJobRequest(
-        AzureVideoGenerationJobRequest request
-    )
-    {
-        if (string.IsNullOrWhiteSpace(request.Model))
-        {
-            return InvalidRequest("Missing video generation model.");
-        }
-
-        if (string.IsNullOrWhiteSpace(request.Prompt))
-        {
-            return InvalidRequest("Missing video generation prompt.");
-        }
-
-        if (request.Width <= 0 || request.Height <= 0)
-        {
-            return InvalidRequest("Video generation width and height must be positive.");
-        }
-
-        if (request.NSeconds is < 1 or > 20)
-        {
-            return InvalidRequest("Video generation n_seconds must be between 1 and 20.");
-        }
-
-        return request.NVariants is < 1 or > 5
-            ? InvalidRequest("Video generation n_variants must be between 1 and 5.")
-            : null;
-    }
-
-    private static bool IsAllowedOpenAiVideoSeconds(string? seconds)
-    {
-        return string.IsNullOrWhiteSpace(seconds)
-            || Array.Exists(
-                _openAiVideoSeconds,
-                value => string.Equals(value, seconds, StringComparison.Ordinal)
-            );
-    }
-
-    private static bool IsAllowedOpenAiVideoExtensionSeconds(string? seconds)
-    {
-        return string.IsNullOrWhiteSpace(seconds)
-            || Array.Exists(
-                _openAiVideoExtensionSeconds,
-                value => string.Equals(value, seconds, StringComparison.Ordinal)
-            );
-    }
-
-    private static bool IsAllowedOpenAiVideoSize(string? size)
-    {
-        return string.IsNullOrWhiteSpace(size)
-            || Array.Exists(
-                _openAiVideoSizes,
-                value => string.Equals(value, size, StringComparison.Ordinal)
-            );
-    }
-
-    private static bool IsNullOrAllowed(string? value, string[] allowedValues)
-    {
-        return string.IsNullOrWhiteSpace(value)
-            || Array.Exists(allowedValues, item => string.Equals(item, value, StringComparison.Ordinal));
-    }
-
-    private static int? TryReadInt(string value)
-    {
-        return int.TryParse(value, out var parsed) ? parsed : null;
-    }
-
-    private static string? EmptyToNull(string value)
-    {
-        return string.IsNullOrWhiteSpace(value) ? null : value;
-    }
-
-    private static IResult InvalidRequest(string message)
-    {
-        return Results.Json(
-            OpenAiWireMapper.ToError("invalid_request", message),
-            statusCode: StatusCodes.Status400BadRequest
-        );
-    }
-
-    private static IResult AnthropicInvalidRequest(string message)
-    {
-        return Results.Json(
-            AnthropicWireMapper.ToError("invalid_request_error", message),
-            statusCode: StatusCodes.Status400BadRequest
-        );
-    }
-
-    private static IResult OllamaInvalidRequest(string message)
-    {
-        return Results.Json(
-            OllamaWireMapper.ToError(message),
-            statusCode: StatusCodes.Status400BadRequest
-        );
-    }
-
-    private static IResult CohereInvalidRequest(string message)
-    {
-        return Results.Json(
-            CohereWireMapper.ToError(message),
-            statusCode: StatusCodes.Status400BadRequest
-        );
-    }
-
-    private static IResult GeminiInvalidRequest(string message)
-    {
-        return Results.Json(
-            GeminiWireMapper.ToError(StatusCodes.Status400BadRequest, message),
-            statusCode: StatusCodes.Status400BadRequest
-        );
-    }
-
-    private static IResult BedrockInvalidRequest(string message)
-    {
-        return Results.Json(
-            BedrockWireMapper.ToError(message),
-            statusCode: StatusCodes.Status400BadRequest
-        );
-    }
-
-    private static string ToAnthropicErrorType(int statusCode, string code)
-    {
-        return statusCode switch
-        {
-            StatusCodes.Status401Unauthorized => "authentication_error",
-            StatusCodes.Status403Forbidden => "permission_error",
-            StatusCodes.Status404NotFound => "not_found_error",
-            StatusCodes.Status413PayloadTooLarge => "request_too_large",
-            StatusCodes.Status429TooManyRequests => "rate_limit_error",
-            >= StatusCodes.Status500InternalServerError => statusCode == 529
-                ? "overloaded_error"
-                : "api_error",
-            _ when string.Equals(code, "invalid_request", StringComparison.Ordinal) => "invalid_request_error",
-            _ => "invalid_request_error",
-        };
-    }
-
-    private readonly record struct JsonReadResult<T>(T? Value, IResult? Error);
-
-    private readonly record struct FormReadResult(AudioFormRequest Value, IResult? Error);
-
-    private readonly record struct VideoFixtureReadResult(LlmTckVideoResult? Value, IResult? Error);
-
-    private readonly record struct AudioFormRequest(
-        string Model,
-        string FileName,
-        string? Prompt,
-        string ResponseFormat,
-        bool Stream
-    );
 
     private static JsonSerializerOptions CreateJsonOptions()
     {

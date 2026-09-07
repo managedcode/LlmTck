@@ -50,6 +50,36 @@ public sealed class LlmTckScenarioBuilder(string id)
         return this;
     }
 
+    public LlmTckScenarioBuilder CallsTool(string name, string argumentsJson, string callId = "call_fixture")
+    {
+        return CallsTools(new LlmTckToolCall { Id = callId, Name = name, ArgumentsJson = argumentsJson });
+    }
+
+    public LlmTckScenarioBuilder CallsTools(params LlmTckToolCall[] calls)
+    {
+        ArgumentNullException.ThrowIfNull(calls);
+        if (calls.Length == 0)
+        {
+            throw new ArgumentException("At least one tool call is required.", nameof(calls));
+        }
+
+        foreach (var call in calls)
+        {
+            ArgumentNullException.ThrowIfNull(call);
+            ArgumentException.ThrowIfNullOrWhiteSpace(call.Name);
+            ArgumentException.ThrowIfNullOrWhiteSpace(call.Id);
+            LlmTckJsonSchema.ValidateJson(call.ArgumentsJson);
+        }
+        _scenario.Responses.Add(new() { ToolCalls = [.. calls] });
+        return this;
+    }
+
+    public LlmTckScenarioBuilder RespondsJson(string json)
+    {
+        LlmTckJsonSchema.ValidateJson(json);
+        return Responds(json);
+    }
+
     public LlmTckScenarioBuilder Fails(int statusCode, string code, string message)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(code);
@@ -97,12 +127,13 @@ public sealed class LlmTckScenarioBuilder(string id)
 
         return _scenario with
         {
-            Match = _scenario.Match with { Messages = [.. _scenario.Match.Messages] },
+            Match = _scenario.Match with { Messages = _scenario.Match.Messages.Select(message => message with { ToolCalls = [.. message.ToolCalls] }).ToList() },
             Responses =
             [
                 .. _scenario.Responses.Select(response => response with
                 {
                     StreamChunks = [.. response.StreamChunks],
+                    ToolCalls = [.. response.ToolCalls],
                 }),
             ],
         };

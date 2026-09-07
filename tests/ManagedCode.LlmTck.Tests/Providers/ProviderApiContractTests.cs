@@ -44,6 +44,7 @@ public sealed class ProviderApiContractTests
         new("https://developers.openai.com"),
         new("https://learn.microsoft.com"),
         new("https://docs.anthropic.com"),
+        new("https://platform.claude.com"),
         new("https://ai.google.dev"),
         new("https://console.groq.com"),
         new("https://docs.mistral.ai"),
@@ -55,6 +56,16 @@ public sealed class ProviderApiContractTests
         new("https://api-docs.deepseek.com"),
         new("https://docs.perplexity.ai"),
     ];
+
+    [Test]
+    public async Task ProviderCapabilities_DeclareTestedToolsAndStructuredOutputAsync()
+    {
+        foreach (var profile in GetProfiles())
+        {
+            await Assert.That(profile.Capabilities.Contains(LlmTckProviderCapability.StructuredOutput)).IsTrue();
+            await Assert.That(profile.Capabilities.Contains(LlmTckProviderCapability.Tools)).IsEqualTo(profile.Id != LlmTckCompatibilityTags.Perplexity);
+        }
+    }
 
     [Test]
     public async Task ProviderApiContracts_AreDocBackedAndCoverClaimedCapabilitiesAsync()
@@ -357,6 +368,48 @@ public sealed class ProviderApiContractTests
     {
         return
         [
+            Evidence(
+                LlmTckCompatibilityTags.AzureOpenAI,
+                LlmTckProviderOperationIds.AzureOpenAI.V1ChatCompletionsCreate,
+                typeof(AzureV1SdkCompatibilityTests),
+                [nameof(AzureV1SdkCompatibilityTests.V1ChatAndEmbeddings_UseOfficialSdkWithoutApiVersionAsync)],
+                coversStreaming: true
+            ),
+            Evidence(
+                LlmTckCompatibilityTags.AzureOpenAI,
+                LlmTckProviderOperationIds.AzureOpenAI.V1EmbeddingsCreate,
+                typeof(AzureV1SdkCompatibilityTests),
+                [nameof(AzureV1SdkCompatibilityTests.V1ChatAndEmbeddings_UseOfficialSdkWithoutApiVersionAsync)],
+                coversStreaming: false
+            ),
+            Evidence(
+                LlmTckCompatibilityTags.AzureOpenAI,
+                LlmTckProviderOperationIds.AzureOpenAI.V1ResponsesCreate,
+                typeof(AzureV1SdkCompatibilityTests),
+                [nameof(AzureV1SdkCompatibilityTests.V1Responses_UseOfficialSdkAndStreamAsync)],
+                coversStreaming: true
+            ),
+            Evidence(
+                LlmTckCompatibilityTags.MicrosoftFoundry,
+                LlmTckProviderOperationIds.MicrosoftFoundry.V1ChatCompletionsCreate,
+                typeof(AzureV1SdkCompatibilityTests),
+                [nameof(AzureV1SdkCompatibilityTests.V1ChatAndEmbeddings_UseOfficialSdkWithoutApiVersionAsync)],
+                coversStreaming: true
+            ),
+            Evidence(
+                LlmTckCompatibilityTags.MicrosoftFoundry,
+                LlmTckProviderOperationIds.MicrosoftFoundry.V1EmbeddingsCreate,
+                typeof(AzureV1SdkCompatibilityTests),
+                [nameof(AzureV1SdkCompatibilityTests.V1ChatAndEmbeddings_UseOfficialSdkWithoutApiVersionAsync)],
+                coversStreaming: false
+            ),
+            Evidence(
+                LlmTckCompatibilityTags.MicrosoftFoundry,
+                LlmTckProviderOperationIds.MicrosoftFoundry.V1ResponsesCreate,
+                typeof(AzureV1SdkCompatibilityTests),
+                [nameof(AzureV1SdkCompatibilityTests.V1Responses_UseOfficialSdkAndStreamAsync)],
+                coversStreaming: true
+            ),
             Evidence(
                 LlmTckCompatibilityTags.OpenAI,
                 LlmTckProviderOperationIds.OpenAI.ModelsList,
@@ -867,7 +920,7 @@ public sealed class ProviderApiContractTests
         throw new DirectoryNotFoundException("Could not find ManagedCode.LlmTck.slnx.");
     }
 
-    private static LlmTckProviderProfile[] GetProfiles()
+    internal static LlmTckProviderProfile[] GetProfiles()
     {
         return
         [

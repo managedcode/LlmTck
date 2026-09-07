@@ -40,12 +40,15 @@ public sealed class LlmTckChatClient(
             .ConfigureAwait(false);
 
         var text = completion?.Choices.FirstOrDefault()?.Message.TextContent ?? string.Empty;
-        return new ChatResponse(new ChatMessage(ChatRole.Assistant, text))
+        var message = new ChatMessage(ChatRole.Assistant, text);
+        AddToolCalls(message.Contents, completion?.Choices.FirstOrDefault()?.Message.ToolCalls);
+        return new ChatResponse(message)
         {
             ModelId = completion?.Model,
             CreatedAt = DateTimeOffset.UtcNow,
             ResponseId = completion?.Id,
-            FinishReason = ChatFinishReason.Stop,
+            FinishReason = MapFinishReason(completion?.Choices.FirstOrDefault()?.FinishReason),
+            Usage = completion is null ? null : LlmTckUsageMapper.Map(completion.Usage),
         };
     }
 
@@ -104,14 +107,21 @@ public sealed class LlmTckChatClient(
             var chunk = JsonSerializer.Deserialize<OpenAiChatCompletionChunk>(payload, _jsonOptions);
             var choice = chunk?.Choices.FirstOrDefault();
             var text = choice?.Delta.TextContent;
-            if (!string.IsNullOrEmpty(text))
+            if (chunk is not null && (!string.IsNullOrEmpty(text) || choice?.FinishReason is not null || choice?.Delta.ToolCalls is { Count: > 0 } || chunk.Usage is not null))
             {
-                yield return new ChatResponseUpdate(ChatRole.Assistant, text)
+                var update = new ChatResponseUpdate(ChatRole.Assistant, text)
                 {
-                    ModelId = chunk?.Model,
-                    ResponseId = chunk?.Id,
-                    FinishReason = choice?.FinishReason == "stop" ? ChatFinishReason.Stop : null,
+                    ModelId = chunk.Model,
+                    ResponseId = chunk.Id,
+                    FinishReason = MapFinishReason(choice?.FinishReason),
                 };
+                AddToolCalls(update.Contents, choice?.Delta.ToolCalls);
+                if (chunk.Usage is not null)
+                {
+                    update.Contents.Add(new UsageContent(LlmTckUsageMapper.Map(chunk.Usage)));
+                }
+
+                yield return update;
             }
         }
     }
@@ -125,24 +135,69 @@ public sealed class LlmTckChatClient(
     {
     }
 
+    private static ChatFinishReason? MapFinishReason(string? reason)
+    {
+        return reason is null ? null : new ChatFinishReason(reason);
+    }
+
     private OpenAiChatCompletionRequest CreateRequest(
         IEnumerable<ChatMessage> messages,
         ChatOptions? options,
         bool stream
     )
     {
+
         return new()
         {
             Model = options?.ModelId ?? defaultModelId,
             Stream = stream,
-            Messages = messages
-                .Select(message => new OpenAiChatMessage
-                {
-                    Role = message.Role.Value,
-                    Content = OpenAiChatMessage.FromText(message.Role.Value, message.Text).Content,
-                })
-                .ToList(),
+            StreamOptions = stream ? new() { IncludeUsage = true } : null,
+            ParallelToolCalls = options?.AllowMultipleToolCalls ?? true,
+            Tools = options?.Tools?.Select(tool => tool is AIFunctionDeclaration function
+                ? new OpenAiTool { Function = new() { Name = function.Name, Description = function.Description, Parameters = function.JsonSchema } }
+                : throw new NotSupportedException("Only function tools are supported.")).ToList() ?? [],
+            ToolChoice = options?.ToolMode switch
+            {
+                NoneChatToolMode => JsonSerializer.SerializeToElement("none"),
+                RequiredChatToolMode { RequiredFunctionName: { } name } => JsonSerializer.SerializeToElement(new { type = "function", function = new { name } }),
+                RequiredChatToolMode => JsonSerializer.SerializeToElement("required"),
+                _ => JsonSerializer.SerializeToElement("auto"),
+            },
+            ResponseFormat = options?.ResponseFormat is ChatResponseFormatJson json
+                ? new() { Type = json.Schema is null ? "json_object" : "json_schema", JsonSchema = json.Schema is { } schema ? new() { Name = json.SchemaName ?? "response", Schema = schema, Strict = true } : null } : null,
+            Messages = messages.SelectMany(ToWireMessages).ToList(),
         };
+    }
+
+    private static IEnumerable<OpenAiChatMessage> ToWireMessages(ChatMessage message)
+    {
+        var calls = message.Contents.OfType<FunctionCallContent>().Select(call => new OpenAiToolCall
+        {
+            Id = call.CallId,
+            Function = new() { Name = call.Name, Arguments = JsonSerializer.Serialize(call.Arguments ?? new Dictionary<string, object?>()) },
+        }).ToList();
+        if (calls.Count > 0 || message.Contents.OfType<TextContent>().Any())
+        {
+            yield return OpenAiChatMessage.FromText(message.Role.Value, message.Text) with { ToolCalls = calls.Count > 0 ? calls : null };
+        }
+
+        foreach (var result in message.Contents.OfType<FunctionResultContent>())
+        {
+            yield return OpenAiChatMessage.FromText("tool", result.Result is string text ? text : JsonSerializer.Serialize(result.Result)) with { ToolCallId = result.CallId };
+        }
+    }
+
+    private static void AddToolCalls(IList<AIContent> contents, List<OpenAiToolCall>? calls)
+    {
+        if (calls is null)
+        {
+            return;
+        }
+
+        foreach (var call in calls)
+        {
+            contents.Add(new FunctionCallContent(call.Id, call.Function.Name, JsonSerializer.Deserialize<Dictionary<string, object?>>(call.Function.Arguments)));
+        }
     }
 
     private HttpRequestMessage CreateJsonRequest(OpenAiChatCompletionRequest request)

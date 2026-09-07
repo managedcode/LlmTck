@@ -7,4 +7,7 @@
   <ItemGroup>
     <ProjectReference Include="..\ManagedCode.LlmTck\ManagedCode.LlmTck.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <Compile Include="../Shared/LlmTckJsonValidation.cs" Link="Validation/LlmTckJsonValidation.cs" />
+  </ItemGroup>
 </Project>

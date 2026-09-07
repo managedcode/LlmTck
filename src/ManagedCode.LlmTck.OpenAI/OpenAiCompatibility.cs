@@ -18,20 +18,20 @@ public static class OpenAiCompatibility
                 LlmTckProviderCapability.Models,
                 LlmTckProviderCapability.Chat,
                 LlmTckProviderCapability.StreamingChat,
+                LlmTckProviderCapability.Tools,
+                LlmTckProviderCapability.StructuredOutput,
                 LlmTckProviderCapability.Embeddings,
                 LlmTckProviderCapability.Images,
                 LlmTckProviderCapability.StreamingImages,
                 LlmTckProviderCapability.Video,
                 LlmTckProviderCapability.Audio,
                 LlmTckProviderCapability.StreamingAudio,
-                LlmTckProviderCapability.Tools,
-                LlmTckProviderCapability.StructuredOutput,
             ],
             CompatibilityTags = [ProviderId, LlmTckCompatibilityTags.OpenAICompatible],
             ApiContract = new()
             {
                 DocumentationUrl = "https://developers.openai.com/api/reference/",
-                DocumentationRetrievedOn = "2026-07-08",
+                DocumentationRetrievedOn = "2026-09-07",
                 DocumentationVersion = "v1",
                 Operations =
                 [
@@ -58,8 +58,8 @@ public static class OpenAiCompatibility
                         [
                             LlmTckProviderCapability.Chat,
                             LlmTckProviderCapability.StreamingChat,
-                            LlmTckProviderCapability.Tools,
-                            LlmTckProviderCapability.StructuredOutput,
+                LlmTckProviderCapability.Tools,
+                LlmTckProviderCapability.StructuredOutput,
                         ],
                     },
                     new()
@@ -75,9 +75,9 @@ public static class OpenAiCompatibility
                         [
                             LlmTckProviderCapability.Chat,
                             LlmTckProviderCapability.StreamingChat,
+                LlmTckProviderCapability.Tools,
+                LlmTckProviderCapability.StructuredOutput,
                             LlmTckProviderCapability.Images,
-                            LlmTckProviderCapability.Tools,
-                            LlmTckProviderCapability.StructuredOutput,
                         ],
                     },
                     new()

@@ -9,6 +9,10 @@ public static class CohereWireMapper
     {
         return new()
         {
+            Tools = request.Tools.Select(tool => new LlmTckToolDefinition { Name = tool.Function.Name, Description = tool.Function.Description, ParametersJson = tool.Function.Parameters.GetRawText() }).ToList(),
+            ToolChoice = request.ToolChoice switch { "REQUIRED" => LlmTckToolChoice.Required, "NONE" => LlmTckToolChoice.None, _ => LlmTckToolChoice.Auto },
+            RequireJson = request.ResponseFormat?.Type == "json_object",
+            ResponseSchemaJson = request.ResponseFormat?.Schema?.GetRawText(),
             ModelId = request.Model,
             Stream = request.Stream,
             Messages = request
@@ -17,6 +21,8 @@ public static class CohereWireMapper
                 {
                     Role = message.Role,
                     Content = message.TextContent,
+                    ToolCallId = message.ToolCallId,
+                    ToolCalls = message.ToolCalls?.Select(call => new LlmTckToolCall { Id = call.Id, Name = call.Function.Name, ArgumentsJson = call.Function.Arguments }).ToList() ?? [],
                 })
                 .ToList(),
         };
@@ -27,9 +33,11 @@ public static class CohereWireMapper
         return new()
         {
             Id = CreateResponseId(),
+            FinishReason = result.ToolCalls.Count > 0 ? "TOOL_CALL" : "COMPLETE",
             Message = new CohereAssistantMessage
             {
                 Content = [new CohereContentBlock { Text = result.Content }],
+                ToolCalls = result.ToolCalls.Count == 0 ? null : result.ToolCalls.Select(ToToolCall).ToList(),
             },
             Usage = CreateUsage(result.Usage),
         };
@@ -96,10 +104,26 @@ public static class CohereWireMapper
             type = "message-end",
             delta = new
             {
-                finish_reason = "COMPLETE",
+                finish_reason = result.ToolCalls.Count > 0 ? "TOOL_CALL" : "COMPLETE",
                 usage = CreateUsage(result.Usage),
             },
         };
+    }
+
+    private static CohereToolCall ToToolCall(LlmTckToolCall call)
+    {
+        return new() { Id = call.Id, Function = new() { Name = call.Name, Arguments = call.ArgumentsJson } };
+    }
+
+    public static IEnumerable<object> ToToolStreamEvents(LlmTckChatResult result)
+    {
+        for (var index = 0; index < result.ToolCalls.Count; index++)
+        {
+            var call = result.ToolCalls[index];
+            yield return new { type = "tool-call-start", index, delta = new { message = new { tool_calls = ToToolCall(call) with { Function = new() { Name = call.Name, Arguments = "" } } } } };
+            yield return new { type = "tool-call-delta", index, delta = new { message = new { tool_calls = new { function = new { arguments = call.ArgumentsJson } } } } };
+            yield return new { type = "tool-call-end", index };
+        }
     }
 
     public static CohereEmbedResponse ToEmbedResponse(IReadOnlyList<IReadOnlyList<float>> vectors)

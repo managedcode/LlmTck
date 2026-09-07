@@ -60,7 +60,7 @@ public sealed class ProviderFaultSimulationTests
             ),
             new(
                 "Microsoft Foundry",
-                (client, content) => PostOpenAiChatAsync(client, "/microsoft-foundry/chat/completions", content)
+                (client, content) => PostOpenAiChatAsync(client, "/microsoft-foundry/chat/completions?api-version=2024-05-01-preview", content)
             ),
             new("Anthropic", PostAnthropicMessagesAsync),
             new("Gemini", PostGeminiGenerateContentAsync),

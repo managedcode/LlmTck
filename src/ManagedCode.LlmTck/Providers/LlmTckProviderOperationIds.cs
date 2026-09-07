@@ -28,6 +28,10 @@ public static class LlmTckProviderOperationIds
 
     public static class AzureOpenAI
     {
+        public const string V1ChatCompletionsCreate = "v1.chat.completions.create";
+        public const string V1ResponsesCreate = "v1.responses.create";
+        public const string V1EmbeddingsCreate = "v1.embeddings.create";
+
         public const string ChatCompletionsCreate = OpenAI.ChatCompletionsCreate;
         public const string EmbeddingsCreate = OpenAI.EmbeddingsCreate;
         public const string ImagesCreate = OpenAI.ImagesCreate;
@@ -46,6 +50,10 @@ public static class LlmTckProviderOperationIds
 
     public static class MicrosoftFoundry
     {
+        public const string V1ChatCompletionsCreate = AzureOpenAI.V1ChatCompletionsCreate;
+        public const string V1ResponsesCreate = AzureOpenAI.V1ResponsesCreate;
+        public const string V1EmbeddingsCreate = AzureOpenAI.V1EmbeddingsCreate;
+
         public const string ChatCompletionsCreate = OpenAI.ChatCompletionsCreate;
         public const string EmbeddingsCreate = OpenAI.EmbeddingsCreate;
         public const string ModelsChatCompletionsCreate = "models.chat.completions.create";

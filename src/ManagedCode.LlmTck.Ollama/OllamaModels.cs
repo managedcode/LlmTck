@@ -5,6 +5,9 @@ namespace ManagedCode.LlmTck.Ollama;
 
 public sealed record OllamaChatRequest
 {
+    [JsonPropertyName("tools")] public List<OllamaTool> Tools { get; init; } = [];
+    [JsonPropertyName("format")][JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] public JsonElement Format { get; init; }
+
     [JsonPropertyName("model")]
     public string Model { get; init; } = string.Empty;
 
@@ -17,6 +20,9 @@ public sealed record OllamaChatRequest
 
 public sealed record OllamaChatMessage
 {
+    [JsonPropertyName("tool_calls")][JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public List<OllamaToolCall>? ToolCalls { get; init; }
+    [JsonPropertyName("tool_name")][JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public string? ToolName { get; init; }
+
     [JsonPropertyName("role")]
     public string Role { get; init; } = string.Empty;
 
@@ -56,6 +62,9 @@ public sealed record OllamaChatResponse
     [JsonPropertyName("prompt_eval_duration")]
     public long PromptEvalDuration { get; init; }
 
+    [JsonPropertyName("prompt_eval_cached_count")]
+    public int PromptEvalCachedCount { get; init; }
+
     [JsonPropertyName("eval_count")]
     public int EvalCount { get; init; }
 
@@ -65,6 +74,9 @@ public sealed record OllamaChatResponse
 
 public sealed record OllamaChatMessageResponse
 {
+    [JsonPropertyName("tool_calls")][JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public List<OllamaToolCall>? ToolCalls { get; init; }
+    [JsonPropertyName("tool_name")][JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public string? ToolName { get; init; }
+
     [JsonPropertyName("role")]
     public string Role { get; init; } = "assistant";
 
@@ -119,4 +131,25 @@ internal static class OllamaContentReader
             _ => content.ToString(),
         };
     }
+}
+
+public sealed record OllamaTool
+{
+    [JsonPropertyName("type")] public string Type { get; init; } = "function";
+    [JsonPropertyName("function")] public OllamaFunction Function { get; init; } = new();
+}
+public sealed record OllamaFunction
+{
+    [JsonPropertyName("name")] public string Name { get; init; } = string.Empty;
+    [JsonPropertyName("description")] public string? Description { get; init; }
+    [JsonPropertyName("parameters")] public JsonElement Parameters { get; init; } = JsonSerializer.SerializeToElement(new { type = "object" });
+}
+public sealed record OllamaToolCall
+{
+    [JsonPropertyName("function")] public OllamaFunctionCall Function { get; init; } = new();
+}
+public sealed record OllamaFunctionCall
+{
+    [JsonPropertyName("name")] public string Name { get; init; } = string.Empty;
+    [JsonPropertyName("arguments")] public JsonElement Arguments { get; init; }
 }

@@ -5,6 +5,10 @@ namespace ManagedCode.LlmTck.Cohere;
 
 public sealed record CohereChatRequest
 {
+    [JsonPropertyName("tools")] public List<CohereTool> Tools { get; init; } = [];
+    [JsonPropertyName("tool_choice")] public string? ToolChoice { get; init; }
+    [JsonPropertyName("response_format")] public CohereResponseFormat? ResponseFormat { get; init; }
+
     [JsonPropertyName("model")]
     public string Model { get; init; } = string.Empty;
 
@@ -17,6 +21,10 @@ public sealed record CohereChatRequest
 
 public sealed record CohereChatMessage
 {
+    [JsonPropertyName("tool_call_id")] public string? ToolCallId { get; init; }
+
+    [JsonPropertyName("tool_calls")][JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public List<CohereToolCall>? ToolCalls { get; init; }
+
     [JsonPropertyName("role")]
     public string Role { get; init; } = string.Empty;
 
@@ -44,6 +52,8 @@ public sealed record CohereChatResponse
 
 public sealed record CohereAssistantMessage
 {
+    [JsonPropertyName("tool_calls")][JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public List<CohereToolCall>? ToolCalls { get; init; }
+
     [JsonPropertyName("role")]
     public string Role { get; init; } = "assistant";
 
@@ -152,4 +162,32 @@ internal static class CohereContentReader
 
         return block.ToString();
     }
+}
+
+public sealed record CohereTool
+{
+    [JsonPropertyName("type")] public string Type { get; init; } = "function";
+    [JsonPropertyName("function")] public CohereFunction Function { get; init; } = new();
+}
+public sealed record CohereFunction
+{
+    [JsonPropertyName("name")] public string Name { get; init; } = string.Empty;
+    [JsonPropertyName("description")] public string? Description { get; init; }
+    [JsonPropertyName("parameters")] public JsonElement Parameters { get; init; } = JsonSerializer.SerializeToElement(new { type = "object" });
+}
+public sealed record CohereToolCall
+{
+    [JsonPropertyName("id")] public string Id { get; init; } = string.Empty;
+    [JsonPropertyName("type")] public string Type { get; init; } = "function";
+    [JsonPropertyName("function")] public CohereFunctionCall Function { get; init; } = new();
+}
+public sealed record CohereFunctionCall
+{
+    [JsonPropertyName("name")] public string Name { get; init; } = string.Empty;
+    [JsonPropertyName("arguments")] public string Arguments { get; init; } = "{}";
+}
+public sealed record CohereResponseFormat
+{
+    [JsonPropertyName("type")] public string Type { get; init; } = "text";
+    [JsonPropertyName("schema")] public JsonElement? Schema { get; init; }
 }

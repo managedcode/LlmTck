@@ -43,7 +43,7 @@
       </label>
       <button class="toolbar-button accent" type="button" aria-label="Refresh runtime state" @onclick="RefreshAsync"><span aria-hidden="true">↻</span><span>Refresh</span></button>
 
-      <button class="toolbar-button runtime-dialog-trigger" type="button" aria-label="Runtime settings" aria-haspopup="dialog" aria-controls="runtime-dialog" aria-expanded="@(_runtimeDialogHidden ? "false" : "true")" @ref="_runtimeDialogTrigger" @onclick="OpenRuntimeDialog"><span>Runtime</span><span aria-hidden="true">•••</span></button>
+      <button class="toolbar-button runtime-dialog-trigger" type="button" aria-label="Runtime settings" disabled="@(!_interactive)" aria-haspopup="dialog" aria-controls="runtime-dialog" aria-expanded="@(_runtimeDialogHidden ? "false" : "true")" @ref="_runtimeDialogTrigger" @onclick="OpenRuntimeDialog"><span>Runtime</span><span aria-hidden="true">•••</span></button>
     </div>
   </header>
 
@@ -589,6 +589,7 @@
     private bool _autoRefresh = true;
     private bool _resetting;
     private bool _runtimeDialogHidden = true;
+    private bool _interactive;
     private bool _restoreRuntimeTriggerFocus;
     private ElementReference _runtimeDialogTrigger;
     private string _statusText = "Connecting…";
@@ -646,6 +647,8 @@
     {
         if (firstRender)
         {
+            _interactive = true;
+            StateHasChanged();
             StartAutoRefresh();
         }
 

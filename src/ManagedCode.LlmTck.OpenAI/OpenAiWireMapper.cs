@@ -20,9 +20,10 @@ public static class OpenAiWireMapper
         LlmTckPromptCachePolicy promptCachePolicy = LlmTckPromptCachePolicy.None
     )
     {
-        return new()
+        return OpenAiToolMapper.Apply(new()
         {
             ModelId = request.Model,
+            AllowParallelToolCalls = request.ParallelToolCalls,
             Stream = request.Stream,
             PromptCachePolicy = promptCachePolicy,
             PromptCacheKey = ReadPromptCacheKey(
@@ -36,9 +37,11 @@ public static class OpenAiWireMapper
                 {
                     Role = message.Role,
                     Content = message.TextContent,
+                    ToolCallId = message.ToolCallId,
+                    ToolCalls = message.ToolCalls?.Select(OpenAiToolMapper.ToRuntime).ToList() ?? [],
                 })
                 .ToList(),
-        };
+        }, request.Tools, request.ToolChoice, request.ResponseFormat);
     }
 
     public static LlmTckChatRequest ToRuntimeRequest(
@@ -59,9 +62,10 @@ public static class OpenAiWireMapper
             );
         }
 
-        return new()
+        return OpenAiToolMapper.Apply(new()
         {
             ModelId = request.Model,
+            AllowParallelToolCalls = request.ParallelToolCalls,
             Stream = request.Stream,
             PromptCachePolicy = promptCachePolicy,
             PromptCacheKey = ReadPromptCacheKey(
@@ -70,7 +74,9 @@ public static class OpenAiWireMapper
                 promptCachePolicy
             ),
             Messages = messages,
-        };
+        }, request.Tools.Select(tool => new OpenAiTool { Type = tool.Type, Function = new() { Name = tool.Name, Description = tool.Description, Parameters = tool.Parameters } }).ToList(),
+            request.ToolChoice.ValueKind == JsonValueKind.Object ? JsonSerializer.SerializeToElement(new { function = request.ToolChoice }) : request.ToolChoice,
+            request.Text?.Format is { } format ? new() { Type = format.Type, JsonSchema = format.Type == "json_schema" ? new() { Schema = format.Schema } : null } : null);
     }
 
     public static OpenAiChatCompletionResponse ToChatResponse(
@@ -90,7 +96,8 @@ public static class OpenAiWireMapper
                 new OpenAiChatChoice
                 {
                     Index = 0,
-                    Message = OpenAiChatMessage.FromText("assistant", result.Content),
+                    Message = OpenAiChatMessage.FromText("assistant", result.Content) with { ToolCalls = result.ToolCalls.Count > 0 ? result.ToolCalls.Select(call => OpenAiToolMapper.ToWire(call)).ToList() : null },
+                    FinishReason = result.ToolCalls.Count > 0 ? "tool_calls" : "stop",
                 },
             ],
             Usage = CreateUsage(result.Usage, cacheUsageShape),
@@ -115,7 +122,11 @@ public static class OpenAiWireMapper
                 new OpenAiChatChunkChoice
                 {
                     Index = 0,
-                    Delta = OpenAiChatMessage.FromText("assistant", content),
+                    Delta = OpenAiChatMessage.FromText("assistant", content) with
+                    {
+                        ToolCalls = finishReason is null && result.ToolCalls.Count > 0
+                            ? result.ToolCalls.Select((call, index) => OpenAiToolMapper.ToWire(call, index)).ToList() : null,
+                    },
                     FinishReason = finishReason,
                 },
             ],
@@ -134,7 +145,7 @@ public static class OpenAiWireMapper
             Id = responseId,
             CreatedAt = created,
             Model = result.ModelId,
-            Output = [CreateOutputMessage(result.Content, completed: true)],
+            Output = CreateResponseOutput(result),
             Usage = new OpenAiResponseUsage
             {
                 InputTokens = result.Usage.InputTokens,
@@ -152,6 +163,53 @@ public static class OpenAiWireMapper
                     : null,
             },
         };
+    }
+
+    private static List<OpenAiResponseOutputMessage> CreateResponseOutput(LlmTckChatResult result)
+    {
+        var output = new List<OpenAiResponseOutputMessage>();
+        if (result.Content.Length > 0 || result.ToolCalls.Count == 0)
+        {
+            output.Add(CreateOutputMessage(result.Content, completed: true));
+        }
+
+        output.AddRange(result.ToolCalls.Select(call => new OpenAiResponseOutputMessage
+        { Type = "function_call", Id = "fc_" + call.Id, CallId = call.Id, Name = call.Name, Arguments = call.ArgumentsJson }));
+        return output;
+    }
+
+    public static IEnumerable<object> ToResponseStreamEvents(
+        LlmTckChatResult result, string responseId, long created,
+        OpenAiCacheUsageShape cacheUsageShape = OpenAiCacheUsageShape.None)
+    {
+        var response = ToResponse(result, responseId, created, cacheUsageShape);
+        var sequence = 0;
+        yield return new { type = "response.created", sequence_number = sequence++, response = response with { Status = "in_progress", Output = [] } };
+        yield return new { type = "response.in_progress", sequence_number = sequence++, response = response with { Status = "in_progress", Output = [] } };
+        for (var index = 0; index < response.Output.Count; index++)
+        {
+            var item = response.Output[index];
+            yield return new { type = "response.output_item.added", sequence_number = sequence++, output_index = index, item = item with { Status = "in_progress", Content = [], Arguments = item.Arguments is null ? null : "" } };
+            if (item.Type == "function_call")
+            {
+                yield return new { type = "response.function_call_arguments.delta", sequence_number = sequence++, item_id = item.Id, output_index = index, delta = item.Arguments };
+                yield return new { type = "response.function_call_arguments.done", sequence_number = sequence++, item_id = item.Id, output_index = index, arguments = item.Arguments };
+            }
+            else
+            {
+                yield return new { type = "response.content_part.added", sequence_number = sequence++, item_id = item.Id, output_index = index, content_index = 0, part = new OpenAiResponseOutputText() };
+                IReadOnlyList<string> chunks = result.StreamChunks.Count > 0 ? result.StreamChunks : [result.Content];
+                foreach (var chunk in chunks)
+                {
+                    yield return new { type = "response.output_text.delta", sequence_number = sequence++, item_id = item.Id, output_index = index, content_index = 0, delta = chunk, logprobs = Array.Empty<object>() };
+                }
+
+                yield return new { type = "response.output_text.done", sequence_number = sequence++, item_id = item.Id, output_index = index, content_index = 0, text = result.Content, logprobs = Array.Empty<object>() };
+                yield return new { type = "response.content_part.done", sequence_number = sequence++, item_id = item.Id, output_index = index, content_index = 0, part = item.Content[0] };
+            }
+            yield return new { type = "response.output_item.done", sequence_number = sequence++, output_index = index, item };
+        }
+        yield return new { type = "response.completed", sequence_number = sequence, response };
     }
 
     public static object ToResponseCreatedEvent(
@@ -201,7 +259,7 @@ public static class OpenAiWireMapper
     {
         return new
         {
-            type = "response.content_part.delta",
+            type = "response.output_text.delta",
             response_id = responseId,
             output_index = 0,
             content_index = 0,
@@ -229,7 +287,7 @@ public static class OpenAiWireMapper
     {
         return new
         {
-            type = "response.done",
+            type = "response.completed",
             response = ToResponse(result, responseId, created, cacheUsageShape),
         };
     }
@@ -337,6 +395,9 @@ public static class OpenAiWireMapper
         return new()
         {
             Id = result.VideoId,
+            Status = "completed",
+            Progress = 100,
+            RemixedFromVideoId = result.RemixedFromVideoId,
             Model = result.ModelId,
             Prompt = result.Prompt,
             CreatedAt = result.CreatedAt,
@@ -613,7 +674,7 @@ public static class OpenAiWireMapper
             JsonValueKind.Array => input
                 .EnumerateArray()
                 .Select(ReadResponseInputMessage)
-                .Where(message => !string.IsNullOrWhiteSpace(message.Content))
+                .Where(message => !string.IsNullOrWhiteSpace(message.Content) || message.ToolCalls.Count > 0 || message.ToolCallId is not null)
                 .ToList(),
             JsonValueKind.Object =>
             [
@@ -634,6 +695,18 @@ public static class OpenAiWireMapper
             };
         }
 
+        if (item.TryGetProperty("type", out var itemType))
+        {
+            if (itemType.GetString() == "function_call")
+            {
+                return new() { Role = "assistant", ToolCalls = [new() { Id = item.GetProperty("call_id").GetString()!, Name = item.GetProperty("name").GetString()!, ArgumentsJson = item.GetProperty("arguments").GetString()! }] };
+            }
+
+            if (itemType.GetString() == "function_call_output")
+            {
+                return new() { Role = "tool", ToolCallId = item.GetProperty("call_id").GetString(), Content = ReadResponseInputContent(item.GetProperty("output")) };
+            }
+        }
         var role = item.TryGetProperty("role", out var roleElement)
             ? roleElement.GetString() ?? "user"
             : "user";

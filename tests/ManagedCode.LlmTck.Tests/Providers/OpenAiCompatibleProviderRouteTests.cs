@@ -20,8 +20,8 @@ public sealed class OpenAiCompatibleProviderRouteTests
     [Arguments("/mistral/v1/chat/completions")]
     [Arguments("/deepseek/v1/chat/completions")]
     [Arguments("/perplexity/v1/sonar")]
-    [Arguments("/microsoft-foundry/chat/completions")]
-    [Arguments("/microsoft-foundry/models/chat/completions")]
+    [Arguments("/microsoft-foundry/chat/completions?api-version=2024-05-01-preview")]
+    [Arguments("/microsoft-foundry/models/chat/completions?api-version=2024-05-01-preview")]
     public async Task OpenAiCompatibleChatRoutes_ReturnChatCompletionShapeAsync(string path)
     {
         using var host = await LlmTckTestHost.StartAsync(options => options
@@ -70,8 +70,8 @@ public sealed class OpenAiCompatibleProviderRouteTests
     [Arguments("/openrouter/api/v1/chat/completions", true, false)]
     [Arguments("/mistral/v1/chat/completions", false, false)]
     [Arguments("/deepseek/v1/chat/completions", false, true)]
-    [Arguments("/microsoft-foundry/chat/completions", false, false)]
-    [Arguments("/microsoft-foundry/models/chat/completions", false, false)]
+    [Arguments("/microsoft-foundry/chat/completions?api-version=2024-05-01-preview", false, false)]
+    [Arguments("/microsoft-foundry/models/chat/completions?api-version=2024-05-01-preview", false, false)]
     public async Task OpenAiCompatibleChatRoutes_WithProviderPromptCaching_ReportCacheUsageAsync(
         string path,
         bool includesCacheWriteTokens,
@@ -189,8 +189,8 @@ public sealed class OpenAiCompatibleProviderRouteTests
     [Arguments("/mistral/v1/chat/completions")]
     [Arguments("/deepseek/v1/chat/completions")]
     [Arguments("/perplexity/v1/sonar")]
-    [Arguments("/microsoft-foundry/chat/completions")]
-    [Arguments("/microsoft-foundry/models/chat/completions")]
+    [Arguments("/microsoft-foundry/chat/completions?api-version=2024-05-01-preview")]
+    [Arguments("/microsoft-foundry/models/chat/completions?api-version=2024-05-01-preview")]
     public async Task OpenAiCompatibleChatRoutes_StreamServerSentChunksAsync(string path)
     {
         using var host = await LlmTckTestHost.StartAsync(options => options
@@ -371,18 +371,18 @@ public sealed class OpenAiCompatibleProviderRouteTests
         await Assert.That(body).Contains("\"type\":\"response.created\"");
         await Assert.That(body).Contains("\"type\":\"response.output_item.added\"");
         await Assert.That(body).Contains("\"type\":\"response.content_part.added\"");
-        await Assert.That(body).Contains("\"type\":\"response.content_part.delta\"");
+        await Assert.That(body).Contains("\"type\":\"response.output_text.delta\"");
         await Assert.That(body).Contains("\"delta\":\"response \"");
         await Assert.That(body).Contains("\"delta\":\"text\"");
         await Assert.That(body).Contains("\"type\":\"response.output_item.done\"");
-        await Assert.That(body).Contains("\"type\":\"response.done\"");
+        await Assert.That(body).Contains("\"type\":\"response.completed\"");
         await Assert.That(body).Contains("\"input_tokens\":");
         await Assert.That(body).Contains("\"output_tokens\":2");
     }
 
     [Test]
-    [Arguments("/microsoft-foundry/embeddings")]
-    [Arguments("/microsoft-foundry/models/embeddings")]
+    [Arguments("/microsoft-foundry/embeddings?api-version=2024-05-01-preview")]
+    [Arguments("/microsoft-foundry/models/embeddings?api-version=2024-05-01-preview")]
     public async Task FoundryEmbeddingRoutes_ReturnEmbeddingShapeAsync(string path)
     {
         using var host = await LlmTckTestHost.StartAsync(options => options

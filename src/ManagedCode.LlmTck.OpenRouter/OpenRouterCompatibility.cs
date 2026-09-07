@@ -25,7 +25,7 @@ public static class OpenRouterCompatibility
             ApiContract = new()
             {
                 DocumentationUrl = "https://openrouter.ai/docs/api/reference/overview",
-                DocumentationRetrievedOn = "2026-07-08",
+                DocumentationRetrievedOn = "2026-09-07",
                 DocumentationVersion = "OpenAI-compatible /api/v1",
                 Operations =
                 [
@@ -41,8 +41,8 @@ public static class OpenRouterCompatibility
                         [
                             LlmTckProviderCapability.Chat,
                             LlmTckProviderCapability.StreamingChat,
-                            LlmTckProviderCapability.Tools,
-                            LlmTckProviderCapability.StructuredOutput,
+                LlmTckProviderCapability.Tools,
+                LlmTckProviderCapability.StructuredOutput,
                         ],
                     },
                     new()
@@ -58,6 +58,8 @@ public static class OpenRouterCompatibility
                         [
                             LlmTckProviderCapability.Chat,
                             LlmTckProviderCapability.StreamingChat,
+                LlmTckProviderCapability.Tools,
+                LlmTckProviderCapability.StructuredOutput,
                         ],
                     },
                     new()

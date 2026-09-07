@@ -1,3 +1,4 @@
+using System.Text.Json;
 using ManagedCode.LlmTck.Runtime;
 using ManagedCode.LlmTck.Scenarios;
 
@@ -9,14 +10,20 @@ public static class OllamaWireMapper
     {
         return new()
         {
+            Tools = request.Tools.Select(tool => new LlmTckToolDefinition { Name = tool.Function.Name, Description = tool.Function.Description, ParametersJson = tool.Function.Parameters.GetRawText() }).ToList(),
+            RequireJson = request.Format.ValueKind == JsonValueKind.Object || request.Format.ValueKind == JsonValueKind.String && request.Format.GetString() == "json",
+            ResponseSchemaJson = request.Format.ValueKind == JsonValueKind.Object ? request.Format.GetRawText() : null,
             ModelId = request.Model,
             Stream = request.Stream != false,
+            PromptCachePolicy = LlmTckPromptCachePolicy.Ollama,
             Messages = request
                 .Messages
                 .Select(message => new LlmTckMessage
                 {
                     Role = message.Role,
                     Content = message.TextContent,
+                    ToolCallId = message.ToolName,
+                    ToolCalls = message.ToolCalls?.Select((call, index) => new LlmTckToolCall { Id = call.Function.Name + "_" + index, Name = call.Function.Name, ArgumentsJson = call.Function.Arguments.GetRawText() }).ToList() ?? [],
                 })
                 .ToList(),
         };
@@ -27,10 +34,11 @@ public static class OllamaWireMapper
         return new()
         {
             Model = result.ModelId,
-            Message = new OllamaChatMessageResponse { Content = result.Content },
+            Message = new OllamaChatMessageResponse { Content = result.Content, ToolCalls = MapTools(result) },
             Done = true,
             DoneReason = "stop",
             PromptEvalCount = result.Usage.InputTokens,
+            PromptEvalCachedCount = result.Usage.CachedInputTokens,
             EvalCount = result.Usage.OutputTokens,
         };
     }
@@ -44,12 +52,19 @@ public static class OllamaWireMapper
         return new()
         {
             Model = result.ModelId,
-            Message = new OllamaChatMessageResponse { Content = content },
+            Message = new OllamaChatMessageResponse { Content = content, ToolCalls = done ? MapTools(result) : null },
             Done = done,
             DoneReason = done ? "stop" : null,
             PromptEvalCount = done ? result.Usage.InputTokens : 0,
+            PromptEvalCachedCount = done ? result.Usage.CachedInputTokens : 0,
             EvalCount = done ? result.Usage.OutputTokens : 0,
         };
+    }
+
+    private static List<OllamaToolCall>? MapTools(LlmTckChatResult result)
+    {
+        return result.ToolCalls.Count == 0 ? null
+        : result.ToolCalls.Select(call => new OllamaToolCall { Function = new() { Name = call.Name, Arguments = JsonSerializer.Deserialize<JsonElement>(call.ArgumentsJson) } }).ToList();
     }
 
     public static OllamaEmbedResponse ToEmbedResponse(

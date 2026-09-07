@@ -17,10 +17,10 @@ public static class BedrockCompatibility
             [
                 LlmTckProviderCapability.Chat,
                 LlmTckProviderCapability.StreamingChat,
-                LlmTckProviderCapability.Embeddings,
-                LlmTckProviderCapability.Images,
                 LlmTckProviderCapability.Tools,
                 LlmTckProviderCapability.StructuredOutput,
+                LlmTckProviderCapability.Embeddings,
+                LlmTckProviderCapability.Images,
             ],
             CompatibilityTags =
             [
@@ -32,7 +32,7 @@ public static class BedrockCompatibility
             {
                 DocumentationUrl =
                     "https://docs.aws.amazon.com/bedrock/latest/APIReference/welcome.html",
-                DocumentationRetrievedOn = "2026-07-08",
+                DocumentationRetrievedOn = "2026-09-07",
                 DocumentationVersion = "bedrock-runtime",
                 Operations =
                 [
@@ -60,7 +60,7 @@ public static class BedrockCompatibility
                             "https://docs.aws.amazon.com/bedrock/latest/APIReference/API_runtime_ConverseStream.html",
                         SupportsStreaming = true,
                         ImplementedByHosting = true,
-                        Capabilities = [LlmTckProviderCapability.StreamingChat],
+                        Capabilities = [LlmTckProviderCapability.StreamingChat, LlmTckProviderCapability.Tools, LlmTckProviderCapability.StructuredOutput],
                     },
                     new()
                     {

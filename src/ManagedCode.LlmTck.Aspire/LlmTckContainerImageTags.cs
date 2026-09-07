@@ -4,7 +4,7 @@ namespace ManagedCode.LlmTck.Aspire;
 
 public static class LlmTckContainerImageTags
 {
-    private const string _fallbackTag = "0.0.12";
+    private const string _fallbackTag = "0.1.1";
 
     public const string Registry = "ghcr.io";
 

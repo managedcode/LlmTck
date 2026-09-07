@@ -38,7 +38,7 @@ public sealed class AzureSdkCompatibilityTests
         var azureClient = new AzureOpenAIClient(
             ProviderEndpoint(httpClient, ProviderRoutes.AzureOpenAI, includeTrailingSlash: true),
             new ApiKeyCredential("test-key"),
-            new AzureOpenAIClientOptions
+            new AzureOpenAIClientOptions(AzureOpenAIClientOptions.ServiceVersion.V2024_10_21)
             {
                 Transport = new HttpClientPipelineTransport(httpClient),
             }

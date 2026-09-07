@@ -23,7 +23,7 @@ public static class PerplexityCompatibility
             ApiContract = new()
             {
                 DocumentationUrl = "https://docs.perplexity.ai/api-reference/sonar-post",
-                DocumentationRetrievedOn = "2026-07-08",
+                DocumentationRetrievedOn = "2026-09-07",
                 DocumentationVersion = "Sonar API v1",
                 Operations =
                 [
@@ -39,7 +39,7 @@ public static class PerplexityCompatibility
                         [
                             LlmTckProviderCapability.Chat,
                             LlmTckProviderCapability.StreamingChat,
-                            LlmTckProviderCapability.StructuredOutput,
+                LlmTckProviderCapability.StructuredOutput,
                         ],
                     },
                 ],

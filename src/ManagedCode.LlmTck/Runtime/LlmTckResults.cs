@@ -1,4 +1,5 @@
 using ManagedCode.LlmTck.Models;
+using ManagedCode.LlmTck.Scenarios;
 
 namespace ManagedCode.LlmTck.Runtime;
 
@@ -11,6 +12,8 @@ public sealed record LlmTckChatResult
     public string ModelId { get; init; } = LlmTckKnownModelIds.Gpt41Mini;
 
     public string? ScenarioId { get; init; }
+
+    public List<LlmTckToolCall> ToolCalls { get; init; } = [];
 
     public string Content { get; init; } = string.Empty;
 
@@ -138,6 +141,8 @@ public sealed record LlmTckVideoResult
     public string VideoId { get; init; } = "video_llm_tck";
 
     public string GenerationId { get; init; } = "gen_llm_tck";
+
+    public string? RemixedFromVideoId { get; init; }
 
     public byte[] Bytes { get; init; } = [];
 

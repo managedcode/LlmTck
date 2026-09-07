@@ -15,11 +15,7 @@ public static class BedrockWireMapper
     {
         var messages = request
             .Messages
-            .Select(message => new LlmTckMessage
-            {
-                Role = message.Role,
-                Content = ReadText(message.Content),
-            })
+            .SelectMany(ReadMessages)
             .ToList();
 
         var system = ReadText(request.System);
@@ -30,6 +26,11 @@ public static class BedrockWireMapper
 
         return new()
         {
+            Tools = request.ToolConfig?.Tools.Select(tool => new LlmTckToolDefinition { Name = tool.ToolSpec.Name, Description = tool.ToolSpec.Description, ParametersJson = tool.ToolSpec.InputSchema.Json.GetRawText() }).ToList() ?? [],
+            ToolChoice = request.ToolConfig?.ToolChoice is { } choice && (choice.Any is not null || choice.Tool is not null) ? LlmTckToolChoice.Required : LlmTckToolChoice.Auto,
+            RequiredToolName = request.ToolConfig?.ToolChoice?.Tool?.Name,
+            RequireJson = request.OutputConfig?.TextFormat is not null,
+            ResponseSchemaJson = request.OutputConfig?.TextFormat?.Structure?.JsonSchema?.Schema,
             ModelId = modelId,
             Stream = stream,
             PromptCachePolicy = HasPromptCacheMarker(request)
@@ -67,12 +68,13 @@ public static class BedrockWireMapper
     {
         return new()
         {
+            StopReason = result.ToolCalls.Count > 0 ? "tool_use" : "end_turn",
             Output = new BedrockConverseOutput
             {
                 Message = new BedrockMessage
                 {
                     Role = "assistant",
-                    Content = [new BedrockContentBlock { Text = result.Content }],
+                    Content = result.ToolCalls.Count > 0 ? (result.Content.Length > 0 ? new[] { new BedrockContentBlock { Text = result.Content } } : []).Concat(result.ToolCalls.Select(call => new BedrockContentBlock { ToolUse = new() { ToolUseId = call.Id, Name = call.Name, Input = JsonSerializer.Deserialize<JsonElement>(call.ArgumentsJson) } })).ToList() : [new BedrockContentBlock { Text = result.Content }],
                 },
             },
             Usage = new BedrockUsage
@@ -84,6 +86,31 @@ public static class BedrockWireMapper
                 CacheWriteInputTokens = result.Usage.CacheCreationInputTokens,
             },
         };
+    }
+
+    private static IEnumerable<LlmTckMessage> ReadMessages(BedrockMessage message)
+    {
+        var calls = message.Content.Where(block => block.ToolUse is not null).Select(block => new LlmTckToolCall { Id = block.ToolUse!.ToolUseId, Name = block.ToolUse.Name, ArgumentsJson = block.ToolUse.Input.GetRawText() }).ToList();
+        if (calls.Count > 0 || message.Content.Any(block => block.ToolResult is null))
+        {
+            yield return new() { Role = message.Role, Content = ReadText(message.Content), ToolCalls = calls };
+        }
+
+        foreach (var block in message.Content.Where(block => block.ToolResult is not null))
+        {
+            yield return new() { Role = "tool", ToolCallId = block.ToolResult!.ToolUseId, Content = string.Concat(block.ToolResult.Content.Select(value => value.TryGetProperty("text", out var text) ? text.GetString() : value.GetRawText())) };
+        }
+    }
+    public static IEnumerable<object> ToToolStreamEvents(LlmTckChatResult result, int offset = 0)
+    {
+        for (var position = 0; position < result.ToolCalls.Count; position++)
+        {
+            var contentBlockIndex = position + offset;
+            var call = result.ToolCalls[position];
+            yield return new { contentBlockStart = new { contentBlockIndex, start = new { toolUse = new { toolUseId = call.Id, name = call.Name } } } };
+            yield return new { contentBlockDelta = new { contentBlockIndex, delta = new { toolUse = new { input = call.ArgumentsJson } } } };
+            yield return new { contentBlockStop = new { contentBlockIndex } };
+        }
     }
 
     public static BedrockTitanTextResponse ToTitanTextResponse(
@@ -160,9 +187,9 @@ public static class BedrockWireMapper
         return new { contentBlockStop = new { contentBlockIndex = 0 } };
     }
 
-    public static object ToConverseMessageStopEvent()
+    public static object ToConverseMessageStopEvent(bool toolUse = false)
     {
-        return new { messageStop = new { stopReason = "end_turn" } };
+        return new { messageStop = new { stopReason = toolUse ? "tool_use" : "end_turn" } };
     }
 
     public static object ToConverseMetadataEvent(LlmTckChatResult result)

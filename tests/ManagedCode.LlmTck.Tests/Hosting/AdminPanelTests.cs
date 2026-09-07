@@ -147,18 +147,6 @@ public sealed class AdminPanelTests
     }
 
     [Test]
-    public async Task AspirePackage_DoesNotShipBuildMachineStaticWebAssetsRuntimeManifestAsync()
-    {
-        var repositoryRoot = FindRepositoryRoot();
-        var aspireProject = await File.ReadAllTextAsync(Path.Combine(
-            repositoryRoot,
-            "src/ManagedCode.LlmTck.Aspire/ManagedCode.LlmTck.Aspire.csproj"
-        ));
-
-        await Assert.That(aspireProject).Contains("**\\*.staticwebassets.runtime.json");
-    }
-
-    [Test]
     public async Task ControlRoutes_UseRootAndAdminApiPathsAsync()
     {
         await Assert.That(LlmTckControlRoutes.Admin).IsEqualTo("/");

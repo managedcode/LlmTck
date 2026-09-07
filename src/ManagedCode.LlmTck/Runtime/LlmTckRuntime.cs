@@ -6,10 +6,11 @@ using ManagedCode.LlmTck.Scenarios;
 
 namespace ManagedCode.LlmTck.Runtime;
 
-public sealed class LlmTckRuntime
+public sealed partial class LlmTckRuntime
     : ILlmTckRuntime,
         ILlmTckRuntimeRequestScope,
-        ILlmTckRuntimeEventLookup
+        ILlmTckRuntimeEventLookup,
+        ILlmTckVideoStore
 {
     private const string _tooManyRequestsCode = "too_many_requests";
     private const string _contentFilterCode = "content_filter";
@@ -30,8 +31,9 @@ public sealed class LlmTckRuntime
 
     private readonly object _gate = new();
     private readonly AsyncLocal<RuntimeRequestContext?> _activeRequest = new();
-    private readonly Dictionary<string, int> _scenarioPositions = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<LlmTckScenario, HashSet<int>> _scenarioReservations = new(ReferenceEqualityComparer.Instance);
     private readonly Dictionary<string, int> _promptCacheEntries = new(StringComparer.Ordinal);
+    private readonly Queue<string> _promptCacheOrder = [];
     private readonly Queue<LlmTckRuntimeEvent> _events = [];
     private readonly Dictionary<string, LlmTckRuntimeEvent> _eventsByRequestId = new(
         StringComparer.Ordinal
@@ -70,8 +72,12 @@ public sealed class LlmTckRuntime
         lock (_gate)
         {
             _configuration = LlmTckConfigurationBuilder.Snapshot(configuration);
-            _scenarioPositions.Clear();
+            _scenarioReservations.Clear();
+            _videos.Clear();
+            _videoBytes = 0;
+            _videoSequence.Clear();
             _promptCacheEntries.Clear();
+            _promptCacheOrder.Clear();
             ResetEventJournal();
             _requestCount = 0;
             _generation++;
@@ -86,8 +92,12 @@ public sealed class LlmTckRuntime
 
         lock (_gate)
         {
-            _scenarioPositions.Clear();
+            _scenarioReservations.Clear();
+            _videos.Clear();
+            _videoBytes = 0;
+            _videoSequence.Clear();
             _promptCacheEntries.Clear();
+            _promptCacheOrder.Clear();
             ResetEventJournal();
             _requestCount = 0;
             _generation++;
@@ -129,7 +139,9 @@ public sealed class LlmTckRuntime
         ArgumentException.ThrowIfNullOrWhiteSpace(requestId);
         lock (_gate)
         {
-            return _eventsByRequestId.TryGetValue(requestId, out runtimeEvent);
+            var found = _eventsByRequestId.TryGetValue(requestId, out var retained);
+            runtimeEvent = found ? SnapshotEvent(retained!) : null;
+            return found;
         }
     }
 
@@ -140,6 +152,7 @@ public sealed class LlmTckRuntime
     )
     {
         ArgumentNullException.ThrowIfNull(request);
+        cancellationToken.ThrowIfCancellationRequested();
 
         LlmTckScenarioResponse response;
         LlmTckScenario? scenario;
@@ -252,7 +265,32 @@ public sealed class LlmTckRuntime
                 );
             }
 
-            responsePosition = _scenarioPositions.GetValueOrDefault(scenario.Id);
+            if (!_scenarioReservations.TryGetValue(scenario, out var reservations))
+            {
+                reservations = [];
+                _scenarioReservations.Add(scenario, reservations);
+            }
+
+            responsePosition = 0;
+            while (reservations.Contains(responsePosition))
+            {
+                responsePosition++;
+            }
+            if (request.PopulateCacheOnly)
+            {
+                var cacheUsage = CreateChatUsage(request, updatePromptCache: true);
+                var usage = cacheUsage with
+                {
+                    OutputTokens = 0,
+                    ReasoningTokens = 0,
+                    TotalTokens = cacheUsage.InputTokens,
+                };
+                AddEvent(LlmTckEventKind.Matched, scenario.Id, request.ModelId,
+                    "Prompt cache populated without generating a response.", FormatChatRequest(request),
+                    string.Empty, usage, chatRequest: request);
+                return LlmTckChatResult.Success(request.ModelId, scenario.Id, string.Empty, [], usage);
+            }
+
             if (responsePosition >= scenario.Responses.Count)
             {
                 var usage = CreateChatUsage(request);
@@ -276,7 +314,17 @@ public sealed class LlmTckRuntime
             }
 
             response = scenario.Responses[responsePosition];
-            _scenarioPositions[scenario.Id] = responsePosition + 1;
+            var fixtureError = ValidateFixture(request, response);
+            if (fixtureError is not null)
+            {
+                var usage = CreateChatUsage(request);
+                AddEvent(LlmTckEventKind.ErrorReturned, scenario.Id, request.ModelId,
+                    "The selected fixture does not satisfy the request.", FormatChatRequest(request),
+                    fixtureError, usage, chatRequest: request);
+                return LlmTckChatResult.Failure(request.ModelId, 409, "llm_tck_fixture_mismatch", fixtureError, scenario.Id, usage);
+            }
+
+            reservations.Add(responsePosition);
         }
 
         try
@@ -288,12 +336,18 @@ public sealed class LlmTckRuntime
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
-            RollBackReservedResponse(scenario.Id, responsePosition, generation);
+            RollBackReservedResponse(scenario, responsePosition, generation);
             throw;
         }
 
         lock (_gate)
         {
+            if (cancellationToken.IsCancellationRequested)
+            {
+                RollBackReservedResponse(scenario, responsePosition, generation);
+                cancellationToken.ThrowIfCancellationRequested();
+            }
+
             if (generation != _generation)
             {
                 return CreateSupersededChatResult(request, scenario.Id);
@@ -302,7 +356,7 @@ public sealed class LlmTckRuntime
             var responseText = response.Error?.Message ?? response.Content;
             var usage = CreateChatUsage(
                 request,
-                responseText,
+                response.Error is null ? response.Content + string.Concat(response.ToolCalls.Select(call => call.Name + call.ArgumentsJson)) : null,
                 updatePromptCache: response.Error is null
             );
             IReadOnlyList<string> successfulStreamChunks = response.StreamChunks.Count > 0
@@ -338,7 +392,8 @@ public sealed class LlmTckRuntime
                 response.Content,
                 successfulStreamChunks,
                 usage
-            );
+            ) with
+            { ToolCalls = [.. response.ToolCalls] };
         }
     }
 
@@ -870,9 +925,18 @@ public sealed class LlmTckRuntime
                 OutputTokens = _outputTokens,
                 ReasoningTokens = _reasoningTokens,
                 TotalTokens = _totalTokens,
-                Events = [.. _events],
+                Events = _events.Select(SnapshotEvent).ToList(),
             };
         }
+    }
+
+    private static LlmTckRuntimeEvent SnapshotEvent(LlmTckRuntimeEvent item)
+    {
+        return item with
+        {
+            Messages = item.Messages.Select(message => message with { ToolCalls = [.. message.ToolCalls] }).ToArray(),
+            StreamChunks = item.StreamChunks.ToArray(),
+        };
     }
 
     private static bool HasRequiredToken(string? required, string? supplied)
@@ -1094,7 +1158,7 @@ public sealed class LlmTckRuntime
     }
 
     private void RollBackReservedResponse(
-        string scenarioId,
+        LlmTckScenario scenario,
         int reservedPosition,
         long generation
     )
@@ -1106,9 +1170,9 @@ public sealed class LlmTckRuntime
                 return;
             }
 
-            if (_scenarioPositions.GetValueOrDefault(scenarioId) == reservedPosition + 1)
+            if (_scenarioReservations.TryGetValue(scenario, out var reservations))
             {
-                _scenarioPositions[scenarioId] = reservedPosition;
+                reservations.Remove(reservedPosition);
             }
         }
     }
@@ -1252,7 +1316,9 @@ public sealed class LlmTckRuntime
             ? string.Equals(expected.Content, actual.Content, StringComparison.Ordinal)
             : actual.Content.Contains(expected.Content, StringComparison.OrdinalIgnoreCase);
 
-        return roleMatches && contentMatches;
+        return roleMatches && contentMatches
+            && ((mode != LlmTckMatchMode.Exact && expected.ToolCallId is null) || expected.ToolCallId == actual.ToolCallId)
+            && ((mode != LlmTckMatchMode.Exact && expected.ToolCalls.Count == 0) || expected.ToolCalls.SequenceEqual(actual.ToolCalls));
     }
 
     private void AddEvent(
@@ -1397,7 +1463,15 @@ public sealed class LlmTckRuntime
             remaining -= _retainedMessageCost;
             var role = RetainRequiredText(source.Role, ref remaining, ref truncated);
             var content = RetainRequiredText(source.Content, ref remaining, ref truncated);
-            retained.Add(new LlmTckMessage { Role = role, Content = content });
+            var callId = source.ToolCallId is null ? null : RetainRequiredText(source.ToolCallId, ref remaining, ref truncated);
+            var calls = new List<LlmTckToolCall>();
+            foreach (var call in source.ToolCalls)
+            {
+                if (remaining < _retainedMessageCost) { truncated = true; break; }
+                remaining -= _retainedMessageCost;
+                calls.Add(new() { Id = RetainRequiredText(call.Id, ref remaining, ref truncated), Name = RetainRequiredText(call.Name, ref remaining, ref truncated), ArgumentsJson = RetainRequiredText(call.ArgumentsJson, ref remaining, ref truncated) });
+            }
+            retained.Add(new LlmTckMessage { Role = role, Content = content, ToolCallId = callId, ToolCalls = calls });
         }
 
         return retained.Count == 0 ? [] : Array.AsReadOnly(retained.ToArray());
@@ -1481,7 +1555,8 @@ public sealed class LlmTckRuntime
             + CountCharacters(runtimeEvent.PromptCacheKey);
         foreach (var item in runtimeEvent.Messages)
         {
-            total += _retainedMessageCost + item.Role.Length + item.Content.Length;
+            total += _retainedMessageCost + item.Role.Length + item.Content.Length + CountCharacters(item.ToolCallId)
+                + item.ToolCalls.Sum(call => _retainedMessageCost + call.Id.Length + call.Name.Length + call.ArgumentsJson.Length);
         }
 
         foreach (var item in runtimeEvent.StreamChunks)
@@ -1514,6 +1589,12 @@ public sealed class LlmTckRuntime
         _totalTokens += usage.TotalTokens;
     }
 
+    private static string MessageTokenText(LlmTckMessage message)
+    {
+        return message.ToolCalls.Count == 0 && message.ToolCallId is null ? message.Content
+        : message.Content + " " + message.ToolCallId + " " + string.Join(" ", message.ToolCalls.Select(call => call.Id + " " + call.Name + " " + call.ArgumentsJson));
+    }
+
     private LlmTckTokenUsage CreateChatUsage(
         LlmTckChatRequest request,
         string? response = null,
@@ -1521,14 +1602,14 @@ public sealed class LlmTckRuntime
     )
     {
         var inputTokens = request.Messages.Sum(message =>
-            LlmTckTokenCounter.CountTextTokens(message.Content)
-        );
+            LlmTckTokenCounter.CountTextTokens(MessageTokenText(message))
+        ) + request.Tools.Sum(tool => LlmTckTokenCounter.CountTextTokens(tool.Name + " " + tool.Description + " " + tool.ParametersJson));
         var (cachedInputTokens, cacheCreationInputTokens) = CalculatePromptCacheUsage(
             request,
             updatePromptCache
         );
         var visibleOutputTokens = LlmTckTokenCounter.CountTextTokens(response);
-        var reasoningTokens = GetReasoningTokens(request.ModelId);
+        var reasoningTokens = response is null ? 0 : GetReasoningTokens(request.ModelId);
         var outputTokens = visibleOutputTokens + reasoningTokens;
         return new LlmTckTokenUsage
         {
@@ -1546,7 +1627,7 @@ public sealed class LlmTckRuntime
         bool updatePromptCache
     )
     {
-        if (!updatePromptCache || request.PromptCachePolicy == LlmTckPromptCachePolicy.None)
+        if (!updatePromptCache || _configuration.MaxPromptCacheEntries == 0 || request.PromptCachePolicy == LlmTckPromptCachePolicy.None)
         {
             return (0, 0);
         }
@@ -1568,10 +1649,20 @@ public sealed class LlmTckRuntime
             }
 
             maxCacheableTokens = Math.Max(maxCacheableTokens, candidate.Tokens);
+            if (!_promptCacheEntries.ContainsKey(candidate.Key))
+            {
+                while (_promptCacheEntries.Count >= _configuration.MaxPromptCacheEntries)
+                {
+                    _promptCacheEntries.Remove(_promptCacheOrder.Dequeue());
+                }
+                _promptCacheOrder.Enqueue(candidate.Key);
+            }
             _promptCacheEntries[candidate.Key] = candidate.Tokens;
         }
 
-        return (cachedInputTokens, Math.Max(0, maxCacheableTokens - cachedInputTokens));
+        return (cachedInputTokens, request.PromptCachePolicy == LlmTckPromptCachePolicy.Ollama
+            ? 0
+            : Math.Max(0, maxCacheableTokens - cachedInputTokens));
     }
 
     private static List<PromptCacheCandidate> CreatePromptCacheCandidates(
@@ -1580,17 +1671,19 @@ public sealed class LlmTckRuntime
     {
         var candidates = new List<PromptCacheCandidate>();
         var cachePrefix = new StringBuilder();
-        var cumulativeTokens = 0;
+        var toolText = string.Join("\n", request.Tools.Select(tool => tool.Name + " " + tool.Description + " " + tool.ParametersJson));
+        cachePrefix.Append(toolText);
+        var cumulativeTokens = LlmTckTokenCounter.CountTextTokens(toolText);
 
         foreach (var message in request.Messages)
         {
-            cumulativeTokens += LlmTckTokenCounter.CountTextTokens(message.Content);
+            cumulativeTokens += LlmTckTokenCounter.CountTextTokens(MessageTokenText(message));
             cachePrefix
                 .Append("role:")
                 .Append(message.Role)
                 .Append('\u001f')
                 .Append("content:")
-                .Append(message.Content)
+                .Append(MessageTokenText(message))
                 .Append('\u001e');
 
             var cacheableTokens = RoundPromptCacheTokens(
@@ -1634,6 +1727,7 @@ public sealed class LlmTckRuntime
         {
             LlmTckPromptCachePolicy.Mistral => _mistralPromptCacheMinimumTokens,
             LlmTckPromptCachePolicy.Gemini => _geminiPromptCacheMinimumTokens,
+            LlmTckPromptCachePolicy.Ollama => 1,
             _ => _openAiPromptCacheMinimumTokens,
         };
     }
@@ -1644,6 +1738,7 @@ public sealed class LlmTckRuntime
         {
             LlmTckPromptCachePolicy.Mistral => _mistralPromptCacheIncrementTokens,
             LlmTckPromptCachePolicy.Gemini => _geminiPromptCacheIncrementTokens,
+            LlmTckPromptCachePolicy.Ollama => 1,
             _ => _openAiPromptCacheIncrementTokens,
         };
     }

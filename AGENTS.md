@@ -62,14 +62,14 @@ Rule format:
 
 - Restore: `dotnet restore ManagedCode.LlmTck.slnx`
 - Build: `dotnet build ManagedCode.LlmTck.slnx --configuration Release --no-restore`
-- Test: `dotnet test tests/ManagedCode.LlmTck.Tests/ManagedCode.LlmTck.Tests.csproj --configuration Release --no-build --verbosity normal`
+- Test: `dotnet test --project tests/ManagedCode.LlmTck.Tests/ManagedCode.LlmTck.Tests.csproj --configuration Release --no-build --verbosity normal`
 - Pack: `for project in src/*/*.csproj; do dotnet pack "$project" --configuration Release --no-build --output artifacts/packages; done`
 - Release: pushing to `main` must start the release workflow; it reads the package version from `Directory.Build.props`, creates the matching `vX.Y.Z` tag and GitHub Release, attaches package artifacts, and publishes NuGet packages only when that version is not already released.
 - Format check: `dotnet format ManagedCode.LlmTck.slnx --verify-no-changes`
 - Tool restore: `dotnet tool restore`
 - Coverage gate: production code line coverage must stay at or above 90%; measure with coverlet/reportgenerator when coverage expectations change.
-- Coverage: `rm -rf tests/ManagedCode.LlmTck.Tests/TestResults/coverage-analysis && mkdir -p tests/ManagedCode.LlmTck.Tests/TestResults/coverage-analysis/raw && dotnet tool run coverlet tests/ManagedCode.LlmTck.Tests/bin/Release/net10.0/ManagedCode.LlmTck.Tests.dll --target "dotnet" --targetargs "test tests/ManagedCode.LlmTck.Tests/ManagedCode.LlmTck.Tests.csproj --configuration Release --no-build --verbosity normal" --format cobertura --format json --output tests/ManagedCode.LlmTck.Tests/TestResults/coverage-analysis/raw/coverage --include "[ManagedCode.LlmTck]*" --include "[ManagedCode.LlmTck.*]*" --exclude "[ManagedCode.LlmTck.Tests]*" --exclude "[ManagedCode.LlmTck.Service]*" --exclude "[ManagedCode.LlmTck.AppHost]*" --threshold 90 --threshold-type line --threshold-stat Total`
-- Quality gate: `dotnet format ManagedCode.LlmTck.slnx --verify-no-changes --no-restore && dotnet build ManagedCode.LlmTck.slnx --configuration Release --no-restore && dotnet test tests/ManagedCode.LlmTck.Tests/ManagedCode.LlmTck.Tests.csproj --configuration Release --no-build --verbosity normal && git diff --check`
+- Coverage: `rm -rf tests/ManagedCode.LlmTck.Tests/TestResults/coverage-analysis && mkdir -p tests/ManagedCode.LlmTck.Tests/TestResults/coverage-analysis/raw && dotnet tool run coverlet tests/ManagedCode.LlmTck.Tests/bin/Release/net10.0/ManagedCode.LlmTck.Tests.dll --target "dotnet" --targetargs "test --project tests/ManagedCode.LlmTck.Tests/ManagedCode.LlmTck.Tests.csproj --configuration Release --no-build --verbosity normal" --format cobertura --format json --output tests/ManagedCode.LlmTck.Tests/TestResults/coverage-analysis/raw/coverage --include "[ManagedCode.LlmTck]*" --include "[ManagedCode.LlmTck.*]*" --exclude "[ManagedCode.LlmTck.Tests]*" --exclude "[ManagedCode.LlmTck.Service]*" --exclude "[ManagedCode.LlmTck.AppHost]*" --threshold 90 --threshold-type line --threshold-stat Total`
+- Quality gate: `dotnet format ManagedCode.LlmTck.slnx --verify-no-changes --no-restore && dotnet build ManagedCode.LlmTck.slnx --configuration Release --no-restore && dotnet test --project tests/ManagedCode.LlmTck.Tests/ManagedCode.LlmTck.Tests.csproj --configuration Release --no-build --verbosity normal && git diff --check`
 
 `global.json` opts `dotnet test` into `Microsoft.Testing.Platform`; do not add VSTest-specific logger arguments to normal test commands.
 
@@ -97,6 +97,8 @@ Rule format:
 - Root `.editorconfig` is the source of truth for formatting, naming, and C# style. Prefer changing it once over suppressing analyzer noise in individual files.
 
 ## Design Rules
+
+- Before claiming that all review findings are fixed, recheck every finding against final behavior and tests; report removed capability claims and temporary mitigations separately from implemented functionality.
 
 - Prefer official .NET packages and abstractions before writing custom protocol code.
 - Tests that fake `IChatClient` should use the dotnet/extensions pattern: a tiny fake class with delegate callbacks, not Moq or NSubstitute.

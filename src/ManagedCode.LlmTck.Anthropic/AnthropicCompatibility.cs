@@ -28,8 +28,8 @@ public static class AnthropicCompatibility
             ],
             ApiContract = new()
             {
-                DocumentationUrl = "https://docs.anthropic.com/en/api/messages",
-                DocumentationRetrievedOn = "2026-07-08",
+                DocumentationUrl = "https://platform.claude.com/docs/en/api/messages/create",
+                DocumentationRetrievedOn = "2026-09-07",
                 DocumentationVersion = "anthropic-version: 2023-06-01",
                 Operations =
                 [
@@ -38,7 +38,7 @@ public static class AnthropicCompatibility
                         Id = LlmTckProviderOperationIds.Anthropic.MessagesCreate,
                         Method = "POST",
                         Path = "/anthropic/v1/messages",
-                        DocumentationUrl = "https://docs.anthropic.com/en/api/messages",
+                        DocumentationUrl = "https://platform.claude.com/docs/en/api/messages/create",
                         RequiredHeader = "anthropic-version",
                         ApiVersion = "2023-06-01",
                         SupportsStreaming = true,
@@ -47,8 +47,8 @@ public static class AnthropicCompatibility
                         [
                             LlmTckProviderCapability.Chat,
                             LlmTckProviderCapability.StreamingChat,
-                            LlmTckProviderCapability.Tools,
-                            LlmTckProviderCapability.StructuredOutput,
+                LlmTckProviderCapability.Tools,
+                LlmTckProviderCapability.StructuredOutput,
                         ],
                     },
                 ],

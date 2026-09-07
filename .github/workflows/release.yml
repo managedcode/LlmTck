@@ -15,6 +15,10 @@ permissions:
   contents: write
   packages: write
 
+concurrency:
+  group: release
+  cancel-in-progress: false
+
 jobs:
   pack:
     runs-on: ubuntu-latest
@@ -37,18 +41,15 @@ jobs:
         env:
           FORCE_RELEASE: ${{ github.event_name == 'workflow_dispatch' && inputs.force }}
           GH_TOKEN: ${{ github.token }}
-        run: |
-          version=$(dotnet msbuild src/ManagedCode.LlmTck/ManagedCode.LlmTck.csproj -nologo -v:q -getProperty:Version)
-          tag="v$version"
-          echo "version=$version" >> "$GITHUB_OUTPUT"
-          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+        run: bash scripts/release.sh resolve
 
-          if gh release view "$tag" > /dev/null 2>&1 && [ "$FORCE_RELEASE" != "true" ]; then
-            echo "should_release=false" >> "$GITHUB_OUTPUT"
-            echo "::notice::Release $tag already exists; skipping package publish."
-          else
-            echo "should_release=true" >> "$GITHUB_OUTPUT"
-          fi
+      - name: Validate publishing credentials
+        if: ${{ steps.release.outputs.should_release == 'true' }}
+        run: test -n "$NUGET_API_KEY" || { echo "::error::NUGET_API_KEY is required to publish this release."; exit 1; }
+
+      - name: Restore tools
+        if: ${{ steps.release.outputs.should_release == 'true' }}
+        run: dotnet tool restore
 
       - name: Restore
         if: ${{ steps.release.outputs.should_release == 'true' }}
@@ -64,11 +65,28 @@ jobs:
 
       - name: Test
         if: ${{ steps.release.outputs.should_release == 'true' }}
-        run: dotnet test tests/ManagedCode.LlmTck.Tests/ManagedCode.LlmTck.Tests.csproj --configuration Release --no-build --verbosity normal
+        run: bash scripts/coverage.sh
 
       - name: Pack
         if: ${{ steps.release.outputs.should_release == 'true' }}
         run: for project in src/*/*.csproj; do dotnet pack "$project" --configuration Release --no-build --output artifacts/packages; done
+
+      - name: Verify installed NuGet consumer
+        if: ${{ steps.release.outputs.should_release == 'true' }}
+        run: python3 scripts/verify-package.py
+
+      - name: Verify release recovery
+        if: ${{ steps.release.outputs.should_release == 'true' }}
+        run: python3 scripts/test-release.py
+
+      - name: Upload verification evidence
+        if: always()
+        uses: actions/upload-artifact@v7.0.1
+        with:
+          name: verification-evidence
+          path: |
+            artifacts/coverage
+            artifacts/package-consumer
 
       - name: Publish container image
         if: ${{ steps.release.outputs.should_release == 'true' }}
@@ -82,18 +100,9 @@ jobs:
             .
           docker push "ghcr.io/managedcode/llm-tck:$IMAGE_TAG"
 
-      - name: Create GitHub release
+      - name: Publish packages and finalize release
         if: ${{ steps.release.outputs.should_release == 'true' }}
         env:
           GH_TOKEN: ${{ github.token }}
           TAG_NAME: ${{ steps.release.outputs.tag }}
-        run: |
-          if gh release view "$TAG_NAME" > /dev/null 2>&1; then
-            gh release upload "$TAG_NAME" artifacts/packages/*.nupkg --clobber
-          else
-            gh release create "$TAG_NAME" artifacts/packages/*.nupkg --title "$TAG_NAME" --generate-notes --target "$GITHUB_SHA"
-          fi
-
-      - name: Publish packages
-        if: ${{ steps.release.outputs.should_release == 'true' && env.NUGET_API_KEY != '' }}
-        run: dotnet nuget push "artifacts/packages/*.nupkg" --source https://api.nuget.org/v3/index.json --api-key "$NUGET_API_KEY" --skip-duplicate
+        run: bash scripts/release.sh publish

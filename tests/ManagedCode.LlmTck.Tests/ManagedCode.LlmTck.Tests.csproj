@@ -1,4 +1,4 @@
-<Project Sdk="Aspire.AppHost.Sdk/13.5.0">
+<Project Sdk="Aspire.AppHost.Sdk/13.5.3">
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <IsPackable>false</IsPackable>
@@ -11,6 +11,7 @@
 
   <ItemGroup>
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    <PackageReference Include="AWSSDK.BedrockRuntime" />
     <PackageReference Include="Azure.AI.Inference" />
     <PackageReference Include="Azure.AI.OpenAI" />
     <PackageReference Include="Azure.Core" />
@@ -19,6 +20,7 @@
     <PackageReference Include="Microsoft.AspNetCore.App.Internal.Assets" />
     <PackageReference Include="Microsoft.Extensions.AI" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="OpenAI" />
     <PackageReference Include="System.ClientModel" />
     <PackageReference Include="TUnit" />
   </ItemGroup>

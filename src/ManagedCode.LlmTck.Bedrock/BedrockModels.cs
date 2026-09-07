@@ -5,6 +5,9 @@ namespace ManagedCode.LlmTck.Bedrock;
 
 public sealed record BedrockConverseRequest
 {
+    [JsonPropertyName("toolConfig")] public BedrockToolConfig? ToolConfig { get; init; }
+    [JsonPropertyName("outputConfig")] public BedrockOutputConfig? OutputConfig { get; init; }
+
     [JsonPropertyName("messages")]
     public List<BedrockMessage> Messages { get; init; } = [];
 
@@ -23,6 +26,9 @@ public sealed record BedrockMessage
 
 public sealed record BedrockContentBlock
 {
+    [JsonPropertyName("toolUse")][JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public BedrockToolUse? ToolUse { get; init; }
+    [JsonPropertyName("toolResult")][JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public BedrockToolResult? ToolResult { get; init; }
+
     [JsonPropertyName("text")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? Text { get; init; }
@@ -138,4 +144,62 @@ public sealed record BedrockErrorResponse
 {
     [JsonPropertyName("message")]
     public string Message { get; init; } = string.Empty;
+}
+
+public sealed record BedrockToolConfig
+{
+    [JsonPropertyName("tools")] public List<BedrockTool> Tools { get; init; } = [];
+    [JsonPropertyName("toolChoice")] public BedrockToolChoice? ToolChoice { get; init; }
+}
+public sealed record BedrockToolChoice
+{
+    [JsonPropertyName("any")] public JsonElement? Any { get; init; }
+    [JsonPropertyName("tool")] public BedrockNamedTool? Tool { get; init; }
+}
+public sealed record BedrockNamedTool
+{
+    [JsonPropertyName("name")] public string Name { get; init; } = string.Empty;
+}
+public sealed record BedrockTool
+{
+    [JsonPropertyName("toolSpec")] public BedrockToolSpec ToolSpec { get; init; } = new();
+}
+public sealed record BedrockToolSpec
+{
+    [JsonPropertyName("name")] public string Name { get; init; } = string.Empty;
+    [JsonPropertyName("description")] public string? Description { get; init; }
+    [JsonPropertyName("inputSchema")] public BedrockInputSchema InputSchema { get; init; } = new();
+}
+public sealed record BedrockInputSchema
+{
+    [JsonPropertyName("json")] public JsonElement Json { get; init; } = JsonSerializer.SerializeToElement(new { type = "object" });
+}
+public sealed record BedrockToolUse
+{
+    [JsonPropertyName("toolUseId")] public string ToolUseId { get; init; } = string.Empty;
+    [JsonPropertyName("name")] public string Name { get; init; } = string.Empty;
+    [JsonPropertyName("input")] public JsonElement Input { get; init; }
+}
+public sealed record BedrockToolResult
+{
+    [JsonPropertyName("toolUseId")] public string ToolUseId { get; init; } = string.Empty;
+    [JsonPropertyName("content")] public List<JsonElement> Content { get; init; } = [];
+}
+public sealed record BedrockOutputConfig
+{
+    [JsonPropertyName("textFormat")] public BedrockOutputFormat? TextFormat { get; init; }
+}
+public sealed record BedrockOutputFormat
+{
+    [JsonPropertyName("type")] public string Type { get; init; } = "json_schema";
+    [JsonPropertyName("structure")] public BedrockOutputStructure? Structure { get; init; }
+}
+public sealed record BedrockOutputStructure
+{
+    [JsonPropertyName("jsonSchema")] public BedrockJsonSchema? JsonSchema { get; init; }
+}
+public sealed record BedrockJsonSchema
+{
+    [JsonPropertyName("schema")] public string Schema { get; init; } = string.Empty;
+    [JsonPropertyName("name")] public string? Name { get; init; }
 }

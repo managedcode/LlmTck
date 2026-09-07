@@ -821,29 +821,32 @@ public sealed class OpenAiEndpointTests
             size: "1280x720"
         );
         var create = await client.PostAsync("/openai/v1/videos", createContent);
+        create.EnsureSuccessStatusCode();
+        var createPayload = await create.Content.ReadFromJsonAsync<JsonElement>(_jsonOptions);
+        var createdId = createPayload.GetProperty("id").GetString();
         var list = await client.GetAsync("/openai/v1/videos?limit=1&order=desc");
-        var retrieve = await client.GetAsync("/openai/v1/videos/video_custom");
-        var content = await client.GetAsync("/openai/v1/videos/video_custom/content");
-        var thumbnail = await client.GetAsync("/openai/v1/videos/video_custom/content?variant=thumbnail");
+        var retrieve = await client.GetAsync($"/openai/v1/videos/{createdId}");
+        var content = await client.GetAsync($"/openai/v1/videos/{createdId}/content");
+        var thumbnail = await client.GetAsync($"/openai/v1/videos/{createdId}/content?variant=thumbnail");
         var edit = await client.PostAsJsonAsync(
             "/openai/v1/videos/edits",
-            new { prompt = "edit the clip", video = new { id = "video_custom" } },
+            new { prompt = "edit the clip", video = new { id = createdId } },
             _jsonOptions
         );
         var extension = await client.PostAsJsonAsync(
             "/openai/v1/videos/extensions",
-            new { prompt = "extend the clip", seconds = "12", video = new { id = "video_custom" } },
+            new { prompt = "extend the clip", seconds = "12", video = new { id = createdId } },
             _jsonOptions
         );
         var remix = await client.PostAsJsonAsync(
-            "/openai/v1/videos/video_custom/remix",
+             $"/openai/v1/videos/{createdId}/remix",
             new { prompt = "remix the clip" },
             _jsonOptions
         );
         using var characterContent = CreateVideoCharacterContent();
         var character = await client.PostAsync("/openai/v1/videos/characters", characterContent);
         var getCharacter = await client.GetAsync("/openai/v1/videos/characters/char_custom");
-        var delete = await client.DeleteAsync("/openai/v1/videos/video_custom");
+        var delete = await client.DeleteAsync($"/openai/v1/videos/{createdId}");
 
         using var invalidSecondsContent = CreateVideoContent(
             LlmTckKnownModelIds.Sora2,
@@ -871,7 +874,6 @@ public sealed class OpenAiEndpointTests
         getCharacter.EnsureSuccessStatusCode();
         delete.EnsureSuccessStatusCode();
 
-        var createPayload = await create.Content.ReadFromJsonAsync<JsonElement>(_jsonOptions);
         var listPayload = await list.Content.ReadFromJsonAsync<JsonElement>(_jsonOptions);
         var retrievePayload = await retrieve.Content.ReadFromJsonAsync<JsonElement>(_jsonOptions);
         var contentBytes = await content.Content.ReadAsByteArrayAsync();
@@ -888,15 +890,15 @@ public sealed class OpenAiEndpointTests
         await Assert.That(createPayload.GetProperty("size").GetString()).IsEqualTo("1280x720");
         await Assert.That(listPayload.GetProperty("object").GetString()).IsEqualTo("list");
         await Assert.That(listPayload.GetProperty("data").GetArrayLength()).IsEqualTo(1);
-        await Assert.That(retrievePayload.GetProperty("id").GetString()).IsEqualTo("video_custom");
+        await Assert.That(retrievePayload.GetProperty("id").GetString()).IsEqualTo(createdId);
         await Assert.That(content.Content.Headers.ContentType?.MediaType).IsEqualTo("video/mp4");
         await Assert.That(Encoding.ASCII.GetString(contentBytes, 4, 4)).IsEqualTo("ftyp");
         await Assert.That(thumbnail.Content.Headers.ContentType?.MediaType).IsEqualTo("image/jpeg");
         await Assert.That(editPayload.GetProperty("remixed_from_video_id").GetString())
-            .IsEqualTo("video_custom");
+            .IsEqualTo(createdId);
         await Assert.That(extensionPayload.GetProperty("seconds").GetString()).IsEqualTo("12");
         await Assert.That(remixPayload.GetProperty("remixed_from_video_id").GetString())
-            .IsEqualTo("video_custom");
+            .IsEqualTo(createdId);
         await Assert.That(characterPayload.GetProperty("name").GetString()).IsEqualTo("Fixture Character");
         await Assert.That(getCharacterPayload.GetProperty("id").GetString()).IsEqualTo("char_custom");
         await Assert.That(deletePayload.GetProperty("object").GetString()).IsEqualTo("video.deleted");

@@ -64,7 +64,7 @@ This is the currently implemented behavior, not future intent:
 | Chat scenarios | Contains matching, exact prompt matching, queued responses, streaming chunks, scripted errors, delayed responses, cancellation-safe queues, and scenario-specific bearer tokens are implemented. |
 | Modalities | Chat, embeddings, image generation/edit/variation, audio speech/transcription/translation, OpenAI/Azure video, Gemini long-running video/file output, and Bedrock text/embedding/image invoke shapes return deterministic fixtures. |
 | Provider matrix | OpenAI, Azure OpenAI, Microsoft Foundry, Anthropic, Gemini, Groq, Mistral, Ollama, Cohere, Amazon Bedrock, OpenRouter, DeepSeek, and Perplexity are exposed under explicit provider namespaces. Each hosted operation is represented in a provider `ApiContract` and behavior evidence tests. |
-| SDK clients | Official OpenAI, Azure OpenAI, Azure AI Inference / Foundry, and `Microsoft.Extensions.AI` clients can call the hosted provider routes. The client package also creates control, chat, embedding, image, and audio clients with the same bearer token. |
+| SDK clients | Official OpenAI, Azure OpenAI, Azure AI Inference / Foundry, Amazon Bedrock, and `Microsoft.Extensions.AI` clients can call the hosted provider routes. The client package also creates control, chat, embedding, image, and audio clients with the same bearer token. |
 | Auth | A global bearer token protects provider and `/admin-api/*` endpoints. Anthropic `x-api-key` and Azure `api-key` headers are accepted as provider-native ways to pass the same token. Scenarios can add their own bearer-token requirement. |
 | Fault simulation | Provider-neutral rate-limit and content-filter simulation flow through every provider family and return provider-shaped errors. Scripted per-scenario failures remain available for exact test paths. |
 | Assertions | `/admin-api/assertions` returns counters plus every runtime event with request preview, response/error text, model id, scenario id, event kind, and deterministic usage. |
@@ -131,6 +131,8 @@ await foreach (var update in chat.CompleteChatStreamingAsync(
 
 ## Azure OpenAI And Foundry SDKs
 
+The OpenAI v1 API is available at `/azure-openai/openai/v1/` and `/microsoft-foundry/openai/v1/`, with `chat/completions`, `responses` and `embeddings`. Point the official OpenAI client endpoint at the corresponding base URL and supply the configured API key. These v1 routes accept bearer or `api-key` authentication and need no dated `api-version` query parameter. Responses supports ordinary JSON and documented SSE events. See the [September 2026 API review](docs/Features/ProviderApiReview20260907.md) for the verified SDK versions and provider contracts.
+
 Azure OpenAI deployment routes use the deployment name as the TCK model id. API keys sent through the official SDK's `api-key` header are accepted anywhere a bearer token would be accepted.
 
 ```csharp
@@ -154,7 +156,7 @@ var answer = await chat.CompleteChatAsync(
 var vector = await embeddings.GenerateEmbeddingAsync("invoice");
 ```
 
-Microsoft Foundry / Azure AI Inference clients call the `/microsoft-foundry/chat/completions` and `/microsoft-foundry/embeddings` routes. Set `Model` to the model id configured in LLM TCK.
+Microsoft Foundry / Azure AI Inference clients call the `/microsoft-foundry/chat/completions` and `/microsoft-foundry/embeddings` routes. The inference routes require `api-version=2024-05-01-preview`, which the official SDK supplies. Set `Model` to the model id configured in LLM TCK.
 
 ```csharp
 using Azure;
@@ -316,7 +318,7 @@ app.Run();
 Install the Aspire integration package in the AppHost:
 
 ```bash
-dotnet add package ManagedCode.LlmTck.Aspire --version 0.0.12
+dotnet add package ManagedCode.LlmTck.Aspire --version 0.1.1
 ```
 
 Then add the package-owned TCK resource directly:
@@ -342,7 +344,7 @@ builder.Build().Run();
 
 `AddLlmTck()` creates a `LlmTckResource` backed by the packaged .NET LLM TCK service executable and exposes its `http` endpoint. It does not require a consumer service project reference, generated `Projects.*` metadata type, project path, Docker, or a container runtime. Consumer resources should reference the TCK resource, wait for it, and use `llmTck.GetHttpEndpoint()` when they need the provider-compatible base URL. `.WithApiKey("test-key")` sets `LlmTck:RequiredBearerToken` so both provider endpoints and `/admin-api/*` control endpoints require the same bearer token.
 
-Use `AddLlmTckContainer()` only when you explicitly want a container-backed resource, for example for a deployment or container-runtime smoke test. The container mode uses the matching versioned image such as `ghcr.io/managedcode/llm-tck:0.0.12`; it is not the default local Aspire path.
+Use `AddLlmTckContainer()` only when you explicitly want a container-backed resource, for example for a deployment or container-runtime smoke test. The container mode uses the matching versioned image such as `ghcr.io/managedcode/llm-tck:0.1.1`; it is not the default local Aspire path.
 
 ## Control Panel And Token Usage
 
@@ -364,7 +366,7 @@ Prompt cache accounting is deterministic runtime state for testing provider usag
 
 Cache entries are created only for successful chat or Responses requests on provider surfaces with a cache policy. A failed, unmatched, unauthorized, cancelled, unknown-model, or scripted-error request does not create a cache entry. `ConfigureAsync(...)` and `ResetAsync()` both clear prompt-cache entries so each test can start from a known cache state.
 
-The cache key includes provider cache policy, model id, an optional provider cache key or session id, the rounded cacheable token count, and the cumulative message prefix. The first successful request with a cacheable prefix reports cache-write tokens and zero cache-read tokens. A later successful request with the same cache key reports cache-read tokens and zero cache-write tokens for the already cached prefix.
+The cache key includes provider cache policy, model id, an optional provider cache key or session id, the rounded cacheable token count, and the cumulative message prefix. The first successful request with a cacheable prefix reports cache-write tokens and zero cache-read tokens. Ollama exposes cache reads only and does not report cache-write tokens. A later successful request with the same cache key reports cache-read tokens and zero cache-write tokens for the already cached prefix.
 
 Provider cache thresholds follow the current runtime policy:
 
@@ -376,6 +378,7 @@ Provider cache thresholds follow the current runtime policy:
 | Anthropic | Anthropic Messages requests that include `cache_control` markers | 1024 | 128 |
 | Mistral | Mistral chat routes | 64 | 64 |
 | Gemini | Gemini generateContent routes | 2048 | 128 |
+| Ollama | Ollama chat routes; deterministic cache reads only | 1 | 1 |
 | Bedrock | Bedrock Converse requests that include `cachePoint` or `cache_control` markers | 1024 | 128 |
 
 Cache accounting is a breakdown of input usage, not an extra billable token bucket. `totalTokens` remains `inputTokens + outputTokens`; `cachedInputTokens` and `cacheCreationInputTokens` explain how much of the input was read from, or written to, the deterministic prompt cache.
@@ -390,6 +393,7 @@ Provider envelopes expose the same runtime usage through provider-native field n
 | DeepSeek chat | `usage.prompt_cache_hit_tokens` and `usage.prompt_cache_miss_tokens` |
 | Anthropic Messages | `usage.cache_creation_input_tokens` and `usage.cache_read_input_tokens` when cache usage exists |
 | Gemini generateContent | `usageMetadata.cachedContentTokenCount` |
+| Ollama chat | `prompt_eval_cached_count`, reported on the final NDJSON chunk for streaming |
 | Bedrock Converse and ConverseStream metadata | `usage.cacheReadInputTokens` and `usage.cacheWriteInputTokens` |
 
 ![LLM TCK request dashboard showing per-request token and cache usage](docs/images/admin-dashboard-token-usage.png)
@@ -785,8 +789,8 @@ for the current coverage rules and behavior-test inventory.
 | Provider | Namespace | Representative hosted operations |
 | --- | --- | --- |
 | OpenAI | `/openai` | `/openai/v1/models`, `/openai/v1/chat/completions`, `/openai/v1/responses`, `/openai/v1/embeddings`, `/openai/v1/images/*`, `/openai/v1/audio/*`, `/openai/v1/videos*` |
-| Azure OpenAI | `/azure-openai` | `/azure-openai/openai/deployments/{deployment}/chat/completions`, embeddings, images, audio, and `/azure-openai/openai/v1/video/generations/*` |
-| Microsoft Foundry | `/microsoft-foundry` | `/microsoft-foundry/chat/completions`, `/microsoft-foundry/embeddings`, and `/microsoft-foundry/models/*` aliases |
+| Azure OpenAI | `/azure-openai` | `/azure-openai/openai/v1/{chat/completions,responses,embeddings}`, deployment chat/embeddings/images/audio, and `/azure-openai/openai/v1/video/generations/*` |
+| Microsoft Foundry | `/microsoft-foundry` | `/microsoft-foundry/openai/v1/{chat/completions,responses,embeddings}`, `/microsoft-foundry/chat/completions`, `/microsoft-foundry/embeddings`, and `/microsoft-foundry/models/*` aliases |
 | Anthropic | `/anthropic` | `/anthropic/v1/messages` |
 | Gemini | `/gemini` | `/gemini/v1beta/models/{model}:generateContent`, streaming content, embeddings, long-running video operations, and generated files |
 | Groq | `/groq` | `/groq/openai/v1/models`, chat completions, Responses, speech, transcription, and translation routes |
@@ -858,8 +862,22 @@ If the app calls `old-chat-model` or calls `approved-chat-model` through the emb
 ```bash
 dotnet restore ManagedCode.LlmTck.slnx
 dotnet build ManagedCode.LlmTck.slnx --configuration Release --no-restore
-dotnet test tests/ManagedCode.LlmTck.Tests/ManagedCode.LlmTck.Tests.csproj --configuration Release --no-build --verbosity normal
+dotnet test --project tests/ManagedCode.LlmTck.Tests/ManagedCode.LlmTck.Tests.csproj --configuration Release --no-build --verbosity normal
 for project in src/*/*.csproj; do dotnet pack "$project" --configuration Release --no-build --output artifacts/packages; done
 ```
 
 `global.json` opts `dotnet test` into `Microsoft.Testing.Platform` for .NET 10.
+
+## Compatibility boundaries and verification
+
+Tool calls and structured output use explicit deterministic fixtures: `CallsTool(...)`, `CallsTools(...)` and `RespondsJson(...)`. Provider adapters preserve tool history and streaming events; `LlmTckChatClient` supports the standard Microsoft.Extensions.AI function-invocation loop. Fixtures must satisfy tool selection, argument schemas and response schemas; mismatches return 409 without consuming the response. See [supported contracts and tests](docs/Features/ToolAndStructuredFixtures.md).
+
+OpenAI chat streaming supports `stream_options.include_usage`; the control library's `IChatClient` carries token usage and terminal updates, including reasoning and cache details. Authentication failures and scripted errors before generation do not accrue output/reasoning tokens.
+
+Video create operations retain completed fixture jobs. Retrieve/content/delete require a previously created ID, and reset or reconfiguration clears jobs. OpenAI fixtures return `status=completed` and `progress=100`; IDs remain unique within a run. Dataset-local scenario IDs are isolated, including concurrent cancellation rollback.
+
+Prompt-cache storage is bounded to 4096 prefixes by default. Use `WithPromptCacheCapacity(capacity)` to change the limit; zero disables caching. Eviction is deterministic FIFO, and reset/configure clears the cache.
+
+Legacy Azure deployment APIs require `api-version=2024-10-21`. Pin `new AzureOpenAIClientOptions(AzureOpenAIClientOptions.ServiceVersion.V2024_10_21)` when using the Azure SDK against these routes. Azure/Foundry `/openai/v1` endpoints use the separate v1 contract without that dated query requirement.
+
+After restore/build, run `bash scripts/coverage.sh` for the production 90% coverage gate. After packing, run `python3 scripts/verify-package.py` for an isolated NuGet consumer, test-owned Aspire host and Chromium dashboard test; this requires Python 3 and PowerShell (`pwsh`). CI installs Chromium dependencies and saves coverage/browser evidence. `python3 scripts/test-release.py` verifies partial-release recovery locally without external publication. Release delivery is marked complete only after NuGet push and GitHub artifact attachment succeed.

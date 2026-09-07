@@ -17,12 +17,12 @@ public static class AzureOpenAiCompatibility
             [
                 LlmTckProviderCapability.Chat,
                 LlmTckProviderCapability.StreamingChat,
+                LlmTckProviderCapability.Tools,
+                LlmTckProviderCapability.StructuredOutput,
                 LlmTckProviderCapability.Embeddings,
                 LlmTckProviderCapability.Images,
                 LlmTckProviderCapability.Video,
                 LlmTckProviderCapability.Audio,
-                LlmTckProviderCapability.Tools,
-                LlmTckProviderCapability.StructuredOutput,
             ],
             CompatibilityTags =
             [
@@ -33,17 +33,50 @@ public static class AzureOpenAiCompatibility
             ApiContract = new()
             {
                 DocumentationUrl = "https://learn.microsoft.com/en-us/azure/foundry/openai/reference",
-                DocumentationRetrievedOn = "2026-07-08",
-                DocumentationVersion = "2024-10-21 GA; v1 preview for video",
+                DocumentationRetrievedOn = "2026-09-07",
+                DocumentationVersion = "2024-10-21 deployment API; v1 GA inference; v1 preview video",
                 Operations =
                 [
+                    new()
+                    {
+                        Id = LlmTckProviderOperationIds.AzureOpenAI.V1ChatCompletionsCreate,
+                        Method = "POST",
+                        Path = "/azure-openai/openai/v1/chat/completions",
+                        DocumentationUrl = "https://learn.microsoft.com/en-us/azure/foundry/openai/api-version-lifecycle",
+                        ApiVersion = "v1",
+                        SupportsStreaming = true,
+                        ImplementedByHosting = true,
+                        Capabilities = [LlmTckProviderCapability.Chat, LlmTckProviderCapability.StreamingChat, LlmTckProviderCapability.Tools, LlmTckProviderCapability.StructuredOutput],
+                    },
+                    new()
+                    {
+                        Id = LlmTckProviderOperationIds.AzureOpenAI.V1ResponsesCreate,
+                        Method = "POST",
+                        Path = "/azure-openai/openai/v1/responses",
+                        DocumentationUrl = "https://learn.microsoft.com/en-us/azure/foundry/openai/api-version-lifecycle",
+                        ApiVersion = "v1",
+                        SupportsStreaming = true,
+                        ImplementedByHosting = true,
+                        Capabilities = [LlmTckProviderCapability.Chat, LlmTckProviderCapability.StreamingChat, LlmTckProviderCapability.Tools, LlmTckProviderCapability.StructuredOutput],
+                    },
+                    new()
+                    {
+                        Id = LlmTckProviderOperationIds.AzureOpenAI.V1EmbeddingsCreate,
+                        Method = "POST",
+                        Path = "/azure-openai/openai/v1/embeddings",
+                        DocumentationUrl = "https://learn.microsoft.com/en-us/azure/foundry/openai/api-version-lifecycle",
+                        ApiVersion = "v1",
+                        SupportsStreaming = false,
+                        ImplementedByHosting = true,
+                        Capabilities = [LlmTckProviderCapability.Embeddings],
+                    },
                     new()
                     {
                         Id = LlmTckProviderOperationIds.AzureOpenAI.ChatCompletionsCreate,
                         Method = "POST",
                         Path = "/azure-openai/openai/deployments/{deployment}/chat/completions",
                         DocumentationUrl =
-                            "https://learn.microsoft.com/en-us/rest/api/microsoft-foundry/azureopenai/chat/create-chat-completion",
+                            "https://learn.microsoft.com/en-us/azure/foundry/openai/reference",
                         ApiVersion = "2024-10-21",
                         SupportsStreaming = true,
                         ImplementedByHosting = true,
@@ -51,8 +84,8 @@ public static class AzureOpenAiCompatibility
                         [
                             LlmTckProviderCapability.Chat,
                             LlmTckProviderCapability.StreamingChat,
-                            LlmTckProviderCapability.Tools,
-                            LlmTckProviderCapability.StructuredOutput,
+                LlmTckProviderCapability.Tools,
+                LlmTckProviderCapability.StructuredOutput,
                         ],
                     },
                     new()
@@ -61,7 +94,7 @@ public static class AzureOpenAiCompatibility
                         Method = "POST",
                         Path = "/azure-openai/openai/deployments/{deployment}/embeddings",
                         DocumentationUrl =
-                            "https://learn.microsoft.com/en-us/rest/api/microsoft-foundry/azureopenai/embeddings/create",
+                            "https://learn.microsoft.com/en-us/azure/foundry/openai/reference",
                         ApiVersion = "2024-10-21",
                         ImplementedByHosting = true,
                         Capabilities = [LlmTckProviderCapability.Embeddings],

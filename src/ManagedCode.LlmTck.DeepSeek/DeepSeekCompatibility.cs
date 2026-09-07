@@ -25,7 +25,7 @@ public static class DeepSeekCompatibility
             ApiContract = new()
             {
                 DocumentationUrl = "https://api-docs.deepseek.com/",
-                DocumentationRetrievedOn = "2026-07-08",
+                DocumentationRetrievedOn = "2026-09-07",
                 DocumentationVersion = "OpenAI-compatible v1",
                 Operations =
                 [
@@ -42,8 +42,8 @@ public static class DeepSeekCompatibility
                         [
                             LlmTckProviderCapability.Chat,
                             LlmTckProviderCapability.StreamingChat,
-                            LlmTckProviderCapability.Tools,
-                            LlmTckProviderCapability.StructuredOutput,
+                LlmTckProviderCapability.Tools,
+                LlmTckProviderCapability.StructuredOutput,
                         ],
                     },
                     new()

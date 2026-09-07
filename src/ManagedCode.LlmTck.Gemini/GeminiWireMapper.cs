@@ -14,11 +14,7 @@ public static class GeminiWireMapper
     {
         var messages = request
             .Contents
-            .Select(content => new LlmTckMessage
-            {
-                Role = NormalizeRole(content.Role),
-                Content = ReadText(content),
-            })
+            .SelectMany(ReadMessages)
             .ToList();
 
         if (request.SystemInstruction is not null)
@@ -35,6 +31,11 @@ public static class GeminiWireMapper
 
         return new()
         {
+            Tools = request.Tools.SelectMany(tool => tool.FunctionDeclarations).Where(tool => request.ToolConfig?.FunctionCallingConfig?.AllowedFunctionNames is not { Count: > 0 } allowed || allowed.Contains(tool.Name))
+                .Select(tool => new LlmTckToolDefinition { Name = tool.Name, Description = tool.Description, ParametersJson = tool.ParametersJsonSchema?.GetRawText() ?? GeminiSchemaMapper.ToJsonSchema(tool.Parameters) ?? "{\"type\":\"object\"}" }).ToList(),
+            ToolChoice = request.ToolConfig?.FunctionCallingConfig?.Mode switch { "ANY" => LlmTckToolChoice.Required, "NONE" => LlmTckToolChoice.None, _ => LlmTckToolChoice.Auto },
+            RequireJson = request.GenerationConfig?.ResponseMimeType == "application/json",
+            ResponseSchemaJson = request.GenerationConfig?.ResponseJsonSchema?.GetRawText() ?? GeminiSchemaMapper.ToJsonSchema(request.GenerationConfig?.ResponseSchema),
             ModelId = model,
             Stream = stream,
             PromptCachePolicy = LlmTckPromptCachePolicy.Gemini,
@@ -45,11 +46,12 @@ public static class GeminiWireMapper
     public static GeminiGenerateContentResponse ToGenerateContentResponse(
         LlmTckChatResult result,
         string content,
-        string? finishReason = "STOP"
+        string? finishReason = "STOP",
+        string? responseId = null
     )
     {
-        var outputTokens = string.IsNullOrEmpty(content) && finishReason is not null
-            ? result.Usage.OutputTokens
+        var outputTokens = finishReason is not null
+            ? result.Usage.OutputTokens - result.Usage.ReasoningTokens
             : LlmTckTokenCounter.CountTextTokens(content);
         return new()
         {
@@ -60,7 +62,7 @@ public static class GeminiWireMapper
                     Content = new GeminiContent
                     {
                         Role = "model",
-                        Parts = [new GeminiPart { Text = content }],
+                        Parts = result.ToolCalls.Count > 0 && finishReason is not null ? (content.Length > 0 ? new[] { new GeminiPart { Text = content } } : []).Concat(result.ToolCalls.Select(call => new GeminiPart { FunctionCall = new() { Id = call.Id, Name = call.Name, Args = JsonSerializer.Deserialize<JsonElement>(call.ArgumentsJson) } })).ToList() : [new GeminiPart { Text = content }],
                     },
                     FinishReason = finishReason,
                     Index = 0,
@@ -71,11 +73,26 @@ public static class GeminiWireMapper
                 PromptTokenCount = result.Usage.InputTokens,
                 CachedContentTokenCount = result.Usage.CachedInputTokens,
                 CandidatesTokenCount = outputTokens,
-                TotalTokenCount = result.Usage.InputTokens + outputTokens,
+                ThoughtsTokenCount = finishReason is not null && result.Usage.ReasoningTokens > 0 ? result.Usage.ReasoningTokens : null,
+                TotalTokenCount = result.Usage.InputTokens + outputTokens + (finishReason is not null ? result.Usage.ReasoningTokens : 0),
             },
             ModelVersion = result.ModelId,
-            ResponseId = CreateResponseId(),
+            ResponseId = responseId ?? CreateResponseId(),
         };
+    }
+
+    private static IEnumerable<LlmTckMessage> ReadMessages(GeminiContent content)
+    {
+        var calls = content.Parts.Where(part => part.FunctionCall is not null).Select(part => new LlmTckToolCall { Id = part.FunctionCall!.Id ?? part.FunctionCall.Name, Name = part.FunctionCall.Name, ArgumentsJson = part.FunctionCall.Args.GetRawText() }).ToList();
+        if (calls.Count > 0 || content.Parts.Any(part => part.Text is not null || part.InlineData is not null || part.FileData is not null))
+        {
+            yield return new() { Role = NormalizeRole(content.Role), Content = ReadText(content), ToolCalls = calls };
+        }
+
+        foreach (var part in content.Parts.Where(part => part.FunctionResponse is not null))
+        {
+            yield return new() { Role = "tool", ToolCallId = part.FunctionResponse!.Id ?? part.FunctionResponse.Name, Content = part.FunctionResponse.Response.GetRawText() };
+        }
     }
 
     public static GeminiEmbedContentResponse ToEmbedContentResponse(IReadOnlyList<float> vector)

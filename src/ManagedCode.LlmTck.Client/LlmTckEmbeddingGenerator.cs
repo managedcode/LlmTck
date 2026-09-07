@@ -57,7 +57,14 @@ public sealed class LlmTckEmbeddingGenerator(
                 .ToList()
             ?? [];
 
-        return new GeneratedEmbeddings<Embedding<float>>(embeddings);
+        return new GeneratedEmbeddings<Embedding<float>>(embeddings)
+        {
+            Usage = payload is null ? null : new UsageDetails
+            {
+                InputTokenCount = payload.Usage.PromptTokens,
+                TotalTokenCount = payload.Usage.TotalTokens,
+            },
+        };
     }
 
     public object? GetService(Type serviceType, object? serviceKey = null)

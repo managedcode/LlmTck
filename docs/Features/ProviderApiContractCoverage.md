@@ -1,10 +1,12 @@
 # Provider API Contract Coverage
 
+Current review: [2026-09-07 provider and dependency refresh](ProviderApiReview20260907.md).
+
 ## Goal
 
 LLM TCK provider packages must not claim provider compatibility from memory or from an OpenAI-compatible shortcut. Every claimed provider method, route, streaming mode, modality, and API-version/header requirement is represented in the package profile's `ApiContract`.
 
-The current contract covers the generative API surface claimed by the provider profiles: chat/messages, streaming chat, embeddings, image generation or image inference, audio/speech, video generation where documented, model listing where claimed, tools, and structured output. Provider account administration, billing, files, fine-tuning, batches, and unrelated platform management APIs are outside the profile surface until a package explicitly claims them.
+The current contract covers the generative API surface claimed by the provider profiles: chat/messages, streaming chat, embeddings, image generation or image inference, audio/speech, video generation where documented, model listing where claimed. Tool calls and structured output have [explicit fixture contracts and regression evidence](ToolAndStructuredFixtures.md); schema or tool-selection mismatches return 409 without consuming a scenario. Provider account administration, billing, files, fine-tuning, batches, and unrelated platform management APIs are outside the profile surface until a package explicitly claims them.
 
 ## Contract Shape
 
@@ -57,3 +59,15 @@ OpenAI video is covered through the documented `/openai/v1/videos` lifecycle: cr
 `BedrockEndpointTests` prove Amazon Bedrock native runtime routes: `/bedrock/model/{modelId}/converse` returns the documented Converse `output.message`, `stopReason`, `usage`, and `metrics` envelope with input/output token counts; `/bedrock/model/{modelId}/converse-stream` returns the documented stream event names `messageStart`, `contentBlockStart`, `contentBlockDelta`, `contentBlockStop`, `messageStop`, and `metadata` with usage; `/bedrock/model/{modelId}/invoke` returns documented Titan Text, Titan Embeddings, and image-generation response bodies for chat, embedding, and image model kinds; and `/bedrock/model/{modelId}/invoke-with-response-stream` returns documented `chunk.bytes` stream payloads.
 
 This makes API drift visible in the normal test suite instead of relying on release notes or manual README review.
+
+## Review regression evidence (2026-09-07)
+
+- `ReviewCapabilityRegressionTests` rejects legacy function fields across all 13 provider families. `ToolFixtureEndpointTests`, `ToolFixtureClientTests`, `ToolFixtureValidationTests` and `ToolFixtureStateTests` prove the supported tools/schema contracts; `ProviderCapabilities_DeclareTestedToolsAndStructuredOutputAsync` checks the profile matrix.
+- `ReviewHttpRegressionTests` checks explicit-null validation, invalid configure state preservation, Azure legacy version rejection, opt-in final SSE usage, and Microsoft.Extensions.AI usage/terminal updates.
+- `ReviewRuntimeRegressionTests` checks pre-cancellation, concurrent rollback, dataset isolation, non-generation usage and bounded prompt-cache eviction.
+- `ReviewVideoRegressionTests` checks persisted create/retrieve/list/delete/content behavior and reset/configure isolation for OpenAI and Azure video jobs. Configured fixtures are already complete, so OpenAI jobs return `completed` with progress 100; asynchronous model execution is not simulated.
+- `scripts/verify-package.py` copies a NuGet-only test consumer outside this repository, restores into a fresh cache, starts its own Aspire AppHost and verifies actual browser interaction with the packaged service.
+
+Legacy Azure deployment routes require `api-version=2024-10-21`; configure `AzureOpenAIClientOptions(ServiceVersion.V2024_10_21)` explicitly. Azure video routes require `api-version=preview`. Azure/Foundry `/openai/v1` chat, responses and embeddings routes do not require a dated query version. Unknown versions fail before scenario consumption.
+
+The [OpenAI chat reference](https://developers.openai.com/api/reference/resources/chat/subresources/completions/methods/create) defines `stream_options.include_usage`: the final usage chunk has empty choices and precedes `[DONE]`. The TCK preserves provider-specific cache shapes in that chunk. See the [Azure version lifecycle](https://learn.microsoft.com/en-us/azure/foundry/openai/api-version-lifecycle) for the separate v1 contract.

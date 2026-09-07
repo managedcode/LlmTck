@@ -10,21 +10,30 @@
 
   <ItemGroup>
     <None
-      Include="$(MSBuildThisFileDirectory)..\..\samples\ManagedCode.LlmTck.Service\bin\$(Configuration)\$(TargetFramework)\**\*"
-      Exclude="$(MSBuildThisFileDirectory)..\..\samples\ManagedCode.LlmTck.Service\bin\$(Configuration)\$(TargetFramework)\ManagedCode.LlmTck.Service;$(MSBuildThisFileDirectory)..\..\samples\ManagedCode.LlmTck.Service\bin\$(Configuration)\$(TargetFramework)\**\*.staticwebassets.runtime.json"
-      Pack="true"
-      PackagePath="tools\llm-tck-service\%(RecursiveDir)%(Filename)%(Extension)"
-      Visible="false" />
-    <None
       Include="buildTransitive\ManagedCode.LlmTck.Aspire.targets"
       Pack="true"
       PackagePath="buildTransitive\ManagedCode.LlmTck.Aspire.targets"
       Visible="false" />
   </ItemGroup>
 
-  <Target Name="ValidatePackagedLlmTckService" BeforeTargets="Pack">
-    <Error
-      Condition="!Exists('$(MSBuildThisFileDirectory)..\..\samples\ManagedCode.LlmTck.Service\bin\$(Configuration)\$(TargetFramework)\ManagedCode.LlmTck.Service.dll')"
-      Text="Build samples/ManagedCode.LlmTck.Service before packing ManagedCode.LlmTck.Aspire so the .NET executable resource can be packaged." />
+  <Target Name="PublishPackagedLlmTckService" BeforeTargets="_GetPackageFiles">
+    <PropertyGroup>
+      <LlmTckServicePublishDir>$(MSBuildThisFileDirectory)obj/$(Configuration)/service-publish/</LlmTckServicePublishDir>
+    </PropertyGroup>
+    <RemoveDir Directories="$(LlmTckServicePublishDir)" />
+    <MSBuild
+      Projects="$(MSBuildThisFileDirectory)../../samples/ManagedCode.LlmTck.Service/ManagedCode.LlmTck.Service.csproj"
+      Targets="Publish"
+      Properties="Configuration=$(Configuration);TargetFramework=$(TargetFramework);PublishDir=$(LlmTckServicePublishDir);UseAppHost=false;SelfContained=false;NoBuild=false"
+      RemoveProperties="PackageOutputPath;NoBuild;RuntimeIdentifier" />
+    <Error Condition="!Exists('$(LlmTckServicePublishDir)wwwroot/_framework/blazor.web.js')"
+           Text="Published LlmTck service is missing Blazor JavaScript assets." />
+    <ItemGroup>
+      <_PublishedLlmTckService Include="$(LlmTckServicePublishDir)**/*" />
+      <None Include="@(_PublishedLlmTckService)"
+            Pack="true"
+            PackagePath="tools/llm-tck-service/%(_PublishedLlmTckService.RecursiveDir)%(_PublishedLlmTckService.Filename)%(_PublishedLlmTckService.Extension)"
+            Visible="false" />
+    </ItemGroup>
   </Target>
 </Project>

@@ -414,6 +414,21 @@ public sealed class LlmTckConfigurationBuilder
         return this;
     }
 
+    public LlmTckConfigurationBuilder WithPromptCacheCapacity(int capacity)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegative(capacity);
+        _configuration = _configuration with { MaxPromptCacheEntries = capacity };
+        return this;
+    }
+
+    public LlmTckConfigurationBuilder WithVideoCapacity(int maxJobs, long maxBytes)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegative(maxJobs);
+        ArgumentOutOfRangeException.ThrowIfNegative(maxBytes);
+        _configuration = _configuration with { MaxVideoJobs = maxJobs, MaxVideoBytes = maxBytes };
+        return this;
+    }
+
     public LlmTckConfiguration Build()
     {
         return Snapshot(_configuration);
@@ -422,6 +437,15 @@ public sealed class LlmTckConfigurationBuilder
     internal static LlmTckConfiguration Snapshot(LlmTckConfiguration configuration)
     {
         ArgumentNullException.ThrowIfNull(configuration);
+        ArgumentOutOfRangeException.ThrowIfNegative(configuration.MaxPromptCacheEntries);
+        ArgumentOutOfRangeException.ThrowIfNegative(configuration.MaxVideoJobs);
+        ArgumentOutOfRangeException.ThrowIfNegative(configuration.MaxVideoBytes);
+        ArgumentNullException.ThrowIfNull(configuration.Models);
+        ArgumentNullException.ThrowIfNull(configuration.ChatScenarios);
+        ArgumentNullException.ThrowIfNull(configuration.Datasets);
+        ArgumentNullException.ThrowIfNull(configuration.DefaultEmbeddingVector);
+        ArgumentNullException.ThrowIfNull(configuration.DefaultAudioBytes);
+        ArgumentNullException.ThrowIfNull(configuration.DefaultVideoBytes);
 
         return configuration with
         {
@@ -455,21 +479,60 @@ public sealed class LlmTckConfigurationBuilder
 
     internal static LlmTckScenario SnapshotScenario(LlmTckScenario scenario)
     {
+        ArgumentNullException.ThrowIfNull(scenario);
+        ArgumentNullException.ThrowIfNull(scenario.Match);
+        ArgumentNullException.ThrowIfNull(scenario.Match.Messages);
+        ArgumentNullException.ThrowIfNull(scenario.Responses);
+
         return scenario with
         {
-            Match = scenario.Match with { Messages = [.. scenario.Match.Messages] },
+            Match = scenario.Match with { Messages = scenario.Match.Messages.Select(SnapshotMessage).ToList() },
             Responses =
             [
-                .. scenario.Responses.Select(response => response with
-                {
-                    StreamChunks = [.. response.StreamChunks],
-                }),
+                .. scenario.Responses.Select(SnapshotResponse),
             ],
         };
     }
 
+    private static LlmTckMessage SnapshotMessage(LlmTckMessage message)
+    {
+        ArgumentNullException.ThrowIfNull(message);
+        ArgumentNullException.ThrowIfNull(message.ToolCalls);
+        foreach (var call in message.ToolCalls)
+        {
+            ArgumentNullException.ThrowIfNull(call);
+            ArgumentException.ThrowIfNullOrWhiteSpace(call.Id);
+            ArgumentException.ThrowIfNullOrWhiteSpace(call.Name);
+            LlmTckJsonSchema.ValidateJson(call.ArgumentsJson);
+        }
+        return message with { ToolCalls = [.. message.ToolCalls] };
+    }
+
+    private static LlmTckScenarioResponse SnapshotResponse(LlmTckScenarioResponse response)
+    {
+        ArgumentNullException.ThrowIfNull(response);
+        ArgumentNullException.ThrowIfNull(response.StreamChunks);
+        if (response.DelayMilliseconds < 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(response));
+        }
+
+        ArgumentNullException.ThrowIfNull(response.ToolCalls);
+        foreach (var call in response.ToolCalls)
+        {
+            ArgumentNullException.ThrowIfNull(call);
+            ArgumentException.ThrowIfNullOrWhiteSpace(call.Id);
+            ArgumentException.ThrowIfNullOrWhiteSpace(call.Name);
+            LlmTckJsonSchema.ValidateJson(call.ArgumentsJson);
+        }
+        return response with { StreamChunks = [.. response.StreamChunks], ToolCalls = [.. response.ToolCalls] };
+    }
+
     private static LlmTckScenarioDataset SnapshotDataset(LlmTckScenarioDataset dataset)
     {
+        ArgumentNullException.ThrowIfNull(dataset);
+        ArgumentNullException.ThrowIfNull(dataset.ChatScenarios);
+
         return dataset with
         {
             ChatScenarios = [.. dataset.ChatScenarios.Select(SnapshotScenario)],
@@ -480,6 +543,9 @@ public sealed class LlmTckConfigurationBuilder
         LlmTckFaultSimulation faultSimulation
     )
     {
+        ArgumentNullException.ThrowIfNull(faultSimulation);
+        ArgumentNullException.ThrowIfNull(faultSimulation.ContentFilterTerms);
+
         return faultSimulation with
         {
             ContentFilterTerms =
