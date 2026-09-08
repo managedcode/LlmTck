@@ -24,7 +24,7 @@
     <PackageVersion Include="Microsoft.SourceLink.GitHub" Version="10.0.400" />
     <PackageVersion Include="OpenAI" Version="2.13.0" />
     <PackageVersion Include="System.ClientModel" Version="1.15.0" />
-    <PackageVersion Include="JsonSchema.Net" Version="9.4.0" />
+    <PackageVersion Include="JsonSchema.Net" Version="8.0.5" />
     <PackageVersion Include="Microsoft.Playwright" Version="1.62.0" />
     <PackageVersion Include="TUnit" Version="1.66.27" />
   </ItemGroup>

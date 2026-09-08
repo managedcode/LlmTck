@@ -56,3 +56,5 @@ Wire tool validation lives in the corresponding provider package, returning `Llm
 ## Bounded video jobs
 
 `WithVideoCapacity(maxJobs, maxBytes)` configures a shared runtime budget across stored provider video jobs. Defaults are 256 jobs and 64 MiB of retained payload bytes. Zero jobs disables storage. New jobs exceeding either bound return 409 / `llm_tck_video_capacity_exceeded`; existing jobs remain available and failed stores do not advance IDs. Delete releases capacity; reset/configure clear jobs and byte accounting. OpenAI and Azure video job endpoints propagate the failure. This budget applies to stored jobs, separately from configured modality fixture bytes and the event-journal budget.
+
+Schema validation uses the MIT-licensed JsonSchema.Net 8.0.5 package so installed TCK binaries do not introduce the separate binary maintenance terms from later releases. Keep fixture validation and external-reference rejection covered when changing this dependency.
