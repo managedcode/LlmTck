@@ -15,7 +15,7 @@
 | R7 | `stream_options.include_usage` керує фінальним usage chunk із порожніми choices; збережений provider-specific cache shape. | HTTP SSE opt-in/out і офіційний OpenAI SDK. |
 | R8 | MEAI chat/embeddings переносять usage; streaming зберігає terminal та metadata-only updates. | Перевірка text, finish reason, reasoning/input/output/total та embedding usage. |
 | R9 | Nested null collections/items проходять валідацію до native mapper. | Gemini, Anthropic, Ollama, Cohere та OpenAI negative HTTP matrix; посилена Bedrock валідація. |
-| R10 | Legacy Azure deployment routes вимагають 2024-10-21; Foundry inference — 2024-05-01-preview; video preview — preview. Нові v1 routes не вимагають dated query. | Invalid/missing/duplicate query tests; офіційний Azure SDK з явно вибраною версією; чинні Azure/Foundry v1 SDK тести. |
+| R10 | Legacy Azure deployment routes приймають дату stable/preview, яку автоматично обирає SDK, без allowlist дат (уточнено 2026-09-09); Foundry inference — 2024-05-01-preview; video preview — preview. Нові v1 routes не вимагають dated query. | Invalid/missing/duplicate query tests; офіційний Azure SDK без явно вибраної версії; чинні Azure/Foundry v1 SDK тести. |
 | R11 | Відмови до генерації та scripted errors не створюють output/reasoning usage. | Auth, unmatched, scripted error й успішна reasoning-відповідь у runtime. |
 | R12 | NuGet публікується до final GitHub Release. Лише marker завершеної доставки дозволяє пропустити наступний запуск. Відсутній key дає помилку до публікації. | `scripts/test-release.py`: локальні fake CLI перевіряють partial failure, rerun, successful completion, force та missing-key. |
 

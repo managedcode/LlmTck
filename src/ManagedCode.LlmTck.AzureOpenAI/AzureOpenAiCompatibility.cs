@@ -33,8 +33,8 @@ public static class AzureOpenAiCompatibility
             ApiContract = new()
             {
                 DocumentationUrl = "https://learn.microsoft.com/en-us/azure/foundry/openai/reference",
-                DocumentationRetrievedOn = "2026-09-07",
-                DocumentationVersion = "2024-10-21 deployment API; v1 GA inference; v1 preview video",
+                DocumentationRetrievedOn = "2026-09-09",
+                DocumentationVersion = "SDK-selected dated deployment API (2024-10-21 reference baseline); v1 GA inference; v1 preview video",
                 Operations =
                 [
                     new()

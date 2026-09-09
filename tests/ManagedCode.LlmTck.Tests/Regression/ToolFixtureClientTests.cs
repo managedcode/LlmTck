@@ -142,7 +142,7 @@ public sealed class ToolFixtureClientTests
         using var host = await LlmTckTestHost.StartAsync(b => b.AddChatScenario("weather", s => s.CallsTool("weather", "{}")));
         using var http = host.GetTestClient();
         var azure = new global::Azure.AI.OpenAI.AzureOpenAIClient(new Uri(http.BaseAddress!, "/azure-openai"), new global::Azure.AzureKeyCredential("test-key"),
-            new global::Azure.AI.OpenAI.AzureOpenAIClientOptions(global::Azure.AI.OpenAI.AzureOpenAIClientOptions.ServiceVersion.V2024_10_21)
+            new global::Azure.AI.OpenAI.AzureOpenAIClientOptions
             { Transport = new System.ClientModel.Primitives.HttpClientPipelineTransport(http) });
         var response = (await azure.GetChatClient(LlmTckKnownModelIds.Gpt41Mini).CompleteChatAsync([new global::OpenAI.Chat.UserChatMessage("weather")], new()
         { Tools = { global::OpenAI.Chat.ChatTool.CreateFunctionTool("weather", functionParameters: BinaryData.FromString("{\"type\":\"object\"}")) } })).Value;

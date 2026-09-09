@@ -68,7 +68,9 @@
 | Errors before generation have zero output/reasoning tokens | `ReviewRuntimeRegressionTests.RejectedAndScriptedErrorRequests_DoNotGenerateReasoningOrOutputUsageAsync` |
 | Prompt cache has deterministic capacity/eviction | `ReviewRuntimeRegressionTests.PromptCache_EvictsOldestPrefixAtConfiguredCapacityAsync` |
 | Invalid configuration preserves the previous runtime and traces | `ReviewHttpRegressionTests.InvalidConfigure_PreservesConfigurationAndTracesAsync` |
-| Nested null provider inputs and invalid Azure versions return 400 | `ReviewHttpRegressionTests` |
+| Azure SDK default supports deployment chat, streaming and embeddings without a pinned version | `AzureSdkCompatibilityTests.AzureOpenAiClient_CanUseDeploymentChatAndEmbeddingsAsync` |
+| Stable, preview and future date labels are accepted without a date allowlist | `ReviewHttpRegressionTests.AzureLegacyVersion_AcceptsDatedVersionsWithoutAPinnedAllowlistAsync` |
+| Nested null provider inputs and malformed Azure versions return 400 | `ReviewHttpRegressionTests` |
 | Streaming and MEAI usage survive to callers | `ReviewHttpRegressionTests.StreamingUsage_IsOptInAndFollowsTerminalChoiceAsync`, `ChatClient_PreservesUsageAndTerminalUpdate_EmbeddingsPreserveUsageAsync` |
 | Legacy function options fail explicitly; implemented tools/schema retain full behavior | `ReviewCapabilityRegressionTests.LegacyFunctions_ReturnExplicitErrorWithoutConsumingFixtureAsync`, `ToolFixtureEndpointTests`, `ToolFixtureClientTests` |
 | Tool selection, argument/schema mismatch and malformed history preserve the queue | `ToolFixtureValidationTests` |

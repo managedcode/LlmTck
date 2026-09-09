@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text.Json;
 using ManagedCode.LlmTck.Anthropic;
 using ManagedCode.LlmTck.Bedrock;
@@ -14,14 +15,32 @@ internal static class LlmTckRequestPolicy
     public static IResult? ValidateApiVersion(HttpContext context)
     {
         var path = context.Request.Path;
-        var expected = path.StartsWithSegments("/azure-openai/openai/deployments")
-            ? "2024-10-21"
-            : path.StartsWithSegments("/azure-openai/openai/v1/video") ? "preview"
+        if (path.StartsWithSegments("/azure-openai/openai/deployments"))
+        {
+            var versions = context.Request.Query["api-version"];
+            return versions.Count == 1 && IsDatedApiVersion(versions[0])
+                ? null
+                : Results.Json(OpenAiWireMapper.ToError("invalid_api_version",
+                    "This route requires one dated api-version supplied by the Azure SDK (yyyy-MM-dd or yyyy-MM-dd-preview)."), statusCode: 400);
+        }
+
+        var expected = path.StartsWithSegments("/azure-openai/openai/v1/video") ? "preview"
             : path == "/microsoft-foundry/chat/completions" || path == "/microsoft-foundry/embeddings"
                 || path == "/microsoft-foundry/models/chat/completions" || path == "/microsoft-foundry/models/embeddings" ? "2024-05-01-preview" : null;
         return expected is null || context.Request.Query["api-version"] == expected
             ? null
             : Results.Json(OpenAiWireMapper.ToError("invalid_api_version", $"This route requires api-version={expected}."), statusCode: 400);
+    }
+
+    private static bool IsDatedApiVersion(string? version)
+    {
+        var date = version.AsSpan();
+        if (date.EndsWith("-preview", StringComparison.Ordinal))
+        {
+            date = date[..^"-preview".Length];
+        }
+
+        return DateOnly.TryParseExact(date, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out _);
     }
 
     public static bool IsChatRequest<T>()

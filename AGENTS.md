@@ -105,6 +105,7 @@ Rule format:
 - Keep provider wire formats in provider packages such as `ManagedCode.LlmTck.OpenAI`; keep deterministic scenario behavior in `ManagedCode.LlmTck`.
 - Keep the provider package matrix explicit. Do not ship the TCK as only OpenAI-compatible; maintain package surfaces for OpenAI, Azure OpenAI, Microsoft Foundry, Anthropic, Gemini, Groq, Mistral, Ollama, Cohere, Amazon Bedrock, OpenRouter, DeepSeek, and Perplexity.
 - Azure OpenAI and Microsoft Foundry compatibility must be proven with official Azure SDK clients, not only raw HTTP requests.
+- Azure SDK clients must select their own API version. Do not pin a dated version in consumers or SDK compatibility tests to satisfy the emulator; deployment routes validate the dated parameter shape without a fixed version allowlist.
 - Built-in defaults, samples, and scenario examples must use official provider model IDs such as `gpt-4.1-mini`, `text-embedding-3-small`, `gpt-image-1`, and `gpt-4o-mini-tts`; do not use synthetic `llm-tck-*` model IDs for normal fixtures.
 - Keep custom `AddModel(...)` support, but expose typed convenience APIs for common official fixture models so callers do not have to hand-type model IDs for standard chat, embedding, image, and audio setup.
 - Reasoning-capable models must carry deterministic reasoning-token usage through runtime summaries and provider response usage details; do not flatten reasoning usage into ordinary visible output tokens only.

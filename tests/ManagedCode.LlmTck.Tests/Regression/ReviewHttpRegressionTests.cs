@@ -87,8 +87,14 @@ public sealed class ReviewHttpRegressionTests
 
     [Test]
     [Arguments("")]
+    [Arguments("?api-version=")]
     [Arguments("?api-version=not-a-version")]
     [Arguments("?api-version=2024-10-21&api-version=other")]
+    [Arguments("?api-version=2024-10-21&api-version=2024-10-21")]
+    [Arguments("?api-version=2025-02-30")]
+    [Arguments("?api-version=2025-04-01-preview-preview")]
+    [Arguments("?api-version=2025-04-01-beta")]
+    [Arguments("?api-version=2025-4-1")]
     public async Task AzureLegacyVersion_IsValidatedBeforeQueueConsumptionAsync(string query)
     {
         using var host = await LlmTckTestHost.StartAsync(b => b.AddChatScenario("queue", s => s.Responds("first")));
@@ -99,6 +105,22 @@ public sealed class ReviewHttpRegressionTests
         using var valid = await client.PostAsync(path + "?api-version=2024-10-21", Json(_chat));
         valid.EnsureSuccessStatusCode();
         await Assert.That(await valid.Content.ReadAsStringAsync()).Contains("first");
+    }
+
+    [Test]
+    [Arguments("2024-10-21")]
+    [Arguments("2025-04-01-preview")]
+    [Arguments("2030-01-01")]
+    [Arguments("2030-01-01-preview")]
+    public async Task AzureLegacyVersion_AcceptsDatedVersionsWithoutAPinnedAllowlistAsync(string version)
+    {
+        using var host = await LlmTckTestHost.StartAsync(b => b.AddChatScenario("queue", s => s.Responds("first")));
+        using var client = host.GetTestClient();
+        using var response = await client.PostAsync(
+            "/azure-openai/openai/deployments/gpt-4.1-mini/chat/completions?api-version=" + version, Json(_chat));
+
+        response.EnsureSuccessStatusCode();
+        await Assert.That(await response.Content.ReadAsStringAsync()).Contains("first");
     }
 
     [Test]
