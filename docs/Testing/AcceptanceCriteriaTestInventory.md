@@ -69,7 +69,7 @@
 | Prompt cache has deterministic capacity/eviction | `ReviewRuntimeRegressionTests.PromptCache_EvictsOldestPrefixAtConfiguredCapacityAsync` |
 | Invalid configuration preserves the previous runtime and traces | `ReviewHttpRegressionTests.InvalidConfigure_PreservesConfigurationAndTracesAsync` |
 | Azure SDK default supports deployment chat, streaming and embeddings without a pinned version | `AzureSdkCompatibilityTests.AzureOpenAiClient_CanUseDeploymentChatAndEmbeddingsAsync` |
-| Stable, preview and future date labels are accepted without a date allowlist | `ReviewHttpRegressionTests.AzureLegacyVersion_AcceptsDatedVersionsWithoutAPinnedAllowlistAsync` |
+| Documented GA and preview API versions are accepted; unknown date-shaped versions are rejected before queue consumption | `ReviewHttpRegressionTests.AzureLegacyVersion_AcceptsDocumentedStableAndPreviewVersionsAsync` |
 | Nested null provider inputs and malformed Azure versions return 400 | `ReviewHttpRegressionTests` |
 | Streaming and MEAI usage survive to callers | `ReviewHttpRegressionTests.StreamingUsage_IsOptInAndFollowsTerminalChoiceAsync`, `ChatClient_PreservesUsageAndTerminalUpdate_EmbeddingsPreserveUsageAsync` |
 | Legacy function options fail explicitly; implemented tools/schema retain full behavior | `ReviewCapabilityRegressionTests.LegacyFunctions_ReturnExplicitErrorWithoutConsumingFixtureAsync`, `ToolFixtureEndpointTests`, `ToolFixtureClientTests` |

@@ -95,6 +95,9 @@ public sealed class ReviewHttpRegressionTests
     [Arguments("?api-version=2025-04-01-preview-preview")]
     [Arguments("?api-version=2025-04-01-beta")]
     [Arguments("?api-version=2025-4-1")]
+    [Arguments("?api-version=2030-01-01")]
+    [Arguments("?api-version=2030-01-01-preview")]
+    [Arguments("?api-version=2025-04-02-preview")]
     public async Task AzureLegacyVersion_IsValidatedBeforeQueueConsumptionAsync(string query)
     {
         using var host = await LlmTckTestHost.StartAsync(b => b.AddChatScenario("queue", s => s.Responds("first")));
@@ -110,9 +113,7 @@ public sealed class ReviewHttpRegressionTests
     [Test]
     [Arguments("2024-10-21")]
     [Arguments("2025-04-01-preview")]
-    [Arguments("2030-01-01")]
-    [Arguments("2030-01-01-preview")]
-    public async Task AzureLegacyVersion_AcceptsDatedVersionsWithoutAPinnedAllowlistAsync(string version)
+    public async Task AzureLegacyVersion_AcceptsDocumentedStableAndPreviewVersionsAsync(string version)
     {
         using var host = await LlmTckTestHost.StartAsync(b => b.AddChatScenario("queue", s => s.Responds("first")));
         using var client = host.GetTestClient();

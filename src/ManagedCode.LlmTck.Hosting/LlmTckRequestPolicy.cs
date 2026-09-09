@@ -1,4 +1,3 @@
-using System.Globalization;
 using System.Text.Json;
 using ManagedCode.LlmTck.Anthropic;
 using ManagedCode.LlmTck.Bedrock;
@@ -18,10 +17,10 @@ internal static class LlmTckRequestPolicy
         if (path.StartsWithSegments("/azure-openai/openai/deployments"))
         {
             var versions = context.Request.Query["api-version"];
-            return versions.Count == 1 && IsDatedApiVersion(versions[0])
+            return versions.Count == 1 && IsSupportedAzureApiVersion(versions[0])
                 ? null
                 : Results.Json(OpenAiWireMapper.ToError("invalid_api_version",
-                    "This route requires one dated api-version supplied by the Azure SDK (yyyy-MM-dd or yyyy-MM-dd-preview)."), statusCode: 400);
+                    "This route requires one supported Azure OpenAI api-version: 2024-10-21 or 2025-04-01-preview."), statusCode: 400);
         }
 
         var expected = path.StartsWithSegments("/azure-openai/openai/v1/video") ? "preview"
@@ -32,15 +31,11 @@ internal static class LlmTckRequestPolicy
             : Results.Json(OpenAiWireMapper.ToError("invalid_api_version", $"This route requires api-version={expected}."), statusCode: 400);
     }
 
-    private static bool IsDatedApiVersion(string? version)
+    // Current GA and preview deployment contracts documented by Azure. Client defaults
+    // remain SDK-owned; unknown date-shaped versions are not valid service versions.
+    private static bool IsSupportedAzureApiVersion(string? version)
     {
-        var date = version.AsSpan();
-        if (date.EndsWith("-preview", StringComparison.Ordinal))
-        {
-            date = date[..^"-preview".Length];
-        }
-
-        return DateOnly.TryParseExact(date, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out _);
+        return version is "2024-10-21" or "2025-04-01-preview";
     }
 
     public static bool IsChatRequest<T>()
