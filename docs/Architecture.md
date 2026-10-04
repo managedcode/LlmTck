@@ -26,6 +26,12 @@ LLM TCK provides deterministic provider emulation for integration tests. Test su
 
 Control endpoints use the same bearer-token requirement when one is configured, so tests can expose the service without leaving runtime reset or reconfiguration open to unauthenticated callers.
 
+## Stored response continuation
+
+The runtime owns bounded provider/model/credential-isolated chat-response snapshots. Provider adapters map
+Responses storage/parent fields into this neutral state and reuse its response identity for streaming and normal
+output. See [Responses continuation](Features/ResponsesContinuation.md) for limits, reset semantics and regressions.
+
 ## Determinism
 
 Chat scenarios are queued. Each matched request consumes the next response. Streaming responses use explicit chunks. Datasets are named groups of active scenarios so tests can load conversation sets before a run. Embeddings return configured vectors. Image, audio, and video endpoints return fixed fixture content.

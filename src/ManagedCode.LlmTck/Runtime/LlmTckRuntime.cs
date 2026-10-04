@@ -73,6 +73,8 @@ public sealed partial class LlmTckRuntime
         {
             _configuration = LlmTckConfigurationBuilder.Snapshot(configuration);
             _scenarioReservations.Clear();
+            _chatResponses.Clear();
+            _chatResponseBytes = 0;
             _videos.Clear();
             _videoBytes = 0;
             _videoSequence.Clear();
@@ -93,6 +95,8 @@ public sealed partial class LlmTckRuntime
         lock (_gate)
         {
             _scenarioReservations.Clear();
+            _chatResponses.Clear();
+            _chatResponseBytes = 0;
             _videos.Clear();
             _videoBytes = 0;
             _videoSequence.Clear();
@@ -199,6 +203,14 @@ public sealed partial class LlmTckRuntime
                     chatRequest: request
                 );
                 return UnknownModel(request.ModelId, LlmTckModelKind.Chat, usage);
+            }
+
+            var historyError = RestoreChatResponse(ref request, bearerToken);
+            if (historyError is not null)
+            {
+                AddEvent(LlmTckEventKind.ErrorReturned, null, request.ModelId, historyError.ErrorMessage!,
+                    FormatChatRequest(request), historyError.ErrorMessage, chatRequest: request);
+                return historyError;
             }
 
             var fault = TryCreateFault(
@@ -362,6 +374,20 @@ public sealed partial class LlmTckRuntime
             IReadOnlyList<string> successfulStreamChunks = response.StreamChunks.Count > 0
                 ? response.StreamChunks
                 : [response.Content];
+            LlmTckChatResult? completed = null;
+            if (response.Error is null)
+            {
+                completed = RetainChatResponse(request, LlmTckChatResult.Success(request.ModelId, scenario.Id,
+                    response.Content, successfulStreamChunks, usage) with
+                { ToolCalls = [.. response.ToolCalls] }, bearerToken);
+                if (!completed.IsSuccess)
+                {
+                    RollBackReservedResponse(scenario, responsePosition, generation);
+                    AddEvent(LlmTckEventKind.ErrorReturned, scenario.Id, request.ModelId, completed.ErrorMessage!,
+                        FormatChatRequest(request), completed.ErrorMessage, usage, chatRequest: request);
+                    return completed;
+                }
+            }
             AddEvent(
                 response.Error is null ? LlmTckEventKind.Matched : LlmTckEventKind.ErrorReturned,
                 scenario.Id,
@@ -386,14 +412,7 @@ public sealed partial class LlmTckRuntime
                 );
             }
 
-            return LlmTckChatResult.Success(
-                request.ModelId,
-                scenario.Id,
-                response.Content,
-                successfulStreamChunks,
-                usage
-            ) with
-            { ToolCalls = [.. response.ToolCalls] };
+            return completed!;
         }
     }
 

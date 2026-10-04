@@ -429,6 +429,14 @@ public sealed class LlmTckConfigurationBuilder
         return this;
     }
 
+    public LlmTckConfigurationBuilder WithChatResponseCapacity(int maxResponses, long maxBytes)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegative(maxResponses);
+        ArgumentOutOfRangeException.ThrowIfNegative(maxBytes);
+        _configuration = _configuration with { MaxStoredChatResponses = maxResponses, MaxStoredChatResponseBytes = maxBytes };
+        return this;
+    }
+
     public LlmTckConfiguration Build()
     {
         return Snapshot(_configuration);
@@ -440,6 +448,8 @@ public sealed class LlmTckConfigurationBuilder
         ArgumentOutOfRangeException.ThrowIfNegative(configuration.MaxPromptCacheEntries);
         ArgumentOutOfRangeException.ThrowIfNegative(configuration.MaxVideoJobs);
         ArgumentOutOfRangeException.ThrowIfNegative(configuration.MaxVideoBytes);
+        ArgumentOutOfRangeException.ThrowIfNegative(configuration.MaxStoredChatResponses);
+        ArgumentOutOfRangeException.ThrowIfNegative(configuration.MaxStoredChatResponseBytes);
         ArgumentNullException.ThrowIfNull(configuration.Models);
         ArgumentNullException.ThrowIfNull(configuration.ChatScenarios);
         ArgumentNullException.ThrowIfNull(configuration.Datasets);

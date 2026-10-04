@@ -13,6 +13,8 @@ public sealed record LlmTckChatResult
 
     public string? ScenarioId { get; init; }
 
+    public string? ResponseId { get; init; }
+
     public List<LlmTckToolCall> ToolCalls { get; init; } = [];
 
     public string Content { get; init; } = string.Empty;

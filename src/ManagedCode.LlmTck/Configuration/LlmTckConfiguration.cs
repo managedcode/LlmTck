@@ -14,6 +14,12 @@ public sealed record LlmTckConfiguration
     /// <summary>Maximum total retained video payload bytes. Overflow is rejected without eviction.</summary>
     public long MaxVideoBytes { get; init; } = 64 * 1024 * 1024;
 
+    /// <summary>Maximum stored chat responses. Zero disables response storage.</summary>
+    public int MaxStoredChatResponses { get; init; } = 256;
+
+    /// <summary>Maximum total retained chat-history bytes including bounded record overhead.</summary>
+    public long MaxStoredChatResponseBytes { get; init; } = 16 * 1024 * 1024;
+
     public List<LlmTckModel> Models { get; init; } = [];
 
     public List<LlmTckScenario> ChatScenarios { get; init; } = [];

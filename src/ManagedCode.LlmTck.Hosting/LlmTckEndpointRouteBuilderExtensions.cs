@@ -1124,7 +1124,12 @@ public static partial class LlmTckEndpointRouteBuilderExtensions
             .CompleteChatAsync(
                 CorrelateChatRequest(
                     context,
-                    OpenAiWireMapper.ToRuntimeRequest(request, promptCachePolicy)
+                    OpenAiWireMapper.ToRuntimeRequest(request, promptCachePolicy) with
+                    {
+                        HistoryNamespace = context.Request.Path.Value!.Split('/', StringSplitOptions.RemoveEmptyEntries)[0],
+                        PreviousResponseId = request.PreviousResponseId,
+                        StoreResponse = promptCachePolicy != LlmTckPromptCachePolicy.OpenRouter && request.Store != false
+                    }
                 ),
                 ReadAccessToken(context),
                 cancellationToken
@@ -1139,7 +1144,7 @@ public static partial class LlmTckEndpointRouteBuilderExtensions
             );
         }
 
-        var responseId = $"resp_{Guid.NewGuid():N}";
+        var responseId = result.ResponseId ?? $"resp_{Guid.NewGuid():N}";
         var created = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
         if (request.Stream)
         {

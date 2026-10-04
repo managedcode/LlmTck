@@ -19,6 +19,7 @@
     <PackageReference Include="Microsoft.AspNetCore.TestHost" />
     <PackageReference Include="Microsoft.AspNetCore.App.Internal.Assets" />
     <PackageReference Include="Microsoft.Extensions.AI" />
+    <PackageReference Include="Microsoft.Extensions.AI.OpenAI" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" />
     <PackageReference Include="OpenAI" />
     <PackageReference Include="System.ClientModel" />

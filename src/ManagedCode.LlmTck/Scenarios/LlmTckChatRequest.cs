@@ -13,6 +13,11 @@ public sealed record LlmTckChatRequest
 
     public List<LlmTckMessage> Messages { get; init; } = [];
 
+    /// <summary>Exact provider/transport namespace for optional stored-response continuation.</summary>
+    public string? HistoryNamespace { get; init; }
+    public string? PreviousResponseId { get; init; }
+    public bool StoreResponse { get; init; }
+
     public bool Stream { get; init; }
     public List<LlmTckToolDefinition> Tools { get; init; } = [];
     public LlmTckToolChoice ToolChoice { get; init; }

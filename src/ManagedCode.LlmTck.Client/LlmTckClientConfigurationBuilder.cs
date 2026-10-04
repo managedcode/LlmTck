@@ -291,6 +291,12 @@ public sealed class LlmTckClientConfigurationBuilder
         return this;
     }
 
+    public LlmTckClientConfigurationBuilder UseChatResponseCapacity(int maxResponses, long maxBytes)
+    {
+        _builder.WithChatResponseCapacity(maxResponses, maxBytes);
+        return this;
+    }
+
     public LlmTckConfiguration Build()
     {
         return _builder.Build();

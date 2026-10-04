@@ -750,6 +750,11 @@ public static class OpenAiWireMapper
                 && type.GetString() is "input_text" or "output_text"
                 && content.TryGetProperty("text", out var typedText) =>
                 ReadResponseInputContent(typedText),
+            JsonValueKind.Object when content.TryGetProperty("type", out var imageType)
+                && imageType.GetString() == "input_image"
+                && content.TryGetProperty("image_url", out var imageUrl) => ReadResponseInputContent(imageUrl),
+            JsonValueKind.Object when content.TryGetProperty("type", out var mediaType)
+                && mediaType.GetString() is "input_image" or "input_file" => content.GetRawText(),
             JsonValueKind.Object when content.TryGetProperty("type", out _) => string.Empty,
             JsonValueKind.Undefined or JsonValueKind.Null => string.Empty,
             _ => content.ToString(),
