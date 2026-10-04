@@ -1,4 +1,5 @@
 using ManagedCode.LlmTck.Models;
+using ManagedCode.LlmTck.Runtime;
 using ManagedCode.LlmTck.Scenarios;
 
 namespace ManagedCode.LlmTck.Configuration;
@@ -388,6 +389,14 @@ public sealed class LlmTckConfigurationBuilder
         return this;
     }
 
+    public LlmTckConfigurationBuilder WithDefaultTranscriptionUsage(LlmTckTranscriptionUsage usage)
+    {
+        ArgumentNullException.ThrowIfNull(usage);
+        usage.Validate();
+        _configuration = _configuration with { DefaultTranscriptionUsage = usage };
+        return this;
+    }
+
     public LlmTckConfigurationBuilder WithDefaultTranslationText(string text)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(text);
@@ -456,6 +465,8 @@ public sealed class LlmTckConfigurationBuilder
         ArgumentNullException.ThrowIfNull(configuration.DefaultEmbeddingVector);
         ArgumentNullException.ThrowIfNull(configuration.DefaultAudioBytes);
         ArgumentNullException.ThrowIfNull(configuration.DefaultVideoBytes);
+        ArgumentNullException.ThrowIfNull(configuration.DefaultTranscriptionUsage);
+        configuration.DefaultTranscriptionUsage.Validate();
 
         return configuration with
         {

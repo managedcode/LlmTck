@@ -117,6 +117,8 @@ public sealed record LlmTckAudioResult
 
 public sealed record LlmTckTranscriptionResult
 {
+    public LlmTckTranscriptionUsage? Usage { get; init; }
+
     public bool IsSuccess { get; init; }
 
     public int StatusCode { get; init; } = 200;

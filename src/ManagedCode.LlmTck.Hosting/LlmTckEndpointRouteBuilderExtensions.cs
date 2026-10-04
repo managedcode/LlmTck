@@ -208,6 +208,12 @@ public static partial class LlmTckEndpointRouteBuilderExtensions
             .WithLlmTckProviderOperation(LlmTckProviderOperationIds.AzureOpenAI.V1ResponsesCreate);
         providerEndpoints
             .MapPost(
+                ProviderRoutes.ForProvider(ProviderRoutes.AzureOpenAI, "/openai/v1/audio/transcriptions"),
+                TranscribeOpenAiAudioAsync
+            )
+            .WithLlmTckProviderOperation(LlmTckProviderOperationIds.AzureOpenAI.V1AudioTranscriptionsCreate);
+        providerEndpoints
+            .MapPost(
                 ProviderRoutes.ForProvider(ProviderRoutes.AzureOpenAI, "/openai/v1/embeddings"),
                 CreateEmbeddingAsync
             )
@@ -224,6 +230,12 @@ public static partial class LlmTckEndpointRouteBuilderExtensions
                 CreateOpenAiResponseAsync
             )
             .WithLlmTckProviderOperation(LlmTckProviderOperationIds.MicrosoftFoundry.V1ResponsesCreate);
+        providerEndpoints
+            .MapPost(
+                ProviderRoutes.ForProvider(ProviderRoutes.MicrosoftFoundry, "/openai/v1/audio/transcriptions"),
+                TranscribeOpenAiAudioAsync
+            )
+            .WithLlmTckProviderOperation(LlmTckProviderOperationIds.MicrosoftFoundry.V1AudioTranscriptionsCreate);
         providerEndpoints
             .MapPost(
                 ProviderRoutes.ForProvider(ProviderRoutes.MicrosoftFoundry, "/openai/v1/embeddings"),

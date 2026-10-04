@@ -1,4 +1,5 @@
 using ManagedCode.LlmTck.Models;
+using ManagedCode.LlmTck.Runtime;
 using ManagedCode.LlmTck.Scenarios;
 
 namespace ManagedCode.LlmTck.Configuration;
@@ -41,6 +42,8 @@ public sealed record LlmTckConfiguration
     public string DefaultAudioMediaType { get; init; } = "audio/wav";
 
     public string DefaultTranscriptionText { get; init; } = "transcribed audio fixture";
+
+    public LlmTckTranscriptionUsage DefaultTranscriptionUsage { get; init; } = new();
 
     public string DefaultTranslationText { get; init; } = "translated audio fixture";
 

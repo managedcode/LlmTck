@@ -23,6 +23,16 @@ internal static class LlmTckRequestPolicy
                     "This route requires one supported Azure OpenAI api-version: 2024-10-21 or 2025-04-01-preview."), statusCode: 400);
         }
 
+        if (path == "/azure-openai/openai/v1/audio/transcriptions"
+            || path == "/microsoft-foundry/openai/v1/audio/transcriptions")
+        {
+            var versions = context.Request.Query["api-version"];
+            return versions.Count == 0 || versions.Count == 1 && versions[0] is "v1" or "preview"
+                ? null
+                : Results.Json(OpenAiWireMapper.ToError("invalid_api_version",
+                    "This route supports the default v1 or one explicit v1/preview api-version."), statusCode: 400);
+        }
+
         var expected = path.StartsWithSegments("/azure-openai/openai/v1/video") ? "preview"
             : path == "/microsoft-foundry/chat/completions" || path == "/microsoft-foundry/embeddings"
                 || path == "/microsoft-foundry/models/chat/completions" || path == "/microsoft-foundry/models/embeddings" ? "2024-05-01-preview" : null;

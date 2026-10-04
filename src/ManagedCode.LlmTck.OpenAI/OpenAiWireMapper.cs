@@ -493,7 +493,7 @@ public static class OpenAiWireMapper
         LlmTckTranscriptionResult result
     )
     {
-        return new() { Text = result.Text };
+        return new() { Text = result.Text, Usage = ToAudioTranscriptionUsage(result.Usage) };
     }
 
     public static GroqAudioTranscriptionResponse ToGroqAudioTranscriptionResponse(
@@ -511,7 +511,36 @@ public static class OpenAiWireMapper
         LlmTckTranscriptionResult result
     )
     {
-        return new() { Text = result.Text };
+        return new()
+        {
+            Text = result.Text,
+            Duration = result.Usage?.DurationSeconds ?? 0,
+            Usage = ToAudioTranscriptionUsage(result.Usage),
+        };
+    }
+
+    private static OpenAiAudioTranscriptionUsage? ToAudioTranscriptionUsage(LlmTckTranscriptionUsage? usage)
+    {
+        if (usage is null)
+        {
+            return null;
+        }
+        if (usage.DurationSeconds is { } seconds)
+        {
+            return new() { Type = "duration", Seconds = seconds };
+        }
+        return new()
+        {
+            Type = "tokens",
+            InputTokens = usage.InputAudioTokens + usage.InputTextTokens,
+            OutputTokens = usage.OutputTokens,
+            TotalTokens = usage.InputAudioTokens + usage.InputTextTokens + usage.OutputTokens,
+            InputTokenDetails = new()
+            {
+                AudioTokens = usage.InputAudioTokens!.Value,
+                TextTokens = usage.InputTextTokens!.Value,
+            },
+        };
     }
 
     public static object ToTranscriptTextDeltaEvent(string delta)
@@ -529,6 +558,7 @@ public static class OpenAiWireMapper
         {
             type = "transcript.text.done",
             text = result.Text,
+            usage = ToAudioTranscriptionUsage(result.Usage),
         };
     }
 

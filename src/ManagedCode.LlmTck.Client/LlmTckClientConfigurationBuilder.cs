@@ -1,5 +1,6 @@
 using ManagedCode.LlmTck.Configuration;
 using ManagedCode.LlmTck.Models;
+using ManagedCode.LlmTck.Runtime;
 using ManagedCode.LlmTck.Scenarios;
 
 namespace ManagedCode.LlmTck.Client;
@@ -282,6 +283,12 @@ public sealed class LlmTckClientConfigurationBuilder
     public LlmTckClientConfigurationBuilder UseTranscriptionText(string text)
     {
         _builder.WithDefaultTranscriptionText(text);
+        return this;
+    }
+
+    public LlmTckClientConfigurationBuilder UseTranscriptionUsage(LlmTckTranscriptionUsage usage)
+    {
+        _builder.WithDefaultTranscriptionUsage(usage);
         return this;
     }
 

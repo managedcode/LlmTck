@@ -739,6 +739,7 @@ public sealed partial class LlmTckRuntime
                     IsSuccess = true,
                     ModelId = modelId,
                     Text = _configuration.DefaultTranscriptionText,
+                    Usage = _configuration.DefaultTranscriptionUsage,
                 }
             );
         }

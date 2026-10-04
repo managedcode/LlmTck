@@ -23,6 +23,7 @@ public static class AzureOpenAiCompatibility
                 LlmTckProviderCapability.Images,
                 LlmTckProviderCapability.Video,
                 LlmTckProviderCapability.Audio,
+                LlmTckProviderCapability.StreamingAudio,
             ],
             CompatibilityTags =
             [
@@ -33,10 +34,21 @@ public static class AzureOpenAiCompatibility
             ApiContract = new()
             {
                 DocumentationUrl = "https://learn.microsoft.com/en-us/azure/foundry/openai/reference",
-                DocumentationRetrievedOn = "2026-09-09",
+                DocumentationRetrievedOn = "2026-10-04",
                 DocumentationVersion = "SDK-selected dated deployment API (2024-10-21 reference baseline); v1 GA inference; v1 preview video",
                 Operations =
                 [
+                    new()
+                    {
+                        Id = LlmTckProviderOperationIds.AzureOpenAI.V1AudioTranscriptionsCreate,
+                        Method = "POST",
+                        Path = "/azure-openai/openai/v1/audio/transcriptions",
+                        DocumentationUrl = "https://learn.microsoft.com/en-us/azure/foundry/openai/reference-preview-latest",
+                        ApiVersion = "v1 (default) or preview",
+                        SupportsStreaming = true,
+                        ImplementedByHosting = true,
+                        Capabilities = [LlmTckProviderCapability.Audio, LlmTckProviderCapability.StreamingAudio],
+                    },
                     new()
                     {
                         Id = LlmTckProviderOperationIds.AzureOpenAI.V1ChatCompletionsCreate,

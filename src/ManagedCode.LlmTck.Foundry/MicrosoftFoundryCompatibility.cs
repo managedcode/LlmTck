@@ -20,6 +20,8 @@ public static class MicrosoftFoundryCompatibility
                 LlmTckProviderCapability.Tools,
                 LlmTckProviderCapability.StructuredOutput,
                 LlmTckProviderCapability.Embeddings,
+                LlmTckProviderCapability.Audio,
+                LlmTckProviderCapability.StreamingAudio,
             ],
             CompatibilityTags =
             [
@@ -31,10 +33,21 @@ public static class MicrosoftFoundryCompatibility
             {
                 DocumentationUrl =
                     "https://learn.microsoft.com/en-us/rest/api/microsoft-foundry/modelinference/",
-                DocumentationRetrievedOn = "2026-09-07",
+                DocumentationRetrievedOn = "2026-10-04",
                 DocumentationVersion = "Azure AI Model Inference; OpenAI v1 GA",
                 Operations =
                 [
+                    new()
+                    {
+                        Id = LlmTckProviderOperationIds.MicrosoftFoundry.V1AudioTranscriptionsCreate,
+                        Method = "POST",
+                        Path = "/microsoft-foundry/openai/v1/audio/transcriptions",
+                        DocumentationUrl = "https://learn.microsoft.com/en-us/azure/foundry/openai/reference-preview-latest",
+                        ApiVersion = "v1 (default) or preview",
+                        SupportsStreaming = true,
+                        ImplementedByHosting = true,
+                        Capabilities = [LlmTckProviderCapability.Audio, LlmTckProviderCapability.StreamingAudio],
+                    },
                     new()
                     {
                         Id = LlmTckProviderOperationIds.MicrosoftFoundry.V1ChatCompletionsCreate,

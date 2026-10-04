@@ -377,6 +377,14 @@ public sealed class ProviderApiContractTests
             ),
             Evidence(
                 LlmTckCompatibilityTags.AzureOpenAI,
+                LlmTckProviderOperationIds.AzureOpenAI.V1AudioTranscriptionsCreate,
+                typeof(V1AudioTranscriptionCompatibilityTests),
+                [nameof(V1AudioTranscriptionCompatibilityTests.OfficialSdk_PreservesTranscriptionUsageAsync),
+                    nameof(V1AudioTranscriptionCompatibilityTests.Streaming_PreservesFinalUsageAsync)],
+                coversStreaming: true
+            ),
+            Evidence(
+                LlmTckCompatibilityTags.AzureOpenAI,
                 LlmTckProviderOperationIds.AzureOpenAI.V1EmbeddingsCreate,
                 typeof(AzureV1SdkCompatibilityTests),
                 [nameof(AzureV1SdkCompatibilityTests.V1ChatAndEmbeddings_UseOfficialSdkWithoutApiVersionAsync)],
@@ -394,6 +402,14 @@ public sealed class ProviderApiContractTests
                 LlmTckProviderOperationIds.MicrosoftFoundry.V1ChatCompletionsCreate,
                 typeof(AzureV1SdkCompatibilityTests),
                 [nameof(AzureV1SdkCompatibilityTests.V1ChatAndEmbeddings_UseOfficialSdkWithoutApiVersionAsync)],
+                coversStreaming: true
+            ),
+            Evidence(
+                LlmTckCompatibilityTags.MicrosoftFoundry,
+                LlmTckProviderOperationIds.MicrosoftFoundry.V1AudioTranscriptionsCreate,
+                typeof(V1AudioTranscriptionCompatibilityTests),
+                [nameof(V1AudioTranscriptionCompatibilityTests.OfficialSdk_PreservesTranscriptionUsageAsync),
+                    nameof(V1AudioTranscriptionCompatibilityTests.Streaming_PreservesFinalUsageAsync)],
                 coversStreaming: true
             ),
             Evidence(

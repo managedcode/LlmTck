@@ -36,6 +36,16 @@ output. See [Responses continuation](Features/ResponsesContinuation.md) for limi
 
 Chat scenarios are queued. Each matched request consumes the next response. Streaming responses use explicit chunks. Datasets are named groups of active scenarios so tests can load conversation sets before a run. Embeddings return configured vectors. Image, audio, and video endpoints return fixed fixture content.
 
+Audio transcription fixtures carry explicitly configured duration or complete audio/text/output token usage
+through runtime results and OpenAI-compatible JSON, verbose JSON and final streaming events. Configure it
+with `WithDefaultTranscriptionUsage(LlmTckTranscriptionUsage.ForDuration(seconds))` at startup or
+`UseTranscriptionUsage(LlmTckTranscriptionUsage.ForTokens(audio, text, output))` through the control client.
+The default fixture duration is one second; it is deterministic fixture data, never inferred from input bytes.
+Azure OpenAI and Microsoft Foundry expose `/openai/v1/audio/transcriptions` with no required query version;
+explicit `v1` and `preview` are accepted and unknown or duplicate versions are rejected. Official SDK tests
+exercise the multipart endpoint. See the [Microsoft audio reference](https://learn.microsoft.com/en-us/azure/foundry/openai/reference-preview-latest)
+and [OpenAI usage contract](https://developers.openai.com/api/reference/resources/audio/subresources/transcriptions/methods/create).
+
 ## Client Configuration Surface
 
 `ManagedCode.LlmTck.Client` owns the universal pre-test configuration API. A test can create one `LlmTckClient`, optionally bind a bearer token, call `ConfigureAsync(config => ...)`, and then create `Microsoft.Extensions.AI` chat, embedding, and image clients from the same control client. Audio and video fixtures are reachable through `LlmTckClient.GenerateAudioAsync(...)` and `LlmTckClient.GenerateVideoAsync(...)` until first-party `Microsoft.Extensions.AI` abstractions exist.

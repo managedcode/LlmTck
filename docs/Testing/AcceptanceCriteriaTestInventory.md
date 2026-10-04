@@ -92,3 +92,12 @@
 - `ToolFixtureClientTests.ExtensionsAi_RespectsSingleToolOptionWithoutConsumingFixtureAsync`: MEAI parallel option, both response modes.
 - `ProviderCapabilityEvidenceTests.ClaimedToolAndSchemaCases_ExecutePositiveAndNegativeHttpEvidenceAsync`: all 13 provider profiles, every claimed tool/schema operation, supported JSON/stream modes, accept/reject outcomes with queue recovery and journal checks.
 - `EvidenceGuard_RequiresExecutableProviderAndEdgeCasesAsync`: executable test attributes, complete provider arguments, named Gemini cases and all six parallel-option cases are mandatory.
+
+## v1 audio transcription and usage
+
+| Criterion | Automated evidence |
+|---|---|
+| Azure OpenAI, Foundry and OpenAI multipart transcription works through the official SDK; control configuration survives transport and MEAI retains duration / complete token usage. | `V1AudioTranscriptionCompatibilityTests.OfficialSdk_PreservesTranscriptionUsageAsync` |
+| Streaming transcription retains configured usage in its final event. | `V1AudioTranscriptionCompatibilityTests.Streaming_PreservesFinalUsageAsync` |
+| Azure/Foundry v1 audio enforces credentials, accepts default/v1/preview, denies unknown/duplicate versions and missing files, and returns actual fixture duration in verbose JSON. | `V1AudioTranscriptionCompatibilityTests.V1Audio_EnforcesAuthAndVersionAndSupportsVerboseJsonAsync` |
+| Malformed duration or incomplete/mixed/overflow token configuration fails before use. | `TranscriptionUsageConfigurationTests` |
