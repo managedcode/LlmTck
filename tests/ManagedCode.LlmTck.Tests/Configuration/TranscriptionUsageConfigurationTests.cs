@@ -1,4 +1,5 @@
 using ManagedCode.LlmTck.Configuration;
+using ManagedCode.LlmTck.Models;
 using ManagedCode.LlmTck.Runtime;
 
 namespace ManagedCode.LlmTck.Tests.Configuration;
@@ -27,16 +28,20 @@ public sealed class TranscriptionUsageConfigurationTests
     }
 
     [Test]
-    public async Task Configuration_RejectsIncompleteOrMixedUsageAsync()
+    public async Task Configuration_RejectsInvalidUsageAndAllowsAbsentUsageAsync()
     {
         await Assert.That(() => new LlmTckConfigurationBuilder()
             .WithDefaultTranscriptionUsage(new() { InputAudioTokens = 12 })).Throws<ArgumentException>();
         await Assert.That(() => new LlmTckConfigurationBuilder()
             .WithDefaultTranscriptionUsage(new() { DurationSeconds = null, InputAudioTokens = 12, OutputTokens = 1 }))
             .Throws<ArgumentException>();
-        await Assert.That(() => new LlmTckConfigurationBuilder().WithDefaultTranscriptionUsage(null!))
-            .Throws<ArgumentNullException>();
-        await Assert.That(() => new LlmTckRuntime(new LlmTckConfiguration { DefaultTranscriptionUsage = null! }))
-            .Throws<ArgumentNullException>();
+        var withoutUsage = new LlmTckConfigurationBuilder()
+            .WithoutDefaultTranscriptionUsage()
+            .Build();
+        await Assert.That(withoutUsage.DefaultTranscriptionUsage).IsNull();
+        var runtime = new LlmTckRuntime(withoutUsage);
+        var result = await runtime.TranscribeAudioAsync(LlmTckKnownModelIds.Gpt4OMiniTts, "fixture.wav");
+        await Assert.That(result.IsSuccess).IsTrue();
+        await Assert.That(result.Usage).IsNull();
     }
 }

@@ -292,6 +292,12 @@ public sealed class LlmTckClientConfigurationBuilder
         return this;
     }
 
+    public LlmTckClientConfigurationBuilder WithoutTranscriptionUsage()
+    {
+        _builder.WithoutDefaultTranscriptionUsage();
+        return this;
+    }
+
     public LlmTckClientConfigurationBuilder UseTranslationText(string text)
     {
         _builder.WithDefaultTranslationText(text);

@@ -83,6 +83,45 @@ public sealed class V1AudioTranscriptionCompatibilityTests
     [Arguments(LlmTckProviderRouteNamespaces.AzureOpenAI)]
     [Arguments(LlmTckProviderRouteNamespaces.MicrosoftFoundry)]
     [Arguments(LlmTckProviderRouteNamespaces.OpenAI)]
+    public async Task OfficialSdk_PreservesMissingTranscriptionUsageAsync(string provider)
+    {
+        using var host = await LlmTckTestHost.StartAsync();
+        using var http = host.GetTestClient();
+        var control = LlmTckClient.Create(http);
+        await control.ConfigureAsync(configuration => configuration
+            .RequireBearerToken("test-key")
+            .UseAudioModel(_whisperModel)
+            .UseTranscriptionText("blue whale")
+            .WithoutTranscriptionUsage());
+        var sdk = new OpenAIClient(new ApiKeyCredential("test-key"), new OpenAIClientOptions
+        {
+            Endpoint = Endpoint(http, provider),
+            Transport = new HttpClientPipelineTransport(http),
+        }).GetAudioClient(_whisperModel);
+        var cancellationToken = TestContext.Current!.Execution.CancellationToken;
+        using var audio = new MemoryStream([82, 73, 70, 70]);
+        var response = await sdk.TranscribeAudioAsync(audio, "fixture.wav", cancellationToken: cancellationToken);
+        await Assert.That(response.Value.Text).IsEqualTo("blue whale");
+        await Assert.That(response.Value.Usage).IsNull();
+        var wire = JsonDocument.Parse(response.GetRawResponse().Content.ToString());
+        using (wire)
+        {
+            await Assert.That(wire.RootElement.TryGetProperty("usage", out _)).IsFalse();
+        }
+
+        using var speech = sdk.AsISpeechToTextClient();
+        using var nextAudio = new MemoryStream([82, 73, 70, 70]);
+        var adapted = await speech.GetTextAsync(nextAudio, cancellationToken: cancellationToken);
+        await Assert.That(adapted.Text).IsEqualTo("blue whale");
+        await Assert.That(adapted.Usage).IsNull();
+        var raw = (AudioTranscription)adapted.RawRepresentation!;
+        await Assert.That(raw.Usage).IsNull();
+    }
+
+    [Test]
+    [Arguments(LlmTckProviderRouteNamespaces.AzureOpenAI)]
+    [Arguments(LlmTckProviderRouteNamespaces.MicrosoftFoundry)]
+    [Arguments(LlmTckProviderRouteNamespaces.OpenAI)]
     public async Task Streaming_PreservesFinalUsageAsync(string provider)
     {
         using var host = await LlmTckTestHost.StartAsync(configuration => configuration

@@ -43,7 +43,11 @@ public sealed record LlmTckConfiguration
 
     public string DefaultTranscriptionText { get; init; } = "transcribed audio fixture";
 
-    public LlmTckTranscriptionUsage DefaultTranscriptionUsage { get; init; } = new();
+    /// <summary>
+    ///     Provider-reported usage returned for deterministic transcriptions, or <see langword="null"/>
+    ///     to model providers that omit transcription usage.
+    /// </summary>
+    public LlmTckTranscriptionUsage? DefaultTranscriptionUsage { get; init; } = new();
 
     public string DefaultTranslationText { get; init; } = "translated audio fixture";
 

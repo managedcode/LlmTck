@@ -397,6 +397,12 @@ public sealed class LlmTckConfigurationBuilder
         return this;
     }
 
+    public LlmTckConfigurationBuilder WithoutDefaultTranscriptionUsage()
+    {
+        _configuration = _configuration with { DefaultTranscriptionUsage = null };
+        return this;
+    }
+
     public LlmTckConfigurationBuilder WithDefaultTranslationText(string text)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(text);
@@ -465,8 +471,7 @@ public sealed class LlmTckConfigurationBuilder
         ArgumentNullException.ThrowIfNull(configuration.DefaultEmbeddingVector);
         ArgumentNullException.ThrowIfNull(configuration.DefaultAudioBytes);
         ArgumentNullException.ThrowIfNull(configuration.DefaultVideoBytes);
-        ArgumentNullException.ThrowIfNull(configuration.DefaultTranscriptionUsage);
-        configuration.DefaultTranscriptionUsage.Validate();
+        configuration.DefaultTranscriptionUsage?.Validate();
 
         return configuration with
         {
