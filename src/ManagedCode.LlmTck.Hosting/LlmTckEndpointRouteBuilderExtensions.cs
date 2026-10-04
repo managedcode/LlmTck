@@ -220,6 +220,12 @@ public static partial class LlmTckEndpointRouteBuilderExtensions
             .WithLlmTckProviderOperation(LlmTckProviderOperationIds.AzureOpenAI.V1EmbeddingsCreate);
         providerEndpoints
             .MapPost(
+                ProviderRoutes.ForProvider(ProviderRoutes.AzureOpenAI, "/openai/v1/images/generations"),
+                GenerateImageAsync
+            )
+            .WithLlmTckProviderOperation(LlmTckProviderOperationIds.AzureOpenAI.V1ImagesCreate);
+        providerEndpoints
+            .MapPost(
                 ProviderRoutes.ForProvider(ProviderRoutes.MicrosoftFoundry, "/openai/v1/chat/completions"),
                 CompleteOpenAiChatAsync
             )

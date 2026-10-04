@@ -31,6 +31,7 @@ public static class LlmTckProviderOperationIds
         public const string V1ChatCompletionsCreate = "v1.chat.completions.create";
         public const string V1ResponsesCreate = "v1.responses.create";
         public const string V1EmbeddingsCreate = "v1.embeddings.create";
+        public const string V1ImagesCreate = "v1.images.create";
         public const string V1AudioTranscriptionsCreate = "v1.audio.transcriptions.create";
 
         public const string ChatCompletionsCreate = OpenAI.ChatCompletionsCreate;

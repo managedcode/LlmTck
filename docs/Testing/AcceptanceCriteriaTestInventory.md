@@ -22,6 +22,7 @@
 | `Microsoft.Extensions.AI` clients call the compatibility server | `MicrosoftExtensionsAiClientTests.MicrosoftExtensionsAiClients_InvokeLlmTckThroughOpenAiCompatibilityEndpointsAsync` |
 | Official OpenAI SDK clients call the namespaced OpenAI API root for streaming chat | `OpenAiSdkCompatibilityTests.OpenAiChatClient_CanUseNamespacedChatStreamingAsync` |
 | Official Azure OpenAI SDK clients call deployment chat and embedding routes | `AzureSdkCompatibilityTests.AzureOpenAiClient_CanUseDeploymentChatAndEmbeddingsAsync` |
+| Azure OpenAI v1 image generation works through the official OpenAI SDK and returns image bytes | `AzureV1SdkCompatibilityTests.AzureOpenAiV1Images_UseOfficialOpenAiSdkAndReturnImageBytesAsync` |
 | Azure OpenAI deployment routes use deployment names, API keys, and documented modality envelopes | `AzureSdkCompatibilityTests.AzureOpenAiDeploymentRoutes_UseApiKeyAndDeploymentModelForModalitiesAsync` |
 | Official Azure AI Inference clients call Foundry chat and embedding routes | `AzureSdkCompatibilityTests.AzureAiInferenceClients_CanUseFoundryChatAndEmbeddingsAsync` |
 | Universal client API configures datasets, models, auth, and modality fixtures before a test | `LlmTckClientConfigurationTests.ConfigureAsync_WithFluentClientApi_LoadsDatasetAndFixturesAsync` |
@@ -47,6 +48,7 @@
 
 - `AzureV1SdkCompatibilityTests.V1ChatAndEmbeddings_UseOfficialSdkWithoutApiVersionAsync`: Azure OpenAI and Microsoft Foundry v1 chat, streaming and base64 embeddings through the official OpenAI SDK, without a dated API version.
 - `AzureV1SdkCompatibilityTests.V1Responses_UseOfficialSdkAndStreamAsync`: OpenAI, Azure OpenAI and Foundry Responses parsed and streamed through OpenAI 2.13.0.
+- `AzureV1SdkCompatibilityTests.AzureOpenAiV1Images_UseOfficialOpenAiSdkAndReturnImageBytesAsync`: Azure OpenAI v1 image generation routed through the official OpenAI SDK with nonempty returned bytes.
 - `AzureV1SdkCompatibilityTests.V1Responses_AcceptsApiKeyAndRejectsMissingCredentialsAsync`: Azure v1 API-key authentication and unauthorized requests preserving the response queue.
 - `ProviderApiDriftTests.OpenRouterResponses_RejectsStateBeforeConsumingScenarioAsync`: stateless Responses validation, including an empty non-null previous response ID.
 - `ProviderApiDriftTests.OllamaChat_ReportsCacheReadsInFinalStreamingChunkAsync`: cold and cached requests, with cache accounting on the final NDJSON chunk.

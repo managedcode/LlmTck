@@ -392,6 +392,12 @@ public sealed class ProviderApiContractTests
             ),
             Evidence(
                 LlmTckCompatibilityTags.AzureOpenAI,
+                LlmTckProviderOperationIds.AzureOpenAI.V1ImagesCreate,
+                typeof(AzureV1SdkCompatibilityTests),
+                [nameof(AzureV1SdkCompatibilityTests.AzureOpenAiV1Images_UseOfficialOpenAiSdkAndReturnImageBytesAsync)]
+            ),
+            Evidence(
+                LlmTckCompatibilityTags.AzureOpenAI,
                 LlmTckProviderOperationIds.AzureOpenAI.V1ResponsesCreate,
                 typeof(AzureV1SdkCompatibilityTests),
                 [nameof(AzureV1SdkCompatibilityTests.V1Responses_UseOfficialSdkAndStreamAsync)],

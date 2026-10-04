@@ -84,6 +84,16 @@ public static class AzureOpenAiCompatibility
                     },
                     new()
                     {
+                        Id = LlmTckProviderOperationIds.AzureOpenAI.V1ImagesCreate,
+                        Method = "POST",
+                        Path = "/azure-openai/openai/v1/images/generations",
+                        DocumentationUrl = "https://learn.microsoft.com/en-us/azure/foundry/openai/reference-preview-latest",
+                        ApiVersion = "v1 (default) or preview",
+                        ImplementedByHosting = true,
+                        Capabilities = [LlmTckProviderCapability.Images],
+                    },
+                    new()
+                    {
                         Id = LlmTckProviderOperationIds.AzureOpenAI.ChatCompletionsCreate,
                         Method = "POST",
                         Path = "/azure-openai/openai/deployments/{deployment}/chat/completions",

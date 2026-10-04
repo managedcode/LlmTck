@@ -7,6 +7,7 @@ using ManagedCode.LlmTck.Providers;
 using ManagedCode.LlmTck.Tests.TestSupport;
 using OpenAI;
 using OpenAI.Chat;
+using OpenAI.Images;
 using OpenAI.Responses;
 
 namespace ManagedCode.LlmTck.Tests.Azure;
@@ -15,6 +16,31 @@ namespace ManagedCode.LlmTck.Tests.Azure;
 #pragma warning disable OPENAI001
 public sealed class AzureV1SdkCompatibilityTests
 {
+    [Test]
+    public async Task AzureOpenAiV1Images_UseOfficialOpenAiSdkAndReturnImageBytesAsync()
+    {
+        using var host = await LlmTckTestHost.StartAsync(options => options
+            .RequireBearerToken("test-key")
+            .AddModel("gpt-image-1", LlmTckModelKind.Image));
+        using var http = host.GetTestClient();
+        var client = new OpenAIClient(new ApiKeyCredential("test-key"), new OpenAIClientOptions
+        {
+            Endpoint = new Uri(http.BaseAddress!, LlmTckProviderRouteNamespaces.AzureOpenAI + "/openai/v1/"),
+            Transport = new HttpClientPipelineTransport(http),
+        });
+        var imageClient = client.GetImageClient("gpt-image-1");
+        var result = await imageClient.GenerateImageAsync(
+            "draw a blue compatibility marker",
+            new ImageGenerationOptions
+            {
+                ResponseFormat = GeneratedImageFormat.Bytes,
+                Size = GeneratedImageSize.W1024xH1024,
+                Quality = new GeneratedImageQuality("medium"),
+            });
+
+        await Assert.That(result.Value.ImageBytes.ToArray().Length).IsGreaterThan(0);
+    }
+
     [Test]
     [Arguments(LlmTckProviderRouteNamespaces.AzureOpenAI)]
     [Arguments(LlmTckProviderRouteNamespaces.MicrosoftFoundry)]
