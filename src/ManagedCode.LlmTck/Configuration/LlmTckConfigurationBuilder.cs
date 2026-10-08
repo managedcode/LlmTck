@@ -537,7 +537,7 @@ public sealed class LlmTckConfigurationBuilder
         ArgumentNullException.ThrowIfNull(scenario.Answers);
         foreach (var (name, answer) in scenario.Answers)
         {
-            ArgumentException.ThrowIfNullOrWhiteSpace(name);
+            ArgumentNullException.ThrowIfNull(name);
             ArgumentNullException.ThrowIfNull(answer);
             var values = answer.Probabilities.Values.Concat(new[] { answer.Probability, answer.Confidence }.OfType<double>());
             if (answer.Score is { } score && (!double.IsFinite(score) || score < 0)) { throw new ArgumentException("Decision scores must be finite and nonnegative.", nameof(scenario)); }
@@ -548,7 +548,7 @@ public sealed class LlmTckConfigurationBuilder
             var valid = answer.Kind switch
             {
                 ManagedCode.LlmTck.Decisions.LlmTckDecisionKind.Predicate => answer.Probability.HasValue,
-                ManagedCode.LlmTck.Decisions.LlmTckDecisionKind.Choice => !string.IsNullOrWhiteSpace(answer.Choice),
+                ManagedCode.LlmTck.Decisions.LlmTckDecisionKind.Choice => answer.Choice is not null,
                 ManagedCode.LlmTck.Decisions.LlmTckDecisionKind.Score => answer.Score.HasValue,
                 _ => false,
             };

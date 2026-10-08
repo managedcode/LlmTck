@@ -12,7 +12,7 @@ public static class SystemOneDecisionTypes
 
 public sealed record SystemOneDecisionRequest
 {
-    [JsonPropertyName("model")] public string Model { get; init; } = string.Empty;
+    [JsonPropertyName("model")][JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public string? Model { get; init; }
     [JsonPropertyName("state")] public JsonElement State { get; init; }
     [JsonPropertyName("questions")] public Dictionary<string, SystemOneDecisionQuestion> Questions { get; init; } = [];
 }
@@ -29,6 +29,8 @@ public sealed record SystemOneDecisionResponse
     [JsonPropertyName("model")] public string Model { get; init; } = string.Empty;
     [JsonPropertyName("answers")] public Dictionary<string, SystemOneDecisionAnswer> Answers { get; init; } = [];
     [JsonPropertyName("usage")] public SystemOneDecisionUsage Usage { get; init; } = new();
+    [JsonPropertyName("latency_ms")][JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public double? LatencyMilliseconds { get; init; }
+    [JsonPropertyName("truncated")][JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public bool? Truncated { get; init; }
 }
 
 public sealed record SystemOneDecisionAnswer
@@ -46,4 +48,6 @@ public sealed record SystemOneDecisionUsage
 {
     [JsonPropertyName("input_tokens")] public int InputTokens { get; init; }
     [JsonPropertyName("output_tokens")] public int OutputTokens { get; init; }
+    [JsonPropertyName("state_tokens")][JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public int? StateTokens { get; init; }
+    [JsonPropertyName("state_tokens_used")][JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public int? StateTokensUsed { get; init; }
 }

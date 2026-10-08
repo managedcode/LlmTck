@@ -16,6 +16,7 @@ public sealed record LlmTckDecisionQuestion
 
 public sealed record LlmTckDecisionRequest
 {
+    public LlmTckDecisionProvider Provider { get; init; }
     public string ModelId { get; init; } = string.Empty;
     public string Input { get; init; } = string.Empty;
     public List<LlmTckDecisionQuestion> Questions { get; init; } = [];
@@ -40,6 +41,8 @@ public sealed record LlmTckDecisionScenario
     public Dictionary<string, LlmTckDecisionAnswer> Answers { get; init; } = [];
     public LlmTckTokenUsage Usage { get; init; } = new();
     public LlmTckScenarioError? Error { get; init; }
+    public bool AllowMalformedResponse { get; init; }
+    public LlmTckDecisionMetadata Metadata { get; init; } = new();
 }
 
 public sealed record LlmTckDecisionResult
@@ -52,4 +55,13 @@ public sealed record LlmTckDecisionResult
     public int StatusCode { get; init; } = 200;
     public string? ErrorCode { get; init; }
     public string? ErrorMessage { get; init; }
+    public LlmTckDecisionMetadata Metadata { get; init; } = new();
+}
+
+public sealed record LlmTckDecisionMetadata
+{
+    public double LatencyMilliseconds { get; init; }
+    public bool? Truncated { get; init; }
+    public int? StateTokens { get; init; }
+    public int? StateTokensUsed { get; init; }
 }

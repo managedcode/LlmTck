@@ -32,7 +32,7 @@ public sealed class DecisionQuestionTests
     public async Task OpenAiQuestions_PreserveEmptyChoiceAndRepeatedScoreLabelsWithoutDescriptionsAsync()
     {
         var scenario = DecisionEndpointTests.Scenario("gpt-6-luna"); scenario.Answers.Remove("0");
-        scenario.Answers["0"] = new() { Kind = LlmTckDecisionKind.Choice, Choice = OpenAiDecisionFixtureIds.ForChoiceValue(""), Probabilities = new() { [OpenAiDecisionFixtureIds.ForChoiceValue("")] = 0.9, [OpenAiDecisionFixtureIds.ForChoiceValue(" ")] = 0.1 } };
+        scenario.Answers["0"] = new() { Kind = LlmTckDecisionKind.Choice, Choice = OpenAiDecisionFixtureIds.ForChoiceValue(""), Confidence = 0.9, Probabilities = new() { [OpenAiDecisionFixtureIds.ForChoiceValue("")] = 0.9, [OpenAiDecisionFixtureIds.ForChoiceValue(" ")] = 0.1 } };
         scenario.Answers["1"] = scenario.Answers["2"]; scenario.Answers.Remove("2");
         var body = DecisionEndpointTests.Body("gpt-6-luna");
         body["questions"] = JsonNode.Parse("""[{"type":"choice","instructions":"","choices":[{"value":""},{"value":" "}]},{"type":"score","instructions":"","levels":[{"label":""},{"label":"same"},{"label":"same"}]}]""");
@@ -50,6 +50,7 @@ public sealed class DecisionQuestionTests
     [Arguments("too-many-choices")]
     [Arguments("null-description")]
     [Arguments("long-name")]
+    [Arguments("long-model")]
     [Arguments("safety-identifier")]
     public async Task OpenAiQuestions_EnforceDocumentedNativeFieldConstraintsAsync(string kind)
     {
@@ -58,6 +59,7 @@ public sealed class DecisionQuestionTests
         if (kind == "too-many-choices") { body["questions"]![1]!["choices"] = new JsonArray(Enumerable.Range(0, OpenAiDecisionMapper.MaxChoices + 1).Select(index => (JsonNode)new JsonObject { ["value"] = index.ToString(System.Globalization.CultureInfo.InvariantCulture) }).ToArray()); }
         if (kind == "null-description") { body["questions"]![1]!["choices"]![0]!["description"] = null; }
         if (kind == "long-name") { body["questions"]![0]!["name"] = new string('a', OpenAiDecisionMapper.MaxQuestionTextLength + 1); }
+        if (kind == "long-model") { body["model"] = new string('a', OpenAiDecisionMapper.MaxQuestionTextLength + 1); }
         if (kind == "safety-identifier") { body["safety_identifier"] = false; }
         using var host = await LlmTckTestHost.StartAsync(); using var client = host.GetTestClient();
         using var response = await client.PostAsJsonAsync(DecisionEndpointTests.PathFor("gpt-6-luna"), body);

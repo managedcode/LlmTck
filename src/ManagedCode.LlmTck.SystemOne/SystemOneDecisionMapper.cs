@@ -11,6 +11,8 @@ public static class SystemOneDecisionMapper
     public const int MaxChoices = 255;
     public const int JevMaxScoreLevels = 10;
     public const int KevMaxScoreLevels = 255;
+    public const string KevDefaultModel = "kev-latest";
+
     public static LlmTckRequestValidationResult Validate(JsonElement body)
     {
         return Validate(body, MaxChoices, KevMaxScoreLevels);
@@ -18,48 +20,60 @@ public static class SystemOneDecisionMapper
 
     public static LlmTckRequestValidationResult Validate(JsonElement body, int maxChoices, int maxScoreLevels)
     {
-        if (body.ValueKind != JsonValueKind.Object || !body.TryGetProperty("model", out var model)
-            || model.ValueKind != JsonValueKind.String || string.IsNullOrWhiteSpace(model.GetString())
-            || !body.TryGetProperty("state", out var state) || !IsContent(state) || state.ValueKind == JsonValueKind.Null
-            || !body.TryGetProperty("questions", out var questions) || questions.ValueKind != JsonValueKind.Object)
-        { return new("model, string/object/array state and object questions are required."); }
-        var entries = questions.EnumerateObject().ToArray();
-        if (entries.Length == 0 || entries.Select(entry => entry.Name).Distinct(StringComparer.Ordinal).Count() != entries.Length)
-        { return new("Questions must have unique nonempty names."); }
-        return entries.All(entry => !string.IsNullOrWhiteSpace(entry.Name) && ValidQuestion(entry.Value, maxChoices, maxScoreLevels))
-            ? new() : new("Every question requires a supported type, instructions and matching criteria.");
+        return ValidateCore(body, maxChoices, maxScoreLevels, false);
     }
 
-    private static bool ValidQuestion(JsonElement question, int maxChoices, int maxScoreLevels)
+    public static LlmTckRequestValidationResult Validate(JsonElement body, LlmTckDecisionProvider provider)
+    {
+        return ValidateCore(body, MaxChoices, provider == LlmTckDecisionProvider.TypeSafe ? JevMaxScoreLevels : KevMaxScoreLevels,
+                provider == LlmTckDecisionProvider.Kev);
+    }
+
+    private static LlmTckRequestValidationResult ValidateCore(JsonElement body, int maxChoices, int maxScoreLevels, bool kev)
+    {
+        if (body.ValueKind != JsonValueKind.Object || (!body.TryGetProperty("model", out var model) ? !kev : model.ValueKind != JsonValueKind.String)
+            || !body.TryGetProperty("state", out var state) || !IsContent(state, kev) || (!kev && state.ValueKind == JsonValueKind.Null)
+            || !body.TryGetProperty("questions", out var questions) || questions.ValueKind != JsonValueKind.Object)
+        { return new("model, supported state and object questions are required."); }
+        var entries = questions.EnumerateObject().ToArray();
+        if (entries.Length == 0 || entries.Select(entry => entry.Name).Distinct(StringComparer.Ordinal).Count() != entries.Length)
+        { return new("Questions must have unique names and at least one entry."); }
+        return entries.All(entry => ValidQuestion(entry.Value, maxChoices, maxScoreLevels, kev))
+            ? new() : new("Every question requires a supported type and matching native criteria.");
+    }
+
+    private static bool ValidQuestion(JsonElement question, int maxChoices, int maxScoreLevels, bool kev)
     {
         if (question.ValueKind != JsonValueKind.Object || !question.TryGetProperty("type", out var type)
             || type.ValueKind != JsonValueKind.String) { return false; }
-        if (question.TryGetProperty("instructions", out var instructions) && !IsContent(instructions)) { return false; }
+        if (question.TryGetProperty("instructions", out var instructions) && !IsContent(instructions, kev)) { return false; }
         var hasCriteria = question.TryGetProperty("criteria", out var criteria);
         if (type.GetString() == SystemOneDecisionTypes.Predicate)
         {
             return !hasCriteria || criteria.ValueKind == JsonValueKind.Null || (criteria.ValueKind == JsonValueKind.Object
-                && criteria.EnumerateObject().All(entry => entry.Name is "true" or "false" && IsContent(entry.Value)));
+                && criteria.EnumerateObject().Where(entry => entry.Name is "true" or "false").All(entry => IsContent(entry.Value, kev)));
         }
         if (!hasCriteria) { return false; }
         if (type.GetString() == SystemOneDecisionTypes.Score)
-        { return criteria.ValueKind == JsonValueKind.Array && criteria.GetArrayLength() >= 1 && criteria.GetArrayLength() <= maxScoreLevels && criteria.EnumerateArray().All(value => IsContent(value) && value.ValueKind != JsonValueKind.Null); }
+        { return criteria.ValueKind == JsonValueKind.Array && criteria.GetArrayLength() >= 1 && criteria.GetArrayLength() <= maxScoreLevels && criteria.EnumerateArray().All(value => IsContent(value, kev) && (kev || value.ValueKind != JsonValueKind.Null)); }
         if (type.GetString() != SystemOneDecisionTypes.Choice || criteria.ValueKind != JsonValueKind.Object) { return false; }
         var entries = criteria.EnumerateObject().ToArray();
-        return entries.Length >= 1 && entries.Length <= maxChoices && entries.All(entry => !string.IsNullOrWhiteSpace(entry.Name) && IsContent(entry.Value))
+        return entries.Length >= 1 && entries.Length <= maxChoices && entries.All(entry => IsContent(entry.Value, kev))
             && entries.Select(entry => entry.Name).Distinct(StringComparer.Ordinal).Count() == entries.Length;
     }
 
-    private static bool IsContent(JsonElement value)
+    private static bool IsContent(JsonElement value, bool kev)
     {
-        return value.ValueKind is JsonValueKind.String or JsonValueKind.Object or JsonValueKind.Array or JsonValueKind.Null;
+        return value.ValueKind is JsonValueKind.String or JsonValueKind.Object or JsonValueKind.Array or JsonValueKind.Null
+                || (kev && value.ValueKind is JsonValueKind.Number or JsonValueKind.True or JsonValueKind.False);
     }
 
-    public static LlmTckDecisionRequest ToRequest(SystemOneDecisionRequest request)
+    public static LlmTckDecisionRequest ToRequest(SystemOneDecisionRequest request, LlmTckDecisionProvider provider = LlmTckDecisionProvider.TypeSafe)
     {
         return new()
         {
-            ModelId = request.Model,
+            Provider = provider,
+            ModelId = request.Model ?? KevDefaultModel,
             Input = JsonSerializer.Serialize(request.State),
             Questions = request.Questions.Select(entry => new LlmTckDecisionQuestion
             {
@@ -73,13 +87,23 @@ public static class SystemOneDecisionMapper
         };
     }
 
-    public static SystemOneDecisionResponse ToResponse(SystemOneDecisionRequest request, LlmTckDecisionResult result, bool roundValues = false)
+    public static SystemOneDecisionResponse ToResponse(SystemOneDecisionRequest request, LlmTckDecisionResult result, bool roundValues = false,
+        LlmTckDecisionProvider provider = LlmTckDecisionProvider.TypeSafe)
     {
+        var kev = provider == LlmTckDecisionProvider.Kev;
         return new()
         {
             Model = result.ModelId,
-            Answers = result.Answers.ToDictionary(entry => entry.Key, entry => ToAnswer(request.Questions[entry.Key], RoundedAnswer(roundValues, entry.Value)), StringComparer.Ordinal),
-            Usage = new() { InputTokens = result.Usage.InputTokens, OutputTokens = result.Usage.OutputTokens },
+            Answers = result.Answers.ToDictionary(entry => entry.Key, entry => ToAnswer(request.Questions[entry.Key], RoundedAnswer(roundValues, entry.Value), kev), StringComparer.Ordinal),
+            Usage = new()
+            {
+                InputTokens = result.Usage.InputTokens,
+                OutputTokens = result.Usage.OutputTokens,
+                StateTokens = kev ? result.Metadata.StateTokens : null,
+                StateTokensUsed = kev ? result.Metadata.StateTokensUsed : null
+            },
+            LatencyMilliseconds = kev ? Math.Round(result.Metadata.LatencyMilliseconds, 1) : null,
+            Truncated = kev ? result.Metadata.Truncated : null,
         };
     }
 
@@ -100,18 +124,19 @@ public static class SystemOneDecisionMapper
         return value.HasValue ? Math.Round(value.Value, _nativeProbabilityPrecision) : null;
     }
 
-    private static SystemOneDecisionAnswer ToAnswer(SystemOneDecisionQuestion question, LlmTckDecisionAnswer answer)
+    private static SystemOneDecisionAnswer ToAnswer(SystemOneDecisionQuestion question, LlmTckDecisionAnswer answer, bool kev)
     {
         return new()
         {
             Type = question.Type,
-            Probability = answer.Probability,
-            Choice = answer.Choice,
-            Score = answer.Score,
-            Confidence = answer.Confidence,
+            Probability = answer.Kind == LlmTckDecisionKind.Predicate ? answer.Probability : null,
+            Choice = answer.Kind == LlmTckDecisionKind.Choice ? answer.Choice : null,
+            Score = answer.Kind == LlmTckDecisionKind.Score ? answer.Score : null,
+            Confidence = answer.Kind == LlmTckDecisionKind.Predicate ? null : answer.Confidence,
             Probabilities = answer.Kind == LlmTckDecisionKind.Predicate ? null : new(answer.Probabilities),
             Legend = answer.Kind == LlmTckDecisionKind.Score ? question.Criteria.EnumerateArray()
-            .Select((value, index) => (index, value)).ToDictionary(entry => entry.index.ToString(CultureInfo.InvariantCulture), entry => entry.value.Clone()) : null,
+                .Select((value, index) => (index, value)).ToDictionary(entry => entry.index.ToString(CultureInfo.InvariantCulture),
+                    entry => kev ? JsonSerializer.SerializeToElement(KevDecisionContent.Render(entry.value)) : entry.value.Clone()) : null,
         };
     }
 }

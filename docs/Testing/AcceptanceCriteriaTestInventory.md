@@ -110,3 +110,7 @@
 | Native OpenAI positional names, typed choices, score labels and message/image input constraints | `DecisionQuestionTests`, `DecisionInputTests` |
 
 | Native OpenAI choice values preserve strings beyond question text limits and usage defaults stay present | `DecisionQuestionTests.OpenAiQuestions_PreserveChoiceValuesWithoutUndocumentedTextLimitAsync`, `DecisionEndpointTests.NativeDecisionEndpoints_PreserveAnswersAndUsageAsync` |
+
+| Native SystemOne profile-specific JSON/defaults, empty IDs, rendered Kev legends, request IDs, latency/truncation, validation422 and predicate field filtering | `SystemOneNativeContractTests` |
+| Native required confidence, complete probability domains, rounding tolerance, explicit malformed-response scenarios | `DecisionFixtureContractTests` |
+| Cloudflare image formats/body/dimension limits, native numeric errors, whitespace selectors and null criteria | `CloudflareDecisionContractTests`, `CloudflareDecisionImageTests`, `CloudflareDecisionErrorTests` |

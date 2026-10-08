@@ -57,7 +57,7 @@ public sealed partial class LlmTckRuntime
             entry => entry.Value with { Probabilities = new(entry.Value.Probabilities) }, StringComparer.Ordinal);
         AddEvent(LlmTckEventKind.Matched, scenario.Id, request.ModelId, "Decision scenario matched.",
             JsonSerializer.Serialize(request), JsonSerializer.Serialize(answers), scenario.Usage);
-        return new() { IsSuccess = true, ModelId = request.ModelId, ScenarioId = scenario.Id, Answers = answers, Usage = scenario.Usage };
+        return new() { IsSuccess = true, ModelId = request.ModelId, ScenarioId = scenario.Id, Answers = answers, Usage = scenario.Usage, Metadata = scenario.Metadata };
     }
 
     private static bool DecisionAnswersMatch(LlmTckDecisionRequest request, LlmTckDecisionScenario scenario)
@@ -65,7 +65,7 @@ public sealed partial class LlmTckRuntime
         return request.Questions.Count == scenario.Answers.Count
             && request.Questions.Select(question => question.Name).Distinct(StringComparer.Ordinal).Count() == request.Questions.Count
             && request.Questions.All(question => scenario.Answers.TryGetValue(question.Name, out var answer)
-                && answer.Kind == question.Kind && (answer.Refused || DecisionAnswerFitsQuestion(question, answer)));
+                && answer.Kind == question.Kind && (answer.Refused || (DecisionAnswerFitsQuestion(question, answer) && (scenario.AllowMalformedResponse || LlmTckDecisionFixtureValidation.IsConformant(request.Provider, question, answer)))));
     }
 
     private static bool DecisionAnswerFitsQuestion(LlmTckDecisionQuestion question, LlmTckDecisionAnswer answer)

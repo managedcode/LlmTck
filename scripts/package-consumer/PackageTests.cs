@@ -1,6 +1,7 @@
 using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using Aspire.Hosting;
 using Aspire.Hosting.Testing;
 using ManagedCode.LlmTck.Aspire;
@@ -53,7 +54,7 @@ public sealed class PackageTests
         }
         // Verify the published Aspire service actually includes every native decision adapter.
         using (var configuration = new StringContent("""
-            {"requiredBearerToken":"test-key","models":[{"id":"kev-latest","kind":"decision"},{"id":"clef","kind":"decision"},{"id":"gpt-6-luna","kind":"decision"}],
+            {"requiredBearerToken":"test-key","models":[{"id":"kev-latest","kind":"decision","decisionProvider":"kev"},{"id":"clef","kind":"decision","decisionProvider":"cloudflare"},{"id":"gpt-6-luna","kind":"decision","decisionProvider":"openAI"}],
              "decisionScenarios":[{"id":"kev","modelId":"kev-latest","answers":{"binary":{"kind":"predicate","probability":0.95}}},
               {"id":"clef","modelId":"clef","answers":{"binary":{"kind":"predicate","probability":0.95}}},
               {"id":"openai","modelId":"gpt-6-luna","answers":{"0":{"kind":"predicate","probability":0.95}}}]}
@@ -65,6 +66,11 @@ public sealed class PackageTests
             var body = model == "gpt-6-luna"
                 ? """{"model":"gpt-6-luna","input":"evidence","questions":[{"type":"predicate","name":"binary","instructions":"binary?"}]}"""
                 : """{"model":"MODEL","state":"evidence","questions":{"binary":{"type":"noul","instructions":"binary?"}}}""".Replace("MODEL", model, StringComparison.Ordinal);
+            if (model == "clef")
+            {
+                const string image = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR4nGNgYGAAAAAEAAH2FzhVAAAAAElFTkSuQmCC";
+                var native = JsonNode.Parse(body)!.AsObject(); native["images"] = new JsonArray(image); body = native.ToJsonString();
+            }
             using var request = new StringContent(body, Encoding.UTF8, "application/json");
             using var response = await http.PostAsync(path, request, cancellationToken);
             response.EnsureSuccessStatusCode();

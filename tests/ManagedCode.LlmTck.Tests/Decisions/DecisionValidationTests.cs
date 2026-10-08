@@ -110,7 +110,7 @@ public sealed class DecisionValidationTests
         using var host = await LlmTckTestHost.StartAsync(b => b.AddJevLatest().AddKevLatest().AddDecisionScenario(fixture)); using var client = host.GetTestClient();
         var body = DecisionEndpointTests.Body("jev-latest"); body["questions"]!["score"]!["criteria"] = new JsonArray(Enumerable.Range(0, SystemOneDecisionMapper.JevMaxScoreLevels + 1).Select(index => JsonValue.Create(index.ToString(System.Globalization.CultureInfo.InvariantCulture))).ToArray<JsonNode?>());
         using var invalid = await client.PostAsJsonAsync(DecisionEndpointTests.PathFor("jev-latest"), body);
-        await Assert.That(invalid.StatusCode).IsEqualTo(HttpStatusCode.BadRequest);
+        await Assert.That(invalid.StatusCode).IsEqualTo(HttpStatusCode.UnprocessableEntity);
         using var rounded = await client.PostAsJsonAsync(DecisionEndpointTests.PathFor("kev-latest"), DecisionEndpointTests.Body("kev-latest"));
         rounded.EnsureSuccessStatusCode();
         var payload = await rounded.Content.ReadFromJsonAsync<JsonElement>();

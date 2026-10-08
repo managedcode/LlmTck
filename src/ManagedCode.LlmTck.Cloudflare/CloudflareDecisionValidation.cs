@@ -11,19 +11,37 @@ public static class CloudflareDecisionValidation
 
     public static LlmTckRequestValidationResult Validate(JsonElement body)
     {
+        var native = ValidateNative(body);
+        return new(native.Error);
+    }
+
+    public static CloudflareDecisionValidationResult ValidateNative(JsonElement body)
+    {
         var shape = SystemOneDecisionMapper.Validate(body, SystemOneDecisionMapper.MaxChoices, SystemOneDecisionMapper.JevMaxScoreLevels);
-        if (!shape.IsValid) { return shape; }
+        if (!shape.IsValid) { return new(shape.Error); }
+        var model = body.GetProperty("model").GetString()!.Trim();
+        if (model is not ("clef" or "clef-flash")) { return new("Clef requires its short native model selector."); }
+        if (body.GetProperty("state").ValueKind is not (JsonValueKind.String or JsonValueKind.Object or JsonValueKind.Array))
+        { return new("Clef state must be text, a JSON object or a JSON array."); }
         var questions = body.GetProperty("questions").EnumerateObject().ToArray();
         if (!questions.All(question => HasRequiredInstructions(question.Value) && HasEnoughCriteria(question.Value)))
         { return new("Clef questions require instructions; choice and score criteria require at least two entries."); }
-        return questions.Length <= MaxQuestions && questions.All(question => question.Name.Length <= MaxQuestionIdLength
-            && question.Name.All(character => char.IsAsciiLetterOrDigit(character) || character is '_' or '.' or '-'))
-            ? new() : new("Clef supports at most 64 questions with ASCII letters, digits, underscore, dot and hyphen IDs of at most 100 characters.");
+        if (questions.Length > MaxQuestions || questions.Any(question => question.Name.Length is 0 or > MaxQuestionIdLength
+            || question.Name.Any(character => !char.IsAsciiLetterOrDigit(character) && character is not ('_' or '.' or '-'))))
+        { return new("Clef supports at most 64 questions with ASCII letters, digits, underscore, dot and hyphen IDs of at most 100 characters."); }
+        if (questions.Any(question => question.Value.GetProperty("type").GetString() == SystemOneDecisionTypes.Predicate
+            && question.Value.TryGetProperty("criteria", out var criteria) && criteria.ValueKind != JsonValueKind.Object))
+        { return new("Clef predicate criteria must be an object when supplied."); }
+        if (questions.Any(question => question.Value.GetProperty("type").GetString() == SystemOneDecisionTypes.Choice
+            && question.Value.GetProperty("criteria").EnumerateObject().Any(candidate => candidate.Name.Length == 0)))
+        { return new("Clef choice option IDs must be nonempty strings."); }
+        return CloudflareDecisionImageValidation.Validate(body);
     }
+
     private static bool HasRequiredInstructions(JsonElement question)
     {
         return question.TryGetProperty("instructions", out var instructions) && (instructions.ValueKind is JsonValueKind.Object or JsonValueKind.Array
-            || (instructions.ValueKind == JsonValueKind.String && !string.IsNullOrWhiteSpace(instructions.GetString())));
+            || (instructions.ValueKind == JsonValueKind.String && instructions.GetString()!.Length > 0));
     }
 
     private static bool HasEnoughCriteria(JsonElement question)

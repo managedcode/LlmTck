@@ -43,7 +43,7 @@ public sealed class DecisionEndpointTests
         await Assert.That(predicate.GetProperty(openAi ? "probability" : "noul").GetDouble()).IsEqualTo(0.95);
         await Assert.That(choice.GetProperty("choice").GetString()).IsEqualTo("opaque-id");
         await Assert.That(score.GetProperty("score").GetDouble()).IsEqualTo(1.75);
-        await Assert.That(score.GetProperty("confidence").GetDouble()).IsEqualTo(0.8);
+        await Assert.That(score.GetProperty("confidence").GetDouble()).IsEqualTo(model is "jev-latest" or "kev-latest" ? 0.625 : 0.8);
         await Assert.That(payload.GetProperty("usage").GetProperty("input_tokens").GetInt32()).IsEqualTo(100);
         if (openAi)
         {
@@ -105,7 +105,7 @@ public sealed class DecisionEndpointTests
         using var client = host.GetTestClient();
         var body = Body(model); body.Remove(property);
         using var response = await client.PostAsJsonAsync(PathFor(model), body);
-        await Assert.That(response.StatusCode).IsEqualTo(HttpStatusCode.BadRequest);
+        await Assert.That(response.StatusCode).IsEqualTo(model == "jev-latest" ? HttpStatusCode.UnprocessableEntity : HttpStatusCode.BadRequest);
     }
 
     [Test]
@@ -135,8 +135,8 @@ public sealed class DecisionEndpointTests
             Answers = new()
             {
                 [model == "gpt-6-luna" ? OpenAiDecisionFixtureIds.ForQuestionIndex(0) : "binary"] = new() { Kind = LlmTckDecisionKind.Predicate, Probability = 0.95 },
-                [model == "gpt-6-luna" ? OpenAiDecisionFixtureIds.ForQuestionIndex(1) : "choice"] = new() { Kind = LlmTckDecisionKind.Choice, Choice = firstChoice, Confidence = 0.9, Probabilities = new() { [firstChoice] = 0.95, [lastChoice] = 0.05 } },
-                [model == "gpt-6-luna" ? OpenAiDecisionFixtureIds.ForQuestionIndex(2) : "score"] = new() { Kind = LlmTckDecisionKind.Score, Score = 1.75, Confidence = 0.8, Probabilities = new() { ["0"] = 0.05, ["1"] = 0.15, ["2"] = 0.8 } },
+                [model == "gpt-6-luna" ? OpenAiDecisionFixtureIds.ForQuestionIndex(1) : "choice"] = new() { Kind = LlmTckDecisionKind.Choice, Choice = firstChoice, Confidence = model.StartsWith("clef", StringComparison.Ordinal) ? 0.95 : 0.9, Probabilities = new() { [firstChoice] = 0.95, [lastChoice] = 0.05 } },
+                [model == "gpt-6-luna" ? OpenAiDecisionFixtureIds.ForQuestionIndex(2) : "score"] = new() { Kind = LlmTckDecisionKind.Score, Score = 1.75, Confidence = model is "jev-latest" or "kev-latest" ? 0.625 : 0.8, Probabilities = new() { ["0"] = 0.05, ["1"] = 0.15, ["2"] = 0.8 } },
             },
         };
     }

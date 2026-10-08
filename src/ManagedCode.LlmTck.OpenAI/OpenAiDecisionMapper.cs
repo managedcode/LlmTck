@@ -15,7 +15,7 @@ public static class OpenAiDecisionMapper
     public static LlmTckRequestValidationResult Validate(JsonElement body)
     {
         if (body.ValueKind != JsonValueKind.Object || !body.TryGetProperty("model", out var model)
-            || model.ValueKind != JsonValueKind.String || string.IsNullOrWhiteSpace(model.GetString())
+            || !ValidString(model) || string.IsNullOrWhiteSpace(model.GetString())
             || !body.TryGetProperty("input", out var input) || !OpenAiDecisionInputValidation.IsValid(input)
             || !body.TryGetProperty("questions", out var questions) || questions.ValueKind != JsonValueKind.Array)
         { return new("model, supported input and questions array are required."); }
@@ -59,6 +59,7 @@ public static class OpenAiDecisionMapper
     {
         return new()
         {
+            Provider = LlmTckDecisionProvider.OpenAI,
             ModelId = request.Model,
             Input = request.Input.ValueKind == JsonValueKind.String ? request.Input.GetString()! : JsonSerializer.Serialize(request.Input),
             Questions = request.Questions.Select((question, index) => new LlmTckDecisionQuestion
@@ -93,10 +94,10 @@ public static class OpenAiDecisionMapper
         {
             Name = question.Name,
             Type = answer.Refused ? "refusal" : question.Type,
-            Probability = answer.Refused ? null : answer.Probability,
-            Choice = answer.Refused || answer.Choice is null ? null : NativeChoice(question, answer.Choice),
-            Score = answer.Refused ? null : answer.Score,
-            Confidence = answer.Refused ? null : answer.Confidence,
+            Probability = answer.Refused || question.Type != OpenAiDecisionTypes.Predicate ? null : answer.Probability,
+            Choice = answer.Refused || question.Type != OpenAiDecisionTypes.Choice || answer.Choice is null ? null : NativeChoice(question, answer.Choice),
+            Score = answer.Refused || question.Type != OpenAiDecisionTypes.Score ? null : answer.Score,
+            Confidence = answer.Refused || question.Type == OpenAiDecisionTypes.Predicate ? null : answer.Confidence,
             Probabilities = answer.Refused || question.Type == OpenAiDecisionTypes.Predicate ? null : answer.Probabilities.Select(entry => new OpenAiDecisionProbability
             {
                 Value = question.Type == OpenAiDecisionTypes.Score ? int.Parse(entry.Key, CultureInfo.InvariantCulture) : NativeChoice(question, entry.Key),

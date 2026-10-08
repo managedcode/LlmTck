@@ -1,3 +1,5 @@
+using System.Globalization;
+using System.Text.Json;
 using ManagedCode.LlmTck.Cloudflare;
 using ManagedCode.LlmTck.Decisions;
 using ManagedCode.LlmTck.OpenAI;
@@ -19,6 +21,7 @@ public static partial class LlmTckEndpointRouteBuilderExtensions
     private const string _decisionsPath = "/v1/decisions";
     private const string _clefPath = "/client/v4/accounts/{accountId}/ai/run/@cf/cloudflare/clef";
     private const string _clefFlashPath = "/client/v4/accounts/{accountId}/ai/run/@cf/cloudflare/clef-flash";
+    private const string _typeSafeRequestIdHeader = "x-typesafe-request-id";
 
     private static void MapDecisionEndpoints(RouteGroupBuilder endpoints)
     {
@@ -42,43 +45,79 @@ public static partial class LlmTckEndpointRouteBuilderExtensions
             : Results.Json(OpenAiWireMapper.ToError(result.ErrorCode!, result.ErrorMessage!), statusCode: result.StatusCode);
     }
 
-    private static Task<IResult> CreateSystemOneDecisionAsync(HttpContext context, ILlmTckRuntime runtime, CancellationToken cancellationToken)
+    private static async Task<IResult> CreateSystemOneDecisionAsync(HttpContext context, ILlmTckRuntime runtime, CancellationToken cancellationToken)
     {
-        return CreateSystemOneDecisionCoreAsync(context, runtime, false, cancellationToken);
-    }
-
-    private static Task<IResult> CreateCloudflareDecisionAsync(HttpContext context, ILlmTckRuntime runtime, CancellationToken cancellationToken)
-    {
-        return CreateSystemOneDecisionCoreAsync(context, runtime, true, cancellationToken);
-    }
-
-    private static async Task<IResult> CreateSystemOneDecisionCoreAsync(HttpContext context, ILlmTckRuntime runtime, bool cloudflare, CancellationToken cancellationToken)
-    {
-        var read = await ReadJsonAsync<SystemOneDecisionRequest>(context, message => DecisionError(cloudflare, StatusCodes.Status400BadRequest, message),
-            cancellationToken, cloudflare ? CloudflareDecisionValidation.Validate : SystemOneDecisionMapper.Validate).ConfigureAwait(false);
-        if (read.Error is not null) { return read.Error; }
-        if (read.Value is null) { return DecisionError(cloudflare, StatusCodes.Status400BadRequest, "Missing decision body."); }
-        if (cloudflare)
+        SetSystemOneRequestId(context);
+        var provider = LlmTckDecisionProvider.TypeSafe;
+        var read = await ReadJsonAsync<SystemOneDecisionRequest>(context, SystemOneValidationError, cancellationToken, body =>
         {
-            var expected = context.Request.Path.Value!.EndsWith(_clefFlashModel, StringComparison.Ordinal) ? _clefFlashModel : _clefModel;
-            if (read.Value.Model != expected)
-            { return DecisionError(true, StatusCodes.Status400BadRequest, "Body model must match the Workers AI route."); }
+            provider = ResolveSystemOneProvider(body, runtime);
+            return SystemOneDecisionMapper.Validate(body, provider);
+        }).ConfigureAwait(false);
+        if (read.Error is not null) { return read.Error; }
+        if (read.Value is null) { return SystemOneValidationError("Missing decision body."); }
+        var result = await runtime.DecideAsync(SystemOneDecisionMapper.ToRequest(read.Value, provider), ReadAccessToken(context), cancellationToken).ConfigureAwait(false);
+        if (!result.IsSuccess)
+        {
+            if (provider == LlmTckDecisionProvider.Kev && result.StatusCode == StatusCodes.Status401Unauthorized)
+            { context.Response.Headers.WWWAuthenticate = "Bearer"; }
+            return Results.Json(new { detail = result.ErrorMessage }, statusCode: result.StatusCode);
         }
-        var model = runtime.GetModels().FirstOrDefault(item => item.Id == read.Value.Model);
-        if (!cloudflare && model?.DecisionProvider == LlmTckDecisionProvider.TypeSafe
-            && read.Value.Questions.Values.Any(question => question.Type == SystemOneDecisionTypes.Score && question.Criteria.GetArrayLength() > SystemOneDecisionMapper.JevMaxScoreLevels))
-        { return DecisionError(false, StatusCodes.Status400BadRequest, "TypeSafe Jev supports at most 10 score levels."); }
-        var result = await runtime.DecideAsync(SystemOneDecisionMapper.ToRequest(read.Value), ReadAccessToken(context), cancellationToken).ConfigureAwait(false);
-        if (!result.IsSuccess) { return DecisionError(cloudflare, result.StatusCode, result.ErrorMessage!); }
-        if (result.Answers.Values.Any(answer => answer.Refused)) { return DecisionError(cloudflare, StatusCodes.Status409Conflict, "SystemOne does not support refusal answer fixtures."); }
-        var response = SystemOneDecisionMapper.ToResponse(read.Value, result, cloudflare || model?.DecisionProvider == LlmTckDecisionProvider.Kev);
-        return cloudflare ? Results.Json(new CloudflareDecisionResponse { Success = true, Result = response }) : Results.Json(response);
+        if (result.Answers.Values.Any(answer => answer.Refused))
+        { return Results.Json(new { detail = "SystemOne does not support refusal answer fixtures." }, statusCode: StatusCodes.Status409Conflict); }
+        if (provider == LlmTckDecisionProvider.Kev)
+        { context.Response.Headers["server-timing"] = "app;dur=" + Math.Round(result.Metadata.LatencyMilliseconds, 1).ToString("F1", CultureInfo.InvariantCulture); }
+        return Results.Json(SystemOneDecisionMapper.ToResponse(read.Value, result, provider == LlmTckDecisionProvider.Kev, provider));
     }
 
-    private static IResult DecisionError(bool cloudflare, int status, string message)
+    private static LlmTckDecisionProvider ResolveSystemOneProvider(JsonElement body, ILlmTckRuntime runtime)
     {
-        return cloudflare
-        ? Results.Json(new CloudflareDecisionResponse { Errors = [new() { Code = status, Message = message }] }, statusCode: status)
-        : Results.Json(new { detail = message }, statusCode: status);
+        var modelId = body.ValueKind == JsonValueKind.Object && body.TryGetProperty("model", out var model) && model.ValueKind == JsonValueKind.String
+            ? model.GetString() : SystemOneDecisionMapper.KevDefaultModel;
+        var configured = runtime.GetModels().FirstOrDefault(item => item.Id == modelId);
+        return configured?.DecisionProvider == LlmTckDecisionProvider.Kev ? LlmTckDecisionProvider.Kev : LlmTckDecisionProvider.TypeSafe;
+    }
+
+    private static void SetSystemOneRequestId(HttpContext context)
+    {
+        var supplied = context.Request.Headers[_typeSafeRequestIdHeader].ToString();
+        context.Response.Headers[_typeSafeRequestIdHeader] = string.IsNullOrEmpty(supplied) ? Guid.NewGuid().ToString("N") : supplied;
+    }
+
+    private static IResult SystemOneValidationError(string message)
+    {
+        return Results.Json(new { detail = new[] { new { loc = new object[] { "body" }, msg = message, type = "value_error" } } }, statusCode: StatusCodes.Status422UnprocessableEntity);
+    }
+
+    private static async Task<IResult> CreateCloudflareDecisionAsync(HttpContext context, ILlmTckRuntime runtime, CancellationToken cancellationToken)
+    {
+        if (!await CloudflareDecisionRequestBody.FitsLimitAsync(context.Request, cancellationToken).ConfigureAwait(false))
+        { return CloudflareDecisionFailure(StatusCodes.Status413PayloadTooLarge, "Workers AI request exceeds the native body limit.", "3006"); }
+        var validation = new CloudflareDecisionValidationResult();
+        var read = await ReadJsonAsync<CloudflareDecisionRequest>(context,
+            message => Results.Json(CloudflareDecisionErrors.Create(validation.StatusCode, message, validation.ErrorCode.ToString(CultureInfo.InvariantCulture)), statusCode: validation.StatusCode),
+            cancellationToken, body =>
+            {
+                validation = CloudflareDecisionValidation.ValidateNative(body);
+                return new LlmTckRequestValidationResult(validation.Error);
+            }).ConfigureAwait(false);
+        if (read.Error is not null) { return read.Error; }
+        if (read.Value is null) { return CloudflareDecisionFailure(StatusCodes.Status400BadRequest, "Missing decision body."); }
+        var native = CloudflareDecisionMapper.ToSystemOne(read.Value);
+        var expected = context.Request.Path.Value!.EndsWith(_clefFlashModel, StringComparison.Ordinal) ? _clefFlashModel : _clefModel;
+        if (native.Model != expected) { return CloudflareDecisionFailure(StatusCodes.Status400BadRequest, "Body model must match the Workers AI route."); }
+        var result = await runtime.DecideAsync(CloudflareDecisionMapper.ToRequest(read.Value) with { Provider = LlmTckDecisionProvider.Cloudflare }, ReadAccessToken(context), cancellationToken).ConfigureAwait(false);
+        if (!result.IsSuccess) { return CloudflareDecisionFailure(result.StatusCode, result.ErrorMessage!, result.ErrorCode); }
+        if (result.Answers.Values.Any(answer => answer.Refused)) { return CloudflareDecisionFailure(StatusCodes.Status409Conflict, "SystemOne does not support refusal answer fixtures."); }
+        return Results.Json(new CloudflareDecisionResponse
+        {
+            Success = true,
+            Result = SystemOneDecisionMapper.ToResponse(native, result, true, LlmTckDecisionProvider.Cloudflare)
+        });
+    }
+
+    private static IResult CloudflareDecisionFailure(int status, string message, string? code = null)
+    {
+        return Results.Json(CloudflareDecisionErrors.Create(status, message, code), statusCode: status);
     }
 }

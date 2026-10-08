@@ -1,35 +1,131 @@
-# Native decision fixtures
+# Native decision contracts
 
-The provider-neutral `ManagedCode.LlmTck.Decisions` contract supports predicate probabilities, opaque choice IDs and native ordinal scores. Configure a `Decision` model and add an `LlmTckDecisionScenario` through `AddDecisionScenario` (or `UseDecisionScenario` on the control client). Fixtures are repeatable; configuration and returned answers are copied. Optional `ExpectedInput` requires an exact input match; SystemOne inputs use serialized object state. Question IDs and kinds must match the fixture. OpenAI fixture question IDs use `OpenAiDecisionFixtureIds.ForQuestionIndex(index)` for each zero-based request position, so unnamed and duplicate-named native questions are preserved. Choice values must exist in the request. Auth, unknown models, mismatches, configured rate limits and content filtering remain observable failures.
+Official native contracts audited 2026-10-08. Provider DTOs live in their owning SystemOne, Cloudflare and OpenAI packages; deterministic fixtures live in core and routes in Hosting.
 
-Native routes:
+Jev, Kev, Cloudflare Clef/Clef Flash and OpenAI Decisions use explicit decision fixtures. The TCK hosts their native JSON shapes under provider namespaces and does not contact production providers. Declare the provider profile explicitly; model names never select an API implicitly.
 
-- SystemOne Jev and Kev: `POST /systemone/v1/systemone` with string, object or array `state` and keyed `questions` (`noul`, `choice`, `score`). Model IDs are caller configured (`jev-latest`, `kev-latest`).
-- Cloudflare Clef and Clef Flash: `POST /cloudflare/client/v4/accounts/{accountId}/ai/run/@cf/cloudflare/clef` or `clef-flash`. The body uses short matching model names and the SystemOne shape; responses use the Workers AI `result`, `success`, `errors`, `messages` envelope.
-- OpenAI: `POST /openai/v1/decisions` with text or user-message array `input`, questions array (`predicate`, `choice`, `score`), named choice values and score level labels. Score probability entries preserve zero-based values and original labels. Usage retains cache and reasoning details.
+| Provider | TCK POST route | Production POST endpoint | Model helper | Official contract |
+| --- | --- | --- | --- | --- |
+| TypeSafe Jev | `/systemone/v1/systemone` | `https://api.typesafe.ai/v1/systemone` | `AddJevLatest()` | [OpenAPI](https://api.typesafe.ai/openapi.json), [primitives](https://docs.typesafe.ai/primitives/choice) |
+| Kev | `/systemone/v1/systemone` | `{kev-server}/v1/systemone` | `AddKevLatest()` | [native request models](https://github.com/jaredpalmer/kev/blob/main/kev/api.py), [server/auth](https://github.com/jaredpalmer/kev/blob/main/kev/serve.py) |
+| Cloudflare Clef | `/cloudflare/client/v4/accounts/{accountId}/ai/run/@cf/cloudflare/clef` | `https://api.cloudflare.com/client/v4/accounts/{accountId}/ai/run/@cf/cloudflare/clef` | `AddClef()` | [Clef API](https://developers.cloudflare.com/workers-ai/models/clef/), [REST envelope/auth](https://developers.cloudflare.com/workers-ai/get-started/rest-api/) |
+| Cloudflare Clef Flash | `/cloudflare/client/v4/accounts/{accountId}/ai/run/@cf/cloudflare/clef-flash` | `https://api.cloudflare.com/client/v4/accounts/{accountId}/ai/run/@cf/cloudflare/clef-flash` | `AddClefFlash()` | [Clef Flash API](https://developers.cloudflare.com/workers-ai/models/clef-flash/) |
+| OpenAI Decisions | `/openai/v1/decisions` | `https://api.openai.com/v1/decisions` | `AddOpenAiDecisionModel("gpt-6-luna")` | [create API](https://developers.openai.com/api/reference/resources/decisions/methods/create/) |
 
-No route calls a production provider. Models and responses are explicit fixtures, not algorithmic decisions. Scores are preserved as native values and may exceed one for more than two ordinal levels; probabilities and confidence are bounded to [0, 1].
+Production APIs use `Authorization: Bearer <provider-token>`; Kev checks `KEV_API_KEY` only when configured and otherwise permits unauthenticated calls. For the TCK, `RequireBearerToken` controls the expected test token and protects both provider routes and `/admin-api/*`. Tests do not need production credentials. Resolve the hosted base URL from the Aspire resource (`GetEndpoint("http")` / `CreateHttpClient(...)`), then append the TCK route.
 
-Official contracts reviewed 2026-10-08: [TypeSafe OpenAPI](https://api.typesafe.ai/openapi.json), [Kev source](https://github.com/jaredpalmer/kev/blob/main/kev/api.py), [Clef native API](https://developers.cloudflare.com/workers-ai/models/clef/), [Workers AI REST](https://developers.cloudflare.com/workers-ai/get-started/rest-api/), [OpenAI Decisions](https://developers.openai.com/api/reference/resources/decisions/methods/create/).
+### SystemOne: Jev and Kev
 
-Use `AddDecisionModel(id, LlmTckDecisionProvider.TypeSafe/Kev/Cloudflare/OpenAI)` to declare the native profile explicitly, or typed `AddJevLatest`, `AddKevLatest`, `AddClef`, `AddClefFlash`. The control builder mirrors this with `UseDecisionModel`. Provider modes are never inferred from model IDs. TypeSafe supports at most 10 score levels and 255 choices; Kev supports at most 255 choices and score levels. Generic SystemOne fixture models use its shared 255-level limit. Cloudflare routes enforce its 64-question limit, ASCII question ID alphabet/100-character maximum, required nonempty instructions, 2..255 choices and 2..10 score levels. Kev and Cloudflare wire responses round native probabilities and scores to four decimals. SystemOne instructions are optional, predicate criteria are optional, and state can be a string, object or array; criteria descriptions retain JSON content. OpenAI refusal fixtures use `Refused = true` to emit an actual successful HTTP response with a native refusal answer.
+Jev requires `model`, string/object/array `state`, and a nonempty question map. Kev accepts any JSON `state`, including numbers, booleans and null; instructions and criterion descriptions also accept arbitrary JSON. Kev defaults an omitted `model` to `kev-latest`; the TCK enables that default only when `AddKevLatest()` explicitly registers the Kev profile. Binary questions use `type: "noul"`; optional `criteria` maps the native `true` and `false` descriptions. Choices use an opaque ID-to-description map. Scores use an ordered criteria array.
 
-OpenAI choices support native strings and booleans. Neutral fixture IDs use canonical JSON literals via `OpenAiDecisionFixtureIds.ForChoiceValue`, so a string `"true"` and boolean `true` stay distinct. SystemOne fixtures keep their native opaque IDs unchanged:
-
-```csharp
-var questionId = OpenAiDecisionFixtureIds.ForQuestionIndex(0);
-var choiceId = OpenAiDecisionFixtureIds.ForChoiceValue("opaque-id");
-var answers = new Dictionary<string, LlmTckDecisionAnswer>
+```json
 {
-    [questionId] = new()
-    {
-        Kind = LlmTckDecisionKind.Choice,
-        Choice = choiceId,
-        Probabilities = new() { [choiceId] = 0.9, [OpenAiDecisionFixtureIds.ForChoiceValue(false)] = 0.1 },
-    },
-};
+  "model": "kev-latest",
+  "state": { "message": "Please help quickly" },
+  "questions": {
+    "urgent": { "type": "noul", "instructions": "Is urgent?", "criteria": { "true": "needs prompt help", "false": "can wait" } },
+    "route": { "type": "choice", "instructions": "Choose the queue", "criteria": { "fast": "urgent", "regular": "routine" } },
+    "severity": { "type": "score", "instructions": "Assess severity", "criteria": ["low", "medium", "high"] }
+  }
+}
 ```
 
-OpenAI input arrays contain only user messages with string content or `input_text` / `input_image` parts. Images must use embedded base64 data URLs, with at most 128 images across messages; external image URLs, audio, files, tools and other message roles are rejected.
+Use `model: "jev-latest"` for Jev. Native responses contain keyed `answers`: `noul`, or `choice`/`score` with `confidence` and `probabilities`; score `legend` keys are zero-based numeric strings. `usage` contains `input_tokens` and `output_tokens`. Scores are native ordinal values and can exceed one.
 
-OpenAI instructions are required strings; question names and option descriptions are optional. Empty strings are preserved. Native answers return nullable names and retain array order; fixture ordinal IDs never replace native names. Choices require 2..255 distinct typed values; native choice strings have no documented length cap. The 1,048,576-character limit applies to names, instructions, score labels and option descriptions. Score level labels retain their order, including repeated or empty labels.
+```csharp
+using ManagedCode.LlmTck.Decisions;
+
+options.AddKevLatest().AddDecisionScenario(new LlmTckDecisionScenario
+{
+    Id = "priority", ModelId = "kev-latest",
+    Answers = new()
+    {
+        ["urgent"] = new() { Kind = LlmTckDecisionKind.Predicate, Probability = 0.95 },
+        ["route"] = new() { Kind = LlmTckDecisionKind.Choice, Choice = "fast", Confidence = 0.9,
+            Probabilities = new() { ["fast"] = 0.95, ["regular"] = 0.05 } },
+        ["severity"] = new() { Kind = LlmTckDecisionKind.Score, Score = 1.75, Confidence = 0.625,
+            Probabilities = new() { ["0"] = 0.05, ["1"] = 0.15, ["2"] = 0.8 } },
+    },
+    Usage = new() { InputTokens = 100, OutputTokens = 10, TotalTokens = 110 },
+});
+```
+
+Kev score legends contain rendered strings, while Jev retains string/object/array criteria. Kev responses include `latency_ms`; `LlmTckDecisionScenario.Metadata` supplies deterministic latency and optional `Truncated`, `StateTokens`, `StateTokensUsed` fields. The route echoes or generates `x-typesafe-request-id`, including on errors. Invalid SystemOne request shapes return HTTP 422 with a native `detail` validation array; runtime/admission faults retain `detail` strings. Kev bearer failures include `WWW-Authenticate: Bearer`. This compatibility surface covers `/v1/systemone`; Kev demo `/permute` and `/separate` routes are outside its scope.
+
+### Cloudflare Workers AI: Clef and Clef Flash
+
+Send the same SystemOne question shape to the account/model route with body `model: "clef"` or `"clef-flash"` matching the route. Every question requires instructions. Responses wrap the native answer object in the Workers AI envelope:
+
+```json
+{
+  "result": {
+    "model": "clef",
+    "answers": { "urgent": { "type": "noul", "noul": 0.95 } },
+    "usage": { "input_tokens": 100, "output_tokens": 0 }
+  },
+  "success": true,
+  "errors": [],
+  "messages": []
+}
+```
+
+Configure `AddClef()` / `AddClefFlash()` and fixtures with the matching short model ID; native surrounding model whitespace is accepted. Runtime/auth failures remain non-success HTTP responses and use `success: false` with native numeric `errors[].code`. Explicit numeric scenario error codes are preserved, including 5004/400 (invalid input), 3007 or 3008/408 (timeout), 3036 or 3040/429 (capacity/rate limit). See [native errors](https://developers.cloudflare.com/workers-ai/platform/errors/). For native error cases, configure the explicit numeric `LlmTckScenarioError.Code`. Unmapped TCK-only errors such as fixture mismatch use the HTTP status as a synthetic code; that fallback is not a claimed Cloudflare native error code.
+
+Optional `images` is an array of inline data URLs or `{ "content_type": "image/png", "base64": "..." }` objects. PNG/JPEG/WebP are supported; remote URLs are rejected. Limits: four images, 4 MiB decoded file bytes and 16 megapixels per image, 8 MiB combined decoded bytes, and 13 MiB for the complete request body. Image dimensions and file type are read as metadata; compressed pixel streams are not decoded, so full raster validity is outside this deterministic mock validation. The TCK retains supplied images in the matched input and trace. See [input schema](https://developers.cloudflare.com/workers-ai/models/clef/schema-input.json), [output schema](https://developers.cloudflare.com/workers-ai/models/clef/schema-output.json).
+
+### OpenAI Decisions
+
+OpenAI uses `input` and an ordered question array. Predicate questions return one probability; boolean choices can carry separate true/false descriptions. Choice values are typed strings or booleans. Score `levels` use ordered string labels and optional descriptions; responses retain the zero-based level index and original label.
+
+```json
+{
+  "model": "gpt-6-luna",
+  "input": "Please help quickly",
+  "questions": [
+    { "type": "predicate", "name": "urgent", "instructions": "Is urgent?" },
+    { "type": "choice", "name": "route", "instructions": "Choose the queue", "choices": [
+      { "value": "fast", "description": "urgent" }, { "value": false, "description": "defer" }
+    ] },
+    { "type": "score", "name": "severity", "instructions": "Assess severity", "levels": [
+      { "label": "low", "description": "low" }, { "label": "medium", "description": "medium" }, { "label": "high", "description": "high" }
+    ] }
+  ]
+}
+```
+
+OpenAI fixture question IDs use `OpenAiDecisionFixtureIds.ForQuestionIndex(index)` for the zero-based position, regardless of optional native names. Choice fixture IDs use `ForChoiceValue(string/bool)` canonical JSON literals so string `"true"` differs from boolean `true`. Responses preserve names (including `null`), duplicate names and answer order.
+
+```csharp
+using ManagedCode.LlmTck.OpenAI;
+
+var fast = OpenAiDecisionFixtureIds.ForChoiceValue("fast");
+var defer = OpenAiDecisionFixtureIds.ForChoiceValue(false);
+options.AddOpenAiDecisionModel("gpt-6-luna").AddDecisionScenario(new LlmTckDecisionScenario
+{
+    Id = "priority-openai", ModelId = "gpt-6-luna",
+    Answers = new()
+    {
+        [OpenAiDecisionFixtureIds.ForQuestionIndex(0)] = new() { Probability = 0.95 },
+        [OpenAiDecisionFixtureIds.ForQuestionIndex(1)] = new() { Kind = LlmTckDecisionKind.Choice, Choice = fast,
+            Confidence = 0.9, Probabilities = new() { [fast] = 0.9, [defer] = 0.1 } },
+        [OpenAiDecisionFixtureIds.ForQuestionIndex(2)] = new() { Kind = LlmTckDecisionKind.Score, Score = 1.75,
+            Confidence = 0.8, Probabilities = new() { ["0"] = 0.05, ["1"] = 0.15, ["2"] = 0.8 } },
+    },
+    Usage = new() { InputTokens = 100, CachedInputTokens = 4, OutputTokens = 0, TotalTokens = 100 },
+});
+```
+
+`input` can also be an array of user messages: string content or `input_text` / `input_image` parts. Images use embedded base64 data URLs; external URLs, file IDs, audio, tools and non-user roles are rejected. Usage retains input/output/total tokens, cached/cache-write input details and reasoning output details, including zero defaults. Set `Refused = true` on an answer fixture to emit a native `{"type":"refusal","name":...}` answer in a successful HTTP response.
+
+### Limits, fixture matching and failures
+
+| Profile | Choice criteria | Score criteria | Other native constraints |
+| --- | --- | --- | --- |
+| TypeSafe Jev | Up to 255 | 1..10 | Optional instructions and binary criteria; state is string/object/array, including JSON descriptions and nullable optional instructions. |
+| Kev | 1..255 | 1..255 | Any JSON state/instructions/descriptions, empty opaque IDs; probabilities/native scores rounded to four decimals. |
+| Cloudflare Clef/Flash | 2..255 | 2..10 | 1..64 questions; ASCII letter/digit/underscore/dot/hyphen IDs, max 100 characters; required nonempty instructions; four-decimal probabilities/native scores. |
+| OpenAI | 2..255 distinct typed values | Ordered labels; no undocumented count cap | Optional names/descriptions, empty strings and repeated score labels preserved; max 128 embedded images; model/names/instructions/labels/descriptions max 1,048,576 characters; no invented choice-value length cap. |
+
+`AddDecisionModel(id, LlmTckDecisionProvider...)` supports explicit custom model IDs; the control client mirrors it with `UseDecisionModel` and `UseDecisionScenario`. Fixtures are repeatable snapshots. Optional `ExpectedInput` matches the provider input exactly; SystemOne JSON state and OpenAI message arrays use serialized JSON. Cloudflare requests with supplied images match serialized `{state,images}`; text-only requests retain the state-only input. Question IDs, kinds and requested value domains must fit the fixture. Unknown models, unmatched inputs, mismatched fixtures, authentication, configured rate limits/content filtering and scripted errors produce observable non-success HTTP responses. Normal native choice/score fixtures require confidence and a complete probability domain, near-unit probability mass. SystemOne and Cloudflare choices must have maximal probability; OpenAI preserves any selected value in the supplied domain. Cloudflare confidence must equal the maximum probability within native rounding tolerance. Configure profile-correct explicit values: the Kev/Jev example above has score confidence 0.625; Clef uses the maximum probability 0.8. Values are validated and preserved without normalization or recomputation. Four-decimal distributions may total 0.9999 and native scores are not recomputed from rounded probabilities. For deliberate malformed-response regressions, set `AllowMalformedResponse = true` on the scenario; this explicitly bypasses native response conformance while keeping question-kind/domain mapping safe.
+
+See [complete native contracts and fixture details](../../README.md#native-decision-api-fixtures) and [behavior-test evidence](../Testing/AcceptanceCriteriaTestInventory.md). Provider-specific limits and optional-field rules above are reconciled against the linked primary contracts.
