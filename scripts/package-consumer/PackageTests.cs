@@ -51,6 +51,26 @@ public sealed class PackageTests
             if (function.GetProperty("name").GetString() != "weather" || function.GetProperty("arguments").GetString() != "{\"city\":\"Paris\"}")
                 throw new InvalidOperationException("Installed package lost the schema-validated tool fixture.");
         }
+        // Verify the published Aspire service actually includes every native decision adapter.
+        using (var configuration = new StringContent("""
+            {"requiredBearerToken":"test-key","models":[{"id":"kev-latest","kind":"decision"},{"id":"clef","kind":"decision"},{"id":"gpt-6-luna","kind":"decision"}],
+             "decisionScenarios":[{"id":"kev","modelId":"kev-latest","answers":{"binary":{"kind":"predicate","probability":0.95}}},
+              {"id":"clef","modelId":"clef","answers":{"binary":{"kind":"predicate","probability":0.95}}},
+              {"id":"openai","modelId":"gpt-6-luna","answers":{"0":{"kind":"predicate","probability":0.95}}}]}
+            """, Encoding.UTF8, "application/json"))
+        using (var configured = await http.PostAsync("/admin-api/configure", configuration, cancellationToken))
+            configured.EnsureSuccessStatusCode();
+        foreach (var (path, model) in new[] { ("/systemone/v1/systemone", "kev-latest"), ("/cloudflare/client/v4/accounts/test/ai/run/@cf/cloudflare/clef", "clef"), ("/openai/v1/decisions", "gpt-6-luna") })
+        {
+            var body = model == "gpt-6-luna"
+                ? """{"model":"gpt-6-luna","input":"evidence","questions":[{"type":"predicate","name":"binary","instructions":"binary?"}]}"""
+                : """{"model":"MODEL","state":"evidence","questions":{"binary":{"type":"noul","instructions":"binary?"}}}""".Replace("MODEL", model, StringComparison.Ordinal);
+            using var request = new StringContent(body, Encoding.UTF8, "application/json");
+            using var response = await http.PostAsync(path, request, cancellationToken);
+            response.EnsureSuccessStatusCode();
+            if (!(await response.Content.ReadAsStringAsync(cancellationToken)).Contains("0.95", StringComparison.Ordinal))
+                throw new InvalidOperationException("Installed package lost the native decision fixture: " + model);
+        }
         using var playwright = await Playwright.CreateAsync();
         await using var browser = await playwright.Chromium.LaunchAsync(new() { Headless = true });
         var page = await browser.NewPageAsync();

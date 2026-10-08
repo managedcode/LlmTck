@@ -317,6 +317,48 @@ public sealed class LlmTckConfigurationBuilder
         return this;
     }
 
+    public LlmTckConfigurationBuilder AddDecisionModel(string id, ManagedCode.LlmTck.Decisions.LlmTckDecisionProvider provider)
+    {
+        if (!Enum.IsDefined(provider)) { throw new ArgumentOutOfRangeException(nameof(provider)); }
+        AddModel(id, LlmTckModelKind.Decision);
+        var index = _configuration.Models.FindIndex(model => model.Id == id);
+        _configuration.Models[index] = _configuration.Models[index] with { DecisionProvider = provider };
+        return this;
+    }
+
+    public LlmTckConfigurationBuilder AddJevLatest()
+    {
+        return AddDecisionModel(LlmTckKnownModelIds.JevLatest, ManagedCode.LlmTck.Decisions.LlmTckDecisionProvider.TypeSafe);
+    }
+
+    public LlmTckConfigurationBuilder AddKevLatest()
+    {
+        return AddDecisionModel(LlmTckKnownModelIds.KevLatest, ManagedCode.LlmTck.Decisions.LlmTckDecisionProvider.Kev);
+    }
+
+    public LlmTckConfigurationBuilder AddClef()
+    {
+        return AddDecisionModel(LlmTckKnownModelIds.Clef, ManagedCode.LlmTck.Decisions.LlmTckDecisionProvider.Cloudflare);
+    }
+
+    public LlmTckConfigurationBuilder AddClefFlash()
+    {
+        return AddDecisionModel(LlmTckKnownModelIds.ClefFlash, ManagedCode.LlmTck.Decisions.LlmTckDecisionProvider.Cloudflare);
+    }
+
+    public LlmTckConfigurationBuilder AddOpenAiDecisionModel(string id)
+    {
+        return AddDecisionModel(id, ManagedCode.LlmTck.Decisions.LlmTckDecisionProvider.OpenAI);
+    }
+
+    public LlmTckConfigurationBuilder AddDecisionScenario(ManagedCode.LlmTck.Decisions.LlmTckDecisionScenario scenario)
+    {
+        var snapshot = SnapshotDecisionScenario(scenario);
+        _configuration.DecisionScenarios.RemoveAll(existing => existing.Id == snapshot.Id);
+        _configuration.DecisionScenarios.Add(snapshot);
+        return this;
+    }
+
     public LlmTckConfigurationBuilder AddDataset(
         string id,
         Action<LlmTckScenarioDatasetBuilder> configure
@@ -467,6 +509,7 @@ public sealed class LlmTckConfigurationBuilder
         ArgumentOutOfRangeException.ThrowIfNegative(configuration.MaxStoredChatResponseBytes);
         ArgumentNullException.ThrowIfNull(configuration.Models);
         ArgumentNullException.ThrowIfNull(configuration.ChatScenarios);
+        ArgumentNullException.ThrowIfNull(configuration.DecisionScenarios);
         ArgumentNullException.ThrowIfNull(configuration.Datasets);
         ArgumentNullException.ThrowIfNull(configuration.DefaultEmbeddingVector);
         ArgumentNullException.ThrowIfNull(configuration.DefaultAudioBytes);
@@ -477,11 +520,44 @@ public sealed class LlmTckConfigurationBuilder
         {
             Models = [.. configuration.Models.Select(SnapshotModel)],
             ChatScenarios = [.. configuration.ChatScenarios.Select(SnapshotScenario)],
+            DecisionScenarios = [.. configuration.DecisionScenarios.Select(SnapshotDecisionScenario)],
             Datasets = [.. configuration.Datasets.Select(SnapshotDataset)],
             FaultSimulation = SnapshotFaultSimulation(configuration.FaultSimulation),
             DefaultEmbeddingVector = [.. configuration.DefaultEmbeddingVector],
             DefaultAudioBytes = [.. configuration.DefaultAudioBytes],
             DefaultVideoBytes = [.. configuration.DefaultVideoBytes],
+        };
+    }
+
+    private static ManagedCode.LlmTck.Decisions.LlmTckDecisionScenario SnapshotDecisionScenario(ManagedCode.LlmTck.Decisions.LlmTckDecisionScenario scenario)
+    {
+        ArgumentNullException.ThrowIfNull(scenario);
+        ArgumentException.ThrowIfNullOrWhiteSpace(scenario.Id);
+        ArgumentException.ThrowIfNullOrWhiteSpace(scenario.ModelId);
+        ArgumentNullException.ThrowIfNull(scenario.Answers);
+        foreach (var (name, answer) in scenario.Answers)
+        {
+            ArgumentException.ThrowIfNullOrWhiteSpace(name);
+            ArgumentNullException.ThrowIfNull(answer);
+            var values = answer.Probabilities.Values.Concat(new[] { answer.Probability, answer.Confidence }.OfType<double>());
+            if (answer.Score is { } score && (!double.IsFinite(score) || score < 0)) { throw new ArgumentException("Decision scores must be finite and nonnegative.", nameof(scenario)); }
+            if (!Enum.IsDefined(answer.Kind) || values.Any(value => !double.IsFinite(value) || value < 0 || value > 1))
+            {
+                throw new ArgumentException("Decision probabilities and scores must be finite values in [0, 1].", nameof(scenario));
+            }
+            var valid = answer.Kind switch
+            {
+                ManagedCode.LlmTck.Decisions.LlmTckDecisionKind.Predicate => answer.Probability.HasValue,
+                ManagedCode.LlmTck.Decisions.LlmTckDecisionKind.Choice => !string.IsNullOrWhiteSpace(answer.Choice),
+                ManagedCode.LlmTck.Decisions.LlmTckDecisionKind.Score => answer.Score.HasValue,
+                _ => false,
+            };
+            if (!valid && !answer.Refused) { throw new ArgumentException("The fixture must provide the value for its decision kind.", nameof(scenario)); }
+        }
+        return scenario with
+        {
+            Answers = scenario.Answers.ToDictionary(entry => entry.Key,
+            entry => entry.Value with { Probabilities = new(entry.Value.Probabilities) }, StringComparer.Ordinal)
         };
     }
 

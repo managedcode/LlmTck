@@ -2,6 +2,8 @@ namespace ManagedCode.LlmTck.Providers;
 
 public static class LlmTckCompatibilityTags
 {
+    public const string SystemOne = "systemone";
+    public const string Cloudflare = "cloudflare";
     public const string AmazonBedrock = "amazon-bedrock";
     public const string Anthropic = "anthropic";
     public const string AwsBedrock = "aws-bedrock";

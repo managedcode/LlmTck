@@ -247,6 +247,18 @@ public sealed class LlmTckClientConfigurationBuilder
         return this;
     }
 
+    public LlmTckClientConfigurationBuilder UseDecisionModel(string id, ManagedCode.LlmTck.Decisions.LlmTckDecisionProvider provider)
+    {
+        _builder.AddDecisionModel(id, provider);
+        return this;
+    }
+
+    public LlmTckClientConfigurationBuilder UseDecisionScenario(ManagedCode.LlmTck.Decisions.LlmTckDecisionScenario scenario)
+    {
+        _builder.AddDecisionScenario(scenario);
+        return this;
+    }
+
     public LlmTckClientConfigurationBuilder UseDataset(
         string id,
         Action<LlmTckScenarioDatasetBuilder> configure

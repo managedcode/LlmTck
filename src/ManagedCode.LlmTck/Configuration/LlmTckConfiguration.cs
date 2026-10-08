@@ -23,6 +23,8 @@ public sealed record LlmTckConfiguration
 
     public List<LlmTckModel> Models { get; init; } = [];
 
+    public List<ManagedCode.LlmTck.Decisions.LlmTckDecisionScenario> DecisionScenarios { get; init; } = [];
+
     public List<LlmTckScenario> ChatScenarios { get; init; } = [];
 
     public List<LlmTckScenarioDataset> Datasets { get; init; } = [];

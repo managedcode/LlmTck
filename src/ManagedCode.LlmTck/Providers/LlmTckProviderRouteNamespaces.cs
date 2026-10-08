@@ -2,6 +2,8 @@ namespace ManagedCode.LlmTck.Providers;
 
 public static class LlmTckProviderRouteNamespaces
 {
+    public const string SystemOne = "/systemone";
+    public const string Cloudflare = "/cloudflare";
     public const string Anthropic = "/anthropic";
     public const string AzureOpenAI = "/azure-openai";
     public const string Bedrock = "/bedrock";

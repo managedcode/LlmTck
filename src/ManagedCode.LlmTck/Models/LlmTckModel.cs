@@ -8,5 +8,7 @@ public sealed record LlmTckModel
 
     public string OwnedBy { get; init; } = "llm-tck";
 
+    public ManagedCode.LlmTck.Decisions.LlmTckDecisionProvider DecisionProvider { get; init; }
+
     public int ReasoningTokens { get; init; }
 }

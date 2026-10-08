@@ -7,4 +7,5 @@ public enum LlmTckModelKind
     Image,
     Audio,
     Video,
+    Decision,
 }

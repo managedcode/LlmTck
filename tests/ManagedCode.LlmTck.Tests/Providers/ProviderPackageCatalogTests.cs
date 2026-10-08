@@ -1,6 +1,7 @@
 using ManagedCode.LlmTck.Anthropic;
 using ManagedCode.LlmTck.AzureOpenAI;
 using ManagedCode.LlmTck.Bedrock;
+using ManagedCode.LlmTck.Cloudflare;
 using ManagedCode.LlmTck.Cohere;
 using ManagedCode.LlmTck.DeepSeek;
 using ManagedCode.LlmTck.Foundry;
@@ -12,6 +13,7 @@ using ManagedCode.LlmTck.OpenAI;
 using ManagedCode.LlmTck.OpenRouter;
 using ManagedCode.LlmTck.Perplexity;
 using ManagedCode.LlmTck.Providers;
+using ManagedCode.LlmTck.SystemOne;
 
 namespace ManagedCode.LlmTck.Tests.Providers;
 
@@ -22,6 +24,8 @@ public sealed class ProviderPackageCatalogTests
     {
         LlmTckProviderProfile[] profiles =
         [
+            SystemOneCompatibility.Profile,
+            CloudflareCompatibility.Profile,
             OpenAiCompatibility.Profile,
             AzureOpenAiCompatibility.Profile,
             MicrosoftFoundryCompatibility.Profile,
@@ -40,6 +44,8 @@ public sealed class ProviderPackageCatalogTests
         await Assert.That(profiles.Select(profile => profile.Id))
             .IsEquivalentTo(
                 [
+                    SystemOneCompatibility.ProviderId,
+                    CloudflareCompatibility.ProviderId,
                     OpenAiCompatibility.ProviderId,
                     AzureOpenAiCompatibility.ProviderId,
                     MicrosoftFoundryCompatibility.ProviderId,
@@ -70,7 +76,7 @@ public sealed class ProviderPackageCatalogTests
             )
             .IsTrue();
         await Assert.That(
-                profiles.All(profile => profile.Capabilities.Contains(LlmTckProviderCapability.Chat))
+                profiles.All(profile => profile.Capabilities.Contains(LlmTckProviderCapability.Chat) || profile.Capabilities.Contains(LlmTckProviderCapability.Decisions))
             )
             .IsTrue();
         await Assert.That(

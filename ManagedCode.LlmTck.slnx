@@ -4,6 +4,8 @@
     <Project Path="samples/ManagedCode.LlmTck.Service/ManagedCode.LlmTck.Service.csproj" />
   </Folder>
   <Folder Name="/src/">
+    <Project Path="src/ManagedCode.LlmTck.Cloudflare/ManagedCode.LlmTck.Cloudflare.csproj" />
+    <Project Path="src/ManagedCode.LlmTck.SystemOne/ManagedCode.LlmTck.SystemOne.csproj" />
     <Project Path="src/ManagedCode.LlmTck.Anthropic/ManagedCode.LlmTck.Anthropic.csproj" />
     <Project Path="src/ManagedCode.LlmTck.Aspire/ManagedCode.LlmTck.Aspire.csproj" />
     <Project Path="src/ManagedCode.LlmTck.AzureOpenAI/ManagedCode.LlmTck.AzureOpenAI.csproj" />

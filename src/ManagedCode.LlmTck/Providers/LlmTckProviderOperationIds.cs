@@ -2,8 +2,18 @@ namespace ManagedCode.LlmTck.Providers;
 
 public static class LlmTckProviderOperationIds
 {
+    public static class SystemOne
+    {
+        public const string DecisionsCreate = "systemone.decisions.create";
+    }
+    public static class Cloudflare
+    {
+        public const string ClefDecisionsCreate = "clef.decisions.create";
+        public const string ClefFlashDecisionsCreate = "clef-flash.decisions.create";
+    }
     public static class OpenAI
     {
+        public const string DecisionsCreate = "decisions.create";
         public const string ModelsList = "models.list";
         public const string ChatCompletionsCreate = "chat.completions.create";
         public const string ResponsesCreate = "responses.create";

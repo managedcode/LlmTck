@@ -15,6 +15,7 @@ public static class OpenAiCompatibility
             DefaultEndpointPath = "/openai/v1",
             Capabilities =
             [
+                LlmTckProviderCapability.Decisions,
                 LlmTckProviderCapability.Models,
                 LlmTckProviderCapability.Chat,
                 LlmTckProviderCapability.StreamingChat,
@@ -35,6 +36,9 @@ public static class OpenAiCompatibility
                 DocumentationVersion = "v1",
                 Operations =
                 [
+                    new() { Id = LlmTckProviderOperationIds.OpenAI.DecisionsCreate, Method = "POST", Path = "/openai/v1/decisions",
+                        DocumentationUrl = "https://developers.openai.com/api/reference/resources/decisions/methods/create/",
+                        ImplementedByHosting = true, Capabilities = [LlmTckProviderCapability.Decisions] },
                     new()
                     {
                         Id = LlmTckProviderOperationIds.OpenAI.ModelsList,

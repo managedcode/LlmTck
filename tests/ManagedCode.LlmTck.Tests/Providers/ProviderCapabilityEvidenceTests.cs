@@ -11,6 +11,8 @@ namespace ManagedCode.LlmTck.Tests.Providers;
 public sealed class ProviderCapabilityEvidenceTests
 {
     [Test]
+    [Arguments(LlmTckCompatibilityTags.SystemOne)]
+    [Arguments(LlmTckCompatibilityTags.Cloudflare)]
     [Arguments(LlmTckCompatibilityTags.OpenAI)]
     [Arguments(LlmTckCompatibilityTags.AzureOpenAI)]
     [Arguments(LlmTckCompatibilityTags.MicrosoftFoundry)]

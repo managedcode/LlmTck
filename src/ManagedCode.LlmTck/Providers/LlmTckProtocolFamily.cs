@@ -16,4 +16,6 @@ public enum LlmTckProtocolFamily
     DeepSeek,
     Perplexity,
     OpenAICompatible,
+    SystemOne,
+    Cloudflare,
 }

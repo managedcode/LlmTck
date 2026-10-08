@@ -107,6 +107,8 @@ public static partial class LlmTckEndpointRouteBuilderExtensions
     ];
     private static readonly string[] _providerRouteNamespaces =
     [
+        ProviderRoutes.SystemOne,
+        ProviderRoutes.Cloudflare,
         ProviderRoutes.OpenAI,
         ProviderRoutes.AzureOpenAI,
         ProviderRoutes.MicrosoftFoundry,
@@ -775,6 +777,7 @@ public static partial class LlmTckEndpointRouteBuilderExtensions
                 LlmTckProviderOperationIds.AzureOpenAI.VideoGenerationsContentHead
             );
 
+        MapDecisionEndpoints(providerEndpoints);
         MapProviderFallbacks(providerEndpoints);
 
         return endpoints;
@@ -2943,6 +2946,8 @@ public static partial class LlmTckEndpointRouteBuilderExtensions
     private static JsonSerializerOptions CreateJsonOptions()
     {
         var options = new JsonSerializerOptions(JsonSerializerDefaults.Web);
+        options.Converters.Add(new JsonStringEnumConverter<ManagedCode.LlmTck.Decisions.LlmTckDecisionKind>(JsonNamingPolicy.CamelCase));
+        options.Converters.Add(new JsonStringEnumConverter<ManagedCode.LlmTck.Decisions.LlmTckDecisionProvider>(JsonNamingPolicy.CamelCase));
         options.Converters.Add(new JsonStringEnumConverter<LlmTckModelKind>(JsonNamingPolicy.CamelCase));
         options.Converters.Add(new JsonStringEnumConverter<LlmTckMatchMode>(JsonNamingPolicy.CamelCase));
         return options;

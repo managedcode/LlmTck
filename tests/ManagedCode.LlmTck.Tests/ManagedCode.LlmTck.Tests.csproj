@@ -27,6 +27,8 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\..\src\ManagedCode.LlmTck.Cloudflare\ManagedCode.LlmTck.Cloudflare.csproj" />
+    <ProjectReference Include="..\..\src\ManagedCode.LlmTck.SystemOne\ManagedCode.LlmTck.SystemOne.csproj" />
     <ProjectReference Include="..\..\src\ManagedCode.LlmTck\ManagedCode.LlmTck.csproj" />
     <ProjectReference Include="..\..\src\ManagedCode.LlmTck.OpenAI\ManagedCode.LlmTck.OpenAI.csproj" />
     <ProjectReference Include="..\..\src\ManagedCode.LlmTck.AzureOpenAI\ManagedCode.LlmTck.AzureOpenAI.csproj" />

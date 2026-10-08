@@ -13,4 +13,5 @@ public enum LlmTckProviderCapability
     StreamingAudio,
     Tools,
     StructuredOutput,
+    Decisions,
 }

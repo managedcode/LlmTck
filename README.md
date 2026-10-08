@@ -47,6 +47,8 @@ stream chunks, and the deterministic runtime result together for each request.
 | [`ManagedCode.LlmTck.OpenRouter`](https://www.nuget.org/packages/ManagedCode.LlmTck.OpenRouter) | [![NuGet](https://img.shields.io/nuget/v/ManagedCode.LlmTck.OpenRouter.svg)](https://www.nuget.org/packages/ManagedCode.LlmTck.OpenRouter) | OpenRouter compatibility profile and future wire contracts. |
 | [`ManagedCode.LlmTck.DeepSeek`](https://www.nuget.org/packages/ManagedCode.LlmTck.DeepSeek) | [![NuGet](https://img.shields.io/nuget/v/ManagedCode.LlmTck.DeepSeek.svg)](https://www.nuget.org/packages/ManagedCode.LlmTck.DeepSeek) | DeepSeek compatibility profile and future wire contracts. |
 | [`ManagedCode.LlmTck.Perplexity`](https://www.nuget.org/packages/ManagedCode.LlmTck.Perplexity) | [![NuGet](https://img.shields.io/nuget/v/ManagedCode.LlmTck.Perplexity.svg)](https://www.nuget.org/packages/ManagedCode.LlmTck.Perplexity) | Perplexity compatibility profile and future wire contracts. |
+| [`ManagedCode.LlmTck.SystemOne`](https://www.nuget.org/packages/ManagedCode.LlmTck.SystemOne) | [![NuGet](https://img.shields.io/nuget/v/ManagedCode.LlmTck.SystemOne.svg)](https://www.nuget.org/packages/ManagedCode.LlmTck.SystemOne) | Native Jev/Kev SystemOne decision contracts. |
+| [`ManagedCode.LlmTck.Cloudflare`](https://www.nuget.org/packages/ManagedCode.LlmTck.Cloudflare) | [![NuGet](https://img.shields.io/nuget/v/ManagedCode.LlmTck.Cloudflare.svg)](https://www.nuget.org/packages/ManagedCode.LlmTck.Cloudflare) | Cloudflare Workers AI Clef/flash decision envelopes and validation. |
 | [`ManagedCode.LlmTck.Hosting`](https://www.nuget.org/packages/ManagedCode.LlmTck.Hosting) | [![NuGet](https://img.shields.io/nuget/v/ManagedCode.LlmTck.Hosting.svg)](https://www.nuget.org/packages/ManagedCode.LlmTck.Hosting) | ASP.NET Core endpoint mapping. |
 | [`ManagedCode.LlmTck.Client`](https://www.nuget.org/packages/ManagedCode.LlmTck.Client) | [![NuGet](https://img.shields.io/nuget/v/ManagedCode.LlmTck.Client.svg)](https://www.nuget.org/packages/ManagedCode.LlmTck.Client) | Control client plus `IChatClient`, `IEmbeddingGenerator<string, Embedding<float>>`, and `IImageGenerator` implementations. |
 | [`ManagedCode.LlmTck.Aspire`](https://www.nuget.org/packages/ManagedCode.LlmTck.Aspire) | [![NuGet](https://img.shields.io/nuget/v/ManagedCode.LlmTck.Aspire.svg)](https://www.nuget.org/packages/ManagedCode.LlmTck.Aspire) | Aspire AppHost extension methods. |
@@ -788,7 +790,7 @@ for the current coverage rules and behavior-test inventory.
 
 | Provider | Namespace | Representative hosted operations |
 | --- | --- | --- |
-| OpenAI | `/openai` | `/openai/v1/models`, `/openai/v1/chat/completions`, `/openai/v1/responses`, `/openai/v1/embeddings`, `/openai/v1/images/*`, `/openai/v1/audio/*`, `/openai/v1/videos*` |
+| OpenAI | `/openai` | `/openai/v1/models`, `/openai/v1/decisions`, `/openai/v1/chat/completions`, `/openai/v1/responses`, `/openai/v1/embeddings`, `/openai/v1/images/*`, `/openai/v1/audio/*`, `/openai/v1/videos*` |
 | Azure OpenAI | `/azure-openai` | `/azure-openai/openai/v1/{chat/completions,responses,embeddings}`, deployment chat/embeddings/images/audio, and `/azure-openai/openai/v1/video/generations/*` |
 | Microsoft Foundry | `/microsoft-foundry` | `/microsoft-foundry/openai/v1/{chat/completions,responses,embeddings}`, `/microsoft-foundry/chat/completions`, `/microsoft-foundry/embeddings`, and `/microsoft-foundry/models/*` aliases |
 | Anthropic | `/anthropic` | `/anthropic/v1/messages` |
@@ -801,6 +803,8 @@ for the current coverage rules and behavior-test inventory.
 | OpenRouter | `/openrouter` | `/openrouter/api/v1/models`, chat completions, Responses |
 | DeepSeek | `/deepseek` | `/deepseek/models`, `/deepseek/v1/chat/completions` |
 | Perplexity | `/perplexity` | `/perplexity/v1/sonar` |
+| SystemOne (Jev/Kev) | `/systemone` | `/systemone/v1/systemone` |
+| Cloudflare (Clef/flash) | `/cloudflare` | `/cloudflare/client/v4/accounts/{accountId}/ai/run/@cf/cloudflare/clef`, `clef-flash` |
 
 The Blazor server-side rendered browser control panel lives at `/`. JSON control endpoints live under
 `/admin-api`: `GET /admin-api/models`, `GET /admin-api/assertions`,
@@ -881,3 +885,19 @@ Prompt-cache storage is bounded to 4096 prefixes by default. Use `WithPromptCach
 Legacy Azure deployment APIs accept the dated `api-version` selected automatically by the Azure SDK. Use the default `AzureOpenAIClientOptions` constructor, or omit options entirely; do not pin a version for the emulator. These routes require exactly one supported deployment API version: the documented `2024-10-21` GA or `2025-04-01-preview` contract. Missing, malformed, duplicate, and unknown versions are rejected, including valid-looking future dates. Azure/Foundry `/openai/v1` endpoints require no dated query parameter.
 
 After restore/build, run `bash scripts/coverage.sh` for the production 90% coverage gate. After packing, run `python3 scripts/verify-package.py` for an isolated NuGet consumer, test-owned Aspire host and Chromium dashboard test; this requires Python 3 and PowerShell (`pwsh`). CI installs Chromium dependencies and saves coverage/browser evidence. `python3 scripts/test-release.py` verifies partial-release recovery locally without external publication. Release delivery is marked complete only after NuGet push and GitHub artifact attachment succeed.
+
+## Decision model fixtures
+
+Jev, Kev, Clef/flash and OpenAI native Decisions routes use provider-neutral explicit fixtures. Native score values and opaque IDs are preserved; OpenAI refusal answers and usage details can be exercised without real providers.
+
+```csharp
+using ManagedCode.LlmTck.Decisions;
+
+options.AddKevLatest().AddDecisionScenario(new LlmTckDecisionScenario
+{
+    Id = "priority", ModelId = "kev-latest",
+    Answers = new() { ["urgent"] = new() { Kind = LlmTckDecisionKind.Predicate, Probability = 0.95 } }
+});
+```
+
+Send `{ "model": "kev-latest", "state": { "message": "Help" }, "questions": { "urgent": { "type": "noul", "instructions": "Is help urgent?" } } }` to `/systemone/v1/systemone`. The control client supports `UseDecisionModel` and `UseDecisionScenario`; native limits/rounding come from explicit model `DecisionProvider` metadata and Cloudflare routes. See [full API shapes, provider limits and fixture setup](docs/Features/DecisionModels.md).

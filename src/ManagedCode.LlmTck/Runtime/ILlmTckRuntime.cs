@@ -64,5 +64,10 @@ public interface ILlmTckRuntime
         CancellationToken cancellationToken = default
     );
 
+    Task<ManagedCode.LlmTck.Decisions.LlmTckDecisionResult> DecideAsync(
+        ManagedCode.LlmTck.Decisions.LlmTckDecisionRequest request,
+        string? bearerToken = null,
+        CancellationToken cancellationToken = default);
+
     LlmTckAssertionSummary GetAssertionSummary();
 }

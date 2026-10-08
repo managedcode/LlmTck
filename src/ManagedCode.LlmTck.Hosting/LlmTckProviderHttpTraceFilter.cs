@@ -19,6 +19,8 @@ public sealed class LlmTckProviderHttpTraceFilter(
 {
     private static readonly ProviderRoute[] _providerRoutes =
     [
+        new(LlmTckProviderRouteNamespaces.SystemOne, LlmTckCompatibilityTags.SystemOne),
+        new(LlmTckProviderRouteNamespaces.Cloudflare, LlmTckCompatibilityTags.Cloudflare),
         new(LlmTckProviderRouteNamespaces.Anthropic, LlmTckCompatibilityTags.Anthropic),
         new(LlmTckProviderRouteNamespaces.AzureOpenAI, LlmTckCompatibilityTags.AzureOpenAI),
         new(LlmTckProviderRouteNamespaces.Bedrock, LlmTckCompatibilityTags.Bedrock),

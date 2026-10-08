@@ -12,6 +12,8 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\ManagedCode.LlmTck.Cloudflare\ManagedCode.LlmTck.Cloudflare.csproj" />
+    <ProjectReference Include="..\ManagedCode.LlmTck.SystemOne\ManagedCode.LlmTck.SystemOne.csproj" />
     <ProjectReference Include="..\ManagedCode.LlmTck\ManagedCode.LlmTck.csproj" />
     <ProjectReference Include="..\ManagedCode.LlmTck.Anthropic\ManagedCode.LlmTck.Anthropic.csproj" />
     <ProjectReference Include="..\ManagedCode.LlmTck.Bedrock\ManagedCode.LlmTck.Bedrock.csproj" />

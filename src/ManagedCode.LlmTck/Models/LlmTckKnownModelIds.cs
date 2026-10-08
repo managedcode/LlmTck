@@ -2,6 +2,10 @@ namespace ManagedCode.LlmTck.Models;
 
 public static class LlmTckKnownModelIds
 {
+    public const string JevLatest = "jev-latest";
+    public const string KevLatest = "kev-latest";
+    public const string Clef = "clef";
+    public const string ClefFlash = "clef-flash";
     public const string Gpt55 = "gpt-5.5";
 
     public const string Gpt55Pro = "gpt-5.5-pro";

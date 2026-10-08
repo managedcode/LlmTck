@@ -140,6 +140,8 @@ Rule format:
 ## Ownership Map
 
 - `src/ManagedCode.LlmTck`: provider-neutral runtime, scenarios, assertions, and model catalog.
+- `src/ManagedCode.LlmTck.SystemOne`: Jev/Kev native SystemOne decision contracts and compatibility profile.
+- `src/ManagedCode.LlmTck.Cloudflare`: Workers AI Clef/flash native decision envelopes, validation and compatibility profile.
 - `src/ManagedCode.LlmTck.OpenAI`: OpenAI-compatible request/response shapes and mapping.
 - `src/ManagedCode.LlmTck.AzureOpenAI`: Azure OpenAI compatibility profile and future Azure OpenAI wire contracts.
 - `src/ManagedCode.LlmTck.Foundry`: Microsoft Foundry compatibility profile and future Foundry wire contracts.

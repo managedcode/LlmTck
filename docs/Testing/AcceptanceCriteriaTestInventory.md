@@ -103,3 +103,8 @@
 | Streaming transcription retains configured usage in its final event. | `V1AudioTranscriptionCompatibilityTests.Streaming_PreservesFinalUsageAsync` |
 | Azure/Foundry v1 audio enforces credentials, accepts default/v1/preview, denies unknown/duplicate versions and missing files, and returns actual fixture duration in verbose JSON. | `V1AudioTranscriptionCompatibilityTests.V1Audio_EnforcesAuthAndVersionAndSupportsVerboseJsonAsync` |
 | Malformed duration or incomplete/mixed/overflow token configuration fails before use. | `TranscriptionUsageConfigurationTests` |
+
+| Native Jev/Kev, Clef/flash and OpenAI Decisions preserve fixture probabilities, native score, usage and tracing | `DecisionEndpointTests.NativeDecisionEndpoints_PreserveAnswersAndUsageAsync` |
+| Decision routes enforce authentication, simulated faults, required fields and fixture mismatch | `DecisionEndpointTests.NativeDecisionEndpoints_EnforceAuthAndFaultsAsync`, `DecisionEndpointTests.NativeDecisionEndpoints_RejectMissingRequiredFieldsAsync`, `DecisionEndpointTests.DecisionControlClient_ConfiguresFixturesAndMismatchIsObservableAsync` |
+
+| Native OpenAI positional names, typed choices, score labels and message/image input constraints | `DecisionQuestionTests`, `DecisionInputTests` |
