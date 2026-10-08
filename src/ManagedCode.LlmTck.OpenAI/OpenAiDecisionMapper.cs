@@ -40,7 +40,7 @@ public static class OpenAiDecisionMapper
         var entries = options.EnumerateArray().ToArray();
         if (choice && (entries.Length < _minChoices || entries.Length > MaxChoices)) { return false; }
         return entries.All(entry => entry.ValueKind == JsonValueKind.Object && entry.TryGetProperty(id, out var value)
-            && ((choice && value.ValueKind is JsonValueKind.True or JsonValueKind.False) || ValidString(value))
+            && (choice ? value.ValueKind is JsonValueKind.True or JsonValueKind.False or JsonValueKind.String : ValidString(value))
             && ValidOptionalString(entry, "description"))
             && (!choice || entries.Select(entry => ChoiceId(entry.GetProperty(id))).Distinct(StringComparer.Ordinal).Count() == entries.Length);
     }

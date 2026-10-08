@@ -74,4 +74,32 @@ public sealed class DecisionQuestionTests
         response.EnsureSuccessStatusCode();
         await Assert.That((await response.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("answers").GetArrayLength()).IsEqualTo(0);
     }
+
+    [Test]
+    public async Task OpenAiQuestions_PreserveChoiceValuesWithoutUndocumentedTextLimitAsync()
+    {
+        var value = new string('a', OpenAiDecisionMapper.MaxQuestionTextLength + 1);
+        var choiceId = OpenAiDecisionFixtureIds.ForChoiceValue(value);
+        var otherId = OpenAiDecisionFixtureIds.ForChoiceValue(false);
+        var scenario = DecisionEndpointTests.Scenario("gpt-6-luna"); scenario.Answers.Clear();
+        scenario.Answers[OpenAiDecisionFixtureIds.ForQuestionIndex(0)] = new()
+        {
+            Kind = LlmTckDecisionKind.Choice,
+            Choice = choiceId,
+            Confidence = 0.9,
+            Probabilities = new() { [choiceId] = 0.9, [otherId] = 0.1 },
+        };
+        var body = DecisionEndpointTests.Body("gpt-6-luna");
+        body["questions"] = new JsonArray(new JsonObject
+        {
+            ["type"] = OpenAiDecisionTypes.Choice,
+            ["instructions"] = "",
+            ["choices"] = new JsonArray(new JsonObject { ["value"] = value }, new JsonObject { ["value"] = false }),
+        });
+        using var host = await LlmTckTestHost.StartAsync(builder => builder.AddOpenAiDecisionModel("gpt-6-luna").AddDecisionScenario(scenario));
+        using var client = host.GetTestClient(); using var response = await client.PostAsJsonAsync(DecisionEndpointTests.PathFor("gpt-6-luna"), body);
+        response.EnsureSuccessStatusCode(); var answer = (await response.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("answers")[0];
+        await Assert.That(answer.GetProperty("choice").ValueEquals(value)).IsTrue();
+        await Assert.That(answer.GetProperty("probabilities")[0].GetProperty("value").ValueEquals(value)).IsTrue();
+    }
 }

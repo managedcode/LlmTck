@@ -108,3 +108,5 @@
 | Decision routes enforce authentication, simulated faults, required fields and fixture mismatch | `DecisionEndpointTests.NativeDecisionEndpoints_EnforceAuthAndFaultsAsync`, `DecisionEndpointTests.NativeDecisionEndpoints_RejectMissingRequiredFieldsAsync`, `DecisionEndpointTests.DecisionControlClient_ConfiguresFixturesAndMismatchIsObservableAsync` |
 
 | Native OpenAI positional names, typed choices, score labels and message/image input constraints | `DecisionQuestionTests`, `DecisionInputTests` |
+
+| Native OpenAI choice values preserve strings beyond question text limits and usage defaults stay present | `DecisionQuestionTests.OpenAiQuestions_PreserveChoiceValuesWithoutUndocumentedTextLimitAsync`, `DecisionEndpointTests.NativeDecisionEndpoints_PreserveAnswersAndUsageAsync` |

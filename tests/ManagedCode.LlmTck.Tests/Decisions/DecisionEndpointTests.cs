@@ -49,6 +49,8 @@ public sealed class DecisionEndpointTests
         {
             await Assert.That(score.GetProperty("probabilities")[2].GetProperty("label").GetString()).IsEqualTo("high-id");
             await Assert.That(payload.GetProperty("usage").GetProperty("input_tokens_details").GetProperty("cached_tokens").GetInt32()).IsEqualTo(4);
+            await Assert.That(payload.GetProperty("usage").GetProperty("input_tokens_details").GetProperty("cache_write_tokens").GetInt32()).IsEqualTo(0);
+            await Assert.That(payload.GetProperty("usage").GetProperty("output_tokens_details").GetProperty("reasoning_tokens").GetInt32()).IsEqualTo(0);
         }
         else { await Assert.That(score.GetProperty("legend").GetProperty("2").GetString()).IsEqualTo("high"); }
         var summary = host.Services.GetRequiredService<ILlmTckRuntime>().GetAssertionSummary();
