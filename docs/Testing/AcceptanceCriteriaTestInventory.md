@@ -114,3 +114,4 @@
 | Native SystemOne profile-specific JSON/defaults, empty IDs, rendered Kev legends, request IDs, latency/truncation, validation422 and predicate field filtering | `SystemOneNativeContractTests` |
 | Native required confidence, complete probability domains, rounding tolerance, explicit malformed-response scenarios | `DecisionFixtureContractTests` |
 | Cloudflare image formats/body/dimension limits, native numeric errors, whitespace selectors and null criteria | `CloudflareDecisionContractTests`, `CloudflareDecisionImageTests`, `CloudflareDecisionErrorTests` |
+| Clef and Clef Flash binary criterion values accept native JSON scalars without loosening TypeSafe state/instruction/criterion validation | `CloudflareDecisionContractTests.PredicateCriteria_AcceptsNativeJsonScalarsWithoutWeakeningTypeSafeAsync` |

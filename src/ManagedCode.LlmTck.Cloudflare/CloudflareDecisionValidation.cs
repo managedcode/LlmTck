@@ -1,4 +1,5 @@
 using System.Text.Json;
+using ManagedCode.LlmTck.Decisions;
 using ManagedCode.LlmTck.Providers;
 using ManagedCode.LlmTck.SystemOne;
 
@@ -17,7 +18,7 @@ public static class CloudflareDecisionValidation
 
     public static CloudflareDecisionValidationResult ValidateNative(JsonElement body)
     {
-        var shape = SystemOneDecisionMapper.Validate(body, SystemOneDecisionMapper.MaxChoices, SystemOneDecisionMapper.JevMaxScoreLevels);
+        var shape = SystemOneDecisionMapper.Validate(body, LlmTckDecisionProvider.Cloudflare);
         if (!shape.IsValid) { return new(shape.Error); }
         var model = body.GetProperty("model").GetString()!.Trim();
         if (model is not ("clef" or "clef-flash")) { return new("Clef requires its short native model selector."); }

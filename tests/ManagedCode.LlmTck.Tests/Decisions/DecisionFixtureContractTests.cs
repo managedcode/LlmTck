@@ -2,7 +2,10 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using ManagedCode.LlmTck.Cloudflare;
+using ManagedCode.LlmTck.Configuration;
 using ManagedCode.LlmTck.Decisions;
+using ManagedCode.LlmTck.Runtime;
 using ManagedCode.LlmTck.Tests.TestSupport;
 
 namespace ManagedCode.LlmTck.Tests.Decisions;
@@ -98,6 +101,18 @@ public sealed class DecisionFixtureContractTests
         using var host = await LlmTckTestHost.StartAsync(builder => builder.AddKevLatest().AddDecisionScenario(scenario));
         using var client = host.GetTestClient(); using var response = await client.PostAsJsonAsync(DecisionEndpointTests.PathFor("kev-latest"), body);
         await Assert.That(response.StatusCode).IsEqualTo(HttpStatusCode.Conflict);
+    }
+
+    [Test]
+    public async Task CloudflareMapper_AppliesNativeConfidencePolicyInDirectRuntimeAsync()
+    {
+        var scenario = DecisionEndpointTests.Scenario("clef");
+        scenario.Answers["choice"] = scenario.Answers["choice"] with { Confidence = 0.9 };
+        var runtime = new LlmTckRuntime(new LlmTckConfigurationBuilder().AddClef().AddDecisionScenario(scenario).Build());
+        var body = DecisionEndpointTests.Body("clef").Deserialize<CloudflareDecisionRequest>()!;
+        var result = await runtime.DecideAsync(CloudflareDecisionMapper.ToRequest(body));
+        await Assert.That(result.StatusCode).IsEqualTo(409);
+        await Assert.That(result.IsSuccess).IsFalse();
     }
 
     private static LlmTckDecisionProvider Provider(string model)

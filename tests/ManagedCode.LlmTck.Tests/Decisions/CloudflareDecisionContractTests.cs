@@ -14,6 +14,27 @@ namespace ManagedCode.LlmTck.Tests.Decisions;
 public sealed class CloudflareDecisionContractTests
 {
     [Test]
+    [Arguments("clef", "true")]
+    [Arguments("clef", "42.5")]
+    [Arguments("clef", "null")]
+    [Arguments("clef-flash", "true")]
+    [Arguments("clef-flash", "42.5")]
+    [Arguments("clef-flash", "null")]
+    public async Task PredicateCriteria_AcceptsNativeJsonScalarsWithoutWeakeningTypeSafeAsync(string model, string nativeValue)
+    {
+        var body = CloudflareDecisionTestFixtures.Body(model);
+        body["questions"]!["binary"]!["criteria"] = new JsonObject { ["true"] = JsonNode.Parse(nativeValue), ["false"] = false };
+        var native = JsonSerializer.SerializeToElement(body);
+        await Assert.That(ManagedCode.LlmTck.SystemOne.SystemOneDecisionMapper.Validate(native, LlmTckDecisionProvider.TypeSafe).IsValid).IsFalse();
+        using var host = await LlmTckTestHost.StartAsync(builder => builder.AddClef().AddClefFlash()
+            .AddDecisionScenario(CloudflareDecisionTestFixtures.Scenario(model)));
+        using var client = host.GetTestClient(); using var response = await client.PostAsJsonAsync(DecisionEndpointTests.PathFor(model), body);
+        await Assert.That(response.StatusCode).IsEqualTo(HttpStatusCode.OK);
+        var result = await response.Content.ReadFromJsonAsync<CloudflareDecisionResponse>();
+        await Assert.That(result!.Result!.Answers["binary"].Probability).IsEqualTo(0.75);
+    }
+
+    [Test]
     [Arguments("clef", "image/png", false)]
     [Arguments("clef", "image/jpeg", true)]
     [Arguments("clef", "image/webp", false)]

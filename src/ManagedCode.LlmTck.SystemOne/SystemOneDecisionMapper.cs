@@ -20,16 +20,16 @@ public static class SystemOneDecisionMapper
 
     public static LlmTckRequestValidationResult Validate(JsonElement body, int maxChoices, int maxScoreLevels)
     {
-        return ValidateCore(body, maxChoices, maxScoreLevels, false);
+        return ValidateCore(body, maxChoices, maxScoreLevels, false, false);
     }
 
     public static LlmTckRequestValidationResult Validate(JsonElement body, LlmTckDecisionProvider provider)
     {
-        return ValidateCore(body, MaxChoices, provider == LlmTckDecisionProvider.TypeSafe ? JevMaxScoreLevels : KevMaxScoreLevels,
-                provider == LlmTckDecisionProvider.Kev);
+        return ValidateCore(body, MaxChoices, provider is LlmTckDecisionProvider.TypeSafe or LlmTckDecisionProvider.Cloudflare ? JevMaxScoreLevels : KevMaxScoreLevels,
+                provider == LlmTckDecisionProvider.Kev, provider == LlmTckDecisionProvider.Cloudflare);
     }
 
-    private static LlmTckRequestValidationResult ValidateCore(JsonElement body, int maxChoices, int maxScoreLevels, bool kev)
+    private static LlmTckRequestValidationResult ValidateCore(JsonElement body, int maxChoices, int maxScoreLevels, bool kev, bool allowScalarPredicateCriteria)
     {
         if (body.ValueKind != JsonValueKind.Object || (!body.TryGetProperty("model", out var model) ? !kev : model.ValueKind != JsonValueKind.String)
             || !body.TryGetProperty("state", out var state) || !IsContent(state, kev) || (!kev && state.ValueKind == JsonValueKind.Null)
@@ -38,11 +38,11 @@ public static class SystemOneDecisionMapper
         var entries = questions.EnumerateObject().ToArray();
         if (entries.Length == 0 || entries.Select(entry => entry.Name).Distinct(StringComparer.Ordinal).Count() != entries.Length)
         { return new("Questions must have unique names and at least one entry."); }
-        return entries.All(entry => ValidQuestion(entry.Value, maxChoices, maxScoreLevels, kev))
+        return entries.All(entry => ValidQuestion(entry.Value, maxChoices, maxScoreLevels, kev, allowScalarPredicateCriteria))
             ? new() : new("Every question requires a supported type and matching native criteria.");
     }
 
-    private static bool ValidQuestion(JsonElement question, int maxChoices, int maxScoreLevels, bool kev)
+    private static bool ValidQuestion(JsonElement question, int maxChoices, int maxScoreLevels, bool kev, bool allowScalarPredicateCriteria)
     {
         if (question.ValueKind != JsonValueKind.Object || !question.TryGetProperty("type", out var type)
             || type.ValueKind != JsonValueKind.String) { return false; }
@@ -51,7 +51,7 @@ public static class SystemOneDecisionMapper
         if (type.GetString() == SystemOneDecisionTypes.Predicate)
         {
             return !hasCriteria || criteria.ValueKind == JsonValueKind.Null || (criteria.ValueKind == JsonValueKind.Object
-                && criteria.EnumerateObject().Where(entry => entry.Name is "true" or "false").All(entry => IsContent(entry.Value, kev)));
+                && criteria.EnumerateObject().Where(entry => entry.Name is "true" or "false").All(entry => IsContent(entry.Value, kev || allowScalarPredicateCriteria)));
         }
         if (!hasCriteria) { return false; }
         if (type.GetString() == SystemOneDecisionTypes.Score)

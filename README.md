@@ -940,7 +940,7 @@ Kev score legends contain rendered strings, while Jev retains string/object/arra
 
 ### Cloudflare Workers AI: Clef and Clef Flash
 
-Send the same SystemOne question shape to the account/model route with body `model: "clef"` or `"clef-flash"` matching the route. Every question requires instructions. Responses wrap the native answer object in the Workers AI envelope:
+Send the same SystemOne question shape to the account/model route with body `model: "clef"` or `"clef-flash"` matching the route. Every question requires instructions. Binary `criteria.true` and `criteria.false` accept arbitrary JSON, including numbers, booleans and null; `criteria` itself must remain an object. State and instructions retain their documented string/object/array types, choice descriptions accept string/object/array/null, and score descriptions accept string/object/array. Responses wrap the native answer object in the Workers AI envelope:
 
 ```json
 {
@@ -982,6 +982,7 @@ OpenAI uses `input` and an ordered question array. Predicate questions return on
 OpenAI fixture question IDs use `OpenAiDecisionFixtureIds.ForQuestionIndex(index)` for the zero-based position, regardless of optional native names. Choice fixture IDs use `ForChoiceValue(string/bool)` canonical JSON literals so string `"true"` differs from boolean `true`. Responses preserve names (including `null`), duplicate names and answer order.
 
 ```csharp
+using ManagedCode.LlmTck.Decisions;
 using ManagedCode.LlmTck.OpenAI;
 
 var fast = OpenAiDecisionFixtureIds.ForChoiceValue("fast");
