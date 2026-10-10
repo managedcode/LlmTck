@@ -1,5 +1,9 @@
-<Project Sdk="Aspire.AppHost.Sdk/13.5.3">
+<Project Sdk="Aspire.AppHost.Sdk/13.6.1">
   <PropertyGroup>
+    <!-- Keep AppHost discovery metadata, but let dotnet test run the test executable directly. -->
+    <ASPIRE_SUPPRESS_CLI_RUN_HOOK>true</ASPIRE_SUPPRESS_CLI_RUN_HOOK>
+    <AspireUseCliBundle>true</AspireUseCliBundle>
+    <AspireCliInvocationMode>DnxPinned</AspireCliInvocationMode>
     <OutputType>Exe</OutputType>
     <IsPackable>false</IsPackable>
     <TreatProjectReferencesAsResources>false</TreatProjectReferencesAsResources>

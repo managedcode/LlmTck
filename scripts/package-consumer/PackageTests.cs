@@ -81,14 +81,35 @@ public sealed class PackageTests
         await using var browser = await playwright.Chromium.LaunchAsync(new() { Headless = true });
         var page = await browser.NewPageAsync();
         await page.GotoAsync(http.BaseAddress!.ToString());
-        await page.GetByRole(AriaRole.Button, new() { Name = "Runtime settings" }).ClickAsync();
+        var runtimeTrigger = page.GetByRole(AriaRole.Button, new() { Name = "Runtime settings", Exact = true });
+        await runtimeTrigger.ClickAsync();
         await Expect(page.GetByLabel("Bearer token", new() { Exact = true })).ToBeVisibleAsync();
+        await Expect(runtimeTrigger).ToHaveAttributeAsync("aria-expanded", "true");
+        await Expect(page.GetByRole(AriaRole.Dialog, new() { Name = "Runtime state" })).ToBeVisibleAsync();
         await page.ScreenshotAsync(new() { Path = "package-dashboard.png", FullPage = true });
         await page.GetByLabel("Bearer token", new() { Exact = true }).FillAsync("test-key");
         await page.GetByRole(AriaRole.Button, new() { Name = "Close runtime settings", Exact = true }).ClickAsync();
         await Expect(page.GetByLabel("Bearer token", new() { Exact = true })).Not.ToBeVisibleAsync();
+        await Expect(runtimeTrigger).ToHaveAttributeAsync("aria-expanded", "false");
+        await Expect(runtimeTrigger).ToBeFocusedAsync();
+        await runtimeTrigger.ClickAsync();
+        await Expect(page.GetByLabel("Bearer token", new() { Exact = true })).ToBeVisibleAsync();
+        await page.Keyboard.PressAsync("Escape");
+        await Expect(page.GetByLabel("Bearer token", new() { Exact = true })).Not.ToBeVisibleAsync();
+        await Expect(runtimeTrigger).ToHaveAttributeAsync("aria-expanded", "false");
+        await Expect(runtimeTrigger).ToBeFocusedAsync();
         await page.GetByRole(AriaRole.Button, new() { Name = "Refresh runtime state" }).ClickAsync();
         await Expect(page.GetByText("Unauthorized", new() { Exact = true })).ToHaveCountAsync(0);
         await page.ScreenshotAsync(new() { Path = "package-dashboard-authorized.png", FullPage = true });
+        await page.SetViewportSizeAsync(390, 844);
+        await runtimeTrigger.ClickAsync();
+        await Expect(page.GetByLabel("Bearer token", new() { Exact = true })).ToBeVisibleAsync();
+        var dialogBounds = await page.GetByRole(AriaRole.Dialog, new() { Name = "Runtime state" }).BoundingBoxAsync();
+        if (dialogBounds is null || dialogBounds.X < 0 || dialogBounds.Y < 0 || dialogBounds.X + dialogBounds.Width > 390 || dialogBounds.Y + dialogBounds.Height > 844)
+            throw new InvalidOperationException("Runtime settings must fit the mobile viewport.");
+        await page.ScreenshotAsync(new() { Path = "package-dashboard-runtime-mobile.png", FullPage = true });
+        await page.GetByRole(AriaRole.Button, new() { Name = "Close runtime settings", Exact = true }).ClickAsync();
+        await Expect(runtimeTrigger).ToHaveAttributeAsync("aria-expanded", "false");
+        await page.ScreenshotAsync(new() { Path = "package-dashboard-authorized-mobile.png", FullPage = true });
     }
 }

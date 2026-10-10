@@ -1179,28 +1179,13 @@
   .runtime-fluent-dialog {
     --runtime-dialog-width: min(980px, calc(100vw - 32px));
     --runtime-dialog-height: min(760px, calc(100dvh - 48px));
-    position: absolute !important;
-    z-index: 999 !important;
-    inset: 0 !important;
-    width: 100vw !important;
-    height: 100dvh !important;
+    --dialog-backdrop: rgb(10 10 12 / 20%);
   }
-  .runtime-fluent-dialog::part(positioning-region) {
-    position: absolute;
-    inset: 0;
-    width: 100%;
-    height: 100%;
-    overflow: hidden;
-  }
-  .runtime-fluent-dialog::part(overlay) {
-    position: absolute;
-    inset: 0;
-    width: 100%;
-    height: 100%;
-    background: rgb(10 10 12 / 20%);
+  .runtime-fluent-dialog::part(dialog)::backdrop {
+    background: var(--dialog-backdrop);
     backdrop-filter: blur(8px) saturate(140%);
   }
-  .runtime-fluent-dialog::part(control) {
+  .runtime-fluent-dialog::part(dialog) {
     --dialog-padding: 0px;
     box-sizing: border-box;
     width: var(--runtime-dialog-width) !important;
@@ -1426,7 +1411,7 @@
   .meta-card,
   .runtime-note { background: rgb(242 237 232 / 72%); }
 
-  .runtime-fluent-dialog::part(control) {
+  .runtime-fluent-dialog::part(dialog) {
     border-color: rgb(255 255 255 / 88%);
     background: rgb(249 247 245 / 96%);
     box-shadow:
@@ -1492,7 +1477,7 @@
       --runtime-dialog-width: calc(100vw - 12px);
       --runtime-dialog-height: calc(100dvh - 12px);
     }
-    .runtime-fluent-dialog::part(control) {
+    .runtime-fluent-dialog::part(dialog) {
       max-width: calc(100vw - 12px);
       max-height: calc(100dvh - 12px);
       border-radius: 18px;

@@ -16,6 +16,7 @@ packages = root / "artifacts/packages"
 versions = {n.attrib["Include"]: n.attrib["Version"] for n in ET.parse(root / "Directory.Packages.props").iter("PackageVersion")}
 version = ET.parse(root / "Directory.Build.props").findtext(".//Version")
 consumer = Path(tempfile.mkdtemp(prefix="llmtck-package-consumer-")).resolve()
+package_cache = Path(tempfile.mkdtemp(prefix="llmtck-package-cache-")).resolve()
 print(f"Consumer: {consumer}", flush=True)
 project = (root / "scripts/package-consumer/Consumer.csproj.template").read_text()
 for key, value in {"__VERSION__": version, "__ASPIRE_VERSION__": versions["Aspire.Hosting.Testing"], "__TUNIT_VERSION__": versions["TUnit"], "__PLAYWRIGHT_VERSION__": versions["Microsoft.Playwright"]}.items():
@@ -23,11 +24,11 @@ for key, value in {"__VERSION__": version, "__ASPIRE_VERSION__": versions["Aspir
 (consumer / "Consumer.csproj").write_text(project)
 (consumer / "PackageTests.cs").write_text((root / "scripts/package-consumer/PackageTests.cs").read_text())
 (consumer / "global.json").write_text((root / "global.json").read_text())
-env = dict(os.environ, NUGET_PACKAGES=str(consumer / "packages"))
+env = dict(os.environ, NUGET_PACKAGES=str(package_cache))
 def run(*args):
     subprocess.run(args, cwd=consumer, env=env, check=True)
 run("dotnet", "restore", "Consumer.csproj", "--source", str(packages), "--source", "https://api.nuget.org/v3/index.json")
-metadata = json.loads((consumer / "packages/managedcode.llmtck.aspire" / version / ".nupkg.metadata").read_text())
+metadata = json.loads((package_cache / "managedcode.llmtck.aspire" / version / ".nupkg.metadata").read_text())
 expected_hash = base64.b64encode(hashlib.sha512((packages / f"ManagedCode.LlmTck.Aspire.{version}.nupkg").read_bytes()).digest()).decode()
 if metadata.get("contentHash") != expected_hash:
     raise RuntimeError("Restored Aspire package differs from the local artifact being verified.")

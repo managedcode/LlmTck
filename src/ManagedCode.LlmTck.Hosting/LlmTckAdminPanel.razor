@@ -43,11 +43,11 @@
       </label>
       <button class="toolbar-button accent" type="button" aria-label="Refresh runtime state" @onclick="RefreshAsync"><span aria-hidden="true">↻</span><span>Refresh</span></button>
 
-      <button class="toolbar-button runtime-dialog-trigger" type="button" aria-label="Runtime settings" disabled="@(!_interactive)" aria-haspopup="dialog" aria-controls="runtime-dialog" aria-expanded="@(_runtimeDialogHidden ? "false" : "true")" @ref="_runtimeDialogTrigger" @onclick="OpenRuntimeDialog"><span>Runtime</span><span aria-hidden="true">•••</span></button>
+      <button class="toolbar-button runtime-dialog-trigger" type="button" aria-label="Runtime settings" disabled="@(!_interactive)" aria-haspopup="dialog" aria-controls="runtime-dialog" aria-expanded="@(_runtimeDialogHidden ? "false" : "true")" @ref="_runtimeDialogTrigger" @onclick="OpenRuntimeDialogAsync"><span>Runtime</span><span aria-hidden="true">•••</span></button>
     </div>
   </header>
 
-  <FluentDialog Id="runtime-dialog" Class="runtime-fluent-dialog" @bind-Hidden="_runtimeDialogHidden" @ondialogdismiss="CloseRuntimeDialog" Modal="true" TrapFocus="true" PreventScroll="true" AriaLabelledby="runtime-dialog-title">
+  <FluentDialog Id="runtime-dialog" Class="runtime-fluent-dialog" @ref="_runtimeDialog" @ondialogtoggle="RuntimeDialogToggled" Modal="true" role="dialog" aria-label="Runtime state">
         <div class="diagnostics-sheet">
           <header class="diagnostics-header">
             <div>
@@ -56,7 +56,7 @@
             </div>
             <div class="dialog-header-actions">
               <span class="retention-note">@FormatBytes(TraceStore.RetainedByteCount) retained</span>
-              <button class="dialog-close" type="button" aria-label="Close runtime settings" @onclick="CloseRuntimeDialog">×</button>
+              <button class="dialog-close" type="button" aria-label="Close runtime settings" @onclick="CloseRuntimeDialogAsync">×</button>
             </div>
           </header>
           <div class="runtime-settings">
@@ -592,6 +592,8 @@
     private bool _interactive;
     private bool _restoreRuntimeTriggerFocus;
     private ElementReference _runtimeDialogTrigger;
+    private FluentDialog _runtimeDialog = default!;
+    private const string ClosedDialogState = "closed";
     private string _statusText = "Connecting…";
     private string _statusClass = string.Empty;
     private string? _bannerKind;
@@ -679,7 +681,7 @@
             TraceStore.Reset();
             await Runtime.ResetAsync();
             RefreshState();
-            CloseRuntimeDialog();
+            await CloseRuntimeDialogAsync();
             SetBanner("warn", "Runtime reset · scenarios, events and provider request traces were cleared.");
         }
         catch (Exception exception)
@@ -710,15 +712,26 @@
         return Task.CompletedTask;
     }
 
-    private void OpenRuntimeDialog()
+    private async Task OpenRuntimeDialogAsync()
     {
+        await _runtimeDialog.ShowAsync();
         _runtimeDialogHidden = false;
     }
 
-    private void CloseRuntimeDialog()
+    private async Task CloseRuntimeDialogAsync()
     {
+        await _runtimeDialog.HideAsync();
         _runtimeDialogHidden = true;
         _restoreRuntimeTriggerFocus = true;
+    }
+
+    private void RuntimeDialogToggled(DialogToggleEventArgs args)
+    {
+        if (args.Id == _runtimeDialog.Id && string.Equals(args.NewState, ClosedDialogState, StringComparison.Ordinal))
+        {
+            _runtimeDialogHidden = true;
+            _restoreRuntimeTriggerFocus = true;
+        }
     }
 
     private void RefreshState()

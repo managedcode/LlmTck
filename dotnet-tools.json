@@ -3,14 +3,14 @@
   "isRoot": true,
   "tools": {
     "roslynator.dotnet.cli": {
-      "version": "1.0.0",
+      "version": "1.0.1",
       "commands": [
         "roslynator"
       ],
       "rollForward": false
     },
     "coverlet.console": {
-      "version": "10.0.1",
+      "version": "10.1.0",
       "commands": [
         "coverlet"
       ],
@@ -20,6 +20,13 @@
       "version": "5.5.11",
       "commands": [
         "reportgenerator"
+      ],
+      "rollForward": false
+    },
+    "roslynk": {
+      "version": "2.1.0",
+      "commands": [
+        "roslynk"
       ],
       "rollForward": false
     }

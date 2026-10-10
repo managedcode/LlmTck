@@ -132,8 +132,8 @@ public sealed class AdminPanelTests
         await Assert.That(panelComponent).Contains("aria-label=\"Refresh runtime state\"");
         await Assert.That(panelComponent).Contains("aria-label=\"Live auto-refresh\"");
         await Assert.That(panelComponent).Contains("aria-expanded=\"@(_runtimeDialogHidden ? \"false\" : \"true\")\"");
-        await Assert.That(panelComponent).Contains("@bind-Hidden=\"_runtimeDialogHidden\"");
-        await Assert.That(panelComponent).Contains("@ondialogdismiss=\"CloseRuntimeDialog\"");
+        await Assert.That(panelComponent).Contains("_runtimeDialog.ShowAsync()");
+        await Assert.That(panelComponent).Contains("_runtimeDialog.HideAsync()");
         await Assert.That(panelComponent).Contains("@ref=\"_runtimeDialogTrigger\"");
         await Assert.That(panelComponent).Contains("_runtimeDialogTrigger.FocusAsync()");
         await Assert.That(panelComponent).Contains("OpenRuntimeDialog");
