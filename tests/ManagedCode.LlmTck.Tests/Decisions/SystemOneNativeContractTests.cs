@@ -11,6 +11,28 @@ namespace ManagedCode.LlmTck.Tests.Decisions;
 public sealed class SystemOneNativeContractTests
 {
     [Test]
+    public async Task Kev_DoesNotInheritTypeSafeImageUploadBodyLimitAsync()
+    {
+        var scenario = new LlmTckDecisionScenario
+        {
+            Id = "kev-large-text",
+            ModelId = SystemOneDecisionMapper.KevDefaultModel,
+            Answers = new() { ["present"] = new() { Probability = 0.75 } },
+        };
+        using var host = await LlmTckTestHost.StartAsync(builder => builder.AddKevLatest().AddDecisionScenario(scenario));
+        using var client = host.GetTestClient();
+        using var content = new StringContent(JsonSerializer.Serialize(new
+        {
+            model = SystemOneDecisionMapper.KevDefaultModel,
+            state = new string('a', TypeSafeRequestValidation.MaxRequestBytes),
+            questions = new { present = new { type = SystemOneDecisionTypes.Predicate, instructions = "Is content present?" } },
+        }), System.Text.Encoding.UTF8, "application/json");
+        using var response = await client.PostAsync(DecisionEndpointTests.PathFor(SystemOneDecisionMapper.KevDefaultModel), content);
+        response.EnsureSuccessStatusCode();
+        await Assert.That((await response.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("answers").GetProperty("present").GetProperty("noul").GetDouble()).IsEqualTo(0.75);
+    }
+
+    [Test]
     [Arguments("-0", "0")]
     [Arguments("-0.0", "-0.0")]
     [Arguments("1e1", "10.0")]

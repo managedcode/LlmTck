@@ -48,8 +48,6 @@ public static partial class LlmTckEndpointRouteBuilderExtensions
     private static async Task<IResult> CreateSystemOneDecisionAsync(HttpContext context, ILlmTckRuntime runtime, CancellationToken cancellationToken)
     {
         SetSystemOneRequestId(context);
-        if (context.Request.ContentLength > TypeSafeRequestValidation.MaxRequestBytes)
-        { return Results.Json(new { detail = "SystemOne request body exceeds 32 MiB." }, statusCode: StatusCodes.Status413PayloadTooLarge); }
         var provider = LlmTckDecisionProvider.TypeSafe;
         var typeSafeValidation = new TypeSafeValidationResult();
         JsonReadResult<SystemOneDecisionRequest> read;
