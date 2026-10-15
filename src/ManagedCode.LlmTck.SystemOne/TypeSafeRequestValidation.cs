@@ -15,9 +15,9 @@ public static class TypeSafeRequestValidation
     private const int _maxReferenceBytes = 1024;
     private const int _maxReferencesBytes = 65536;
 
-    public static TypeSafeValidationResult Validate(JsonElement body, bool imagesEnabled)
+    public static TypeSafeValidationResult Validate(JsonElement body, bool imagesEnabled, bool multipart = false)
     {
-        if (Encoding.UTF8.GetByteCount(body.GetRawText()) > MaxRequestBytes)
+        if (!multipart && Encoding.UTF8.GetByteCount(body.GetRawText()) > MaxRequestBytes)
         { return new("TypeSafe request body exceeds 32 MiB.", 413); }
         var shape = SystemOneDecisionMapper.Validate(body, Decisions.LlmTckDecisionProvider.TypeSafe);
         if (!shape.IsValid) { return new(shape.Error!, 422); }

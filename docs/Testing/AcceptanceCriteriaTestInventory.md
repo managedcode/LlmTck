@@ -106,6 +106,7 @@
 
 | Native Jev/Kev, Clef/flash and OpenAI Decisions preserve fixture probabilities, native score, usage and tracing | `DecisionEndpointTests.NativeDecisionEndpoints_PreserveAnswersAndUsageAsync` |
 | Jev 1.14 JSON images, mixed and box-only answers, structured legends and native image opt-in validation | `Jev114EndpointTests.Jev114_JsonImagesAndBoxPreserveNativeAnswersAsync`, `Jev114EndpointTests.Jev114_RejectsInvalidImageAndBoxRequestsAsync` |
+| Jev typed client handles JSON/multipart images, format inference, part precedence, physical byte limits and native part/header failures | `Jev114MultipartTests.Jev114_TypedClientSupportsJsonAndMultipartImagesAsync`, `Jev114MultipartTests.Jev114_MultipartRejectsNativePartViolationsAsync`, `Jev114MultipartTests.Jev114_MultipartEnforcesPhysicalBodyAndImageByteLimitsAsync`, `Jev114MultipartTests.Jev114_MultipartInfersFormatAndPrefersPartOverBase64Async` |
 | Decision routes enforce authentication, simulated faults, required fields and fixture mismatch | `DecisionEndpointTests.NativeDecisionEndpoints_EnforceAuthAndFaultsAsync`, `DecisionEndpointTests.NativeDecisionEndpoints_RejectMissingRequiredFieldsAsync`, `DecisionEndpointTests.DecisionControlClient_ConfiguresFixturesAndMismatchIsObservableAsync` |
 
 | Native OpenAI positional names, typed choices, score labels and message/image input constraints | `DecisionQuestionTests`, `DecisionInputTests` |

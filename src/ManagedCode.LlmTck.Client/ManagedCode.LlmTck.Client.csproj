@@ -12,5 +12,6 @@
   <ItemGroup>
     <ProjectReference Include="..\ManagedCode.LlmTck\ManagedCode.LlmTck.csproj" />
     <ProjectReference Include="..\ManagedCode.LlmTck.OpenAI\ManagedCode.LlmTck.OpenAI.csproj" />
+    <ProjectReference Include="..\ManagedCode.LlmTck.SystemOne\ManagedCode.LlmTck.SystemOne.csproj" />
   </ItemGroup>
 </Project>

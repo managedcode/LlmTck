@@ -23,6 +23,23 @@ script deterministic provider responses, exercise retry/error/model-routing path
 or assert that no unexpected LLM calls occurred. When a bearer token is configured,
 both provider endpoints and `/admin-api/*` control endpoints require it.
 
+## Jev / TypeSafe System One
+
+Jev is supported through its native System One API, including Jev 1.14 image assets
+and bounding boxes. The emulator accepts JSON base64 and multipart PNG/JPEG uploads,
+structured instructions and criteria, mixed `noul`/`choice`/`score`/`box` batches,
+native confidence, usage and provider-resolved model versions. Image and box requests
+require `TypeSafe-Danger-Zone-Images: true`; long-context requests can explicitly send
+`TypeSafe-Danger-Zone-Long-Context: true`. It uses deterministic fixtures and never
+calls a production model or estimates image tokens.
+
+- Native TCK route: `POST /systemone/v1/systemone`.
+- Contracts: `ManagedCode.LlmTck.SystemOne`.
+- Typed client: `LlmTckClient.CreateSystemOneClient()` from `ManagedCode.LlmTck.Client`.
+- Register `jev-1.14.0` or `jev-preview` with `AddDecisionModel(id, LlmTckDecisionProvider.TypeSafe)`.
+- [Jev 1.14 guide and limits](docs/Features/Jev114.md), [native decision fixtures](#native-decision-api-fixtures),
+  [official images API](https://docs.typesafe.ai/images).
+
 ## Request Dashboard
 
 The Blazor dashboard at `/` is an operator-focused request inbox. It keeps provider,
@@ -101,6 +118,8 @@ Provider packages keep vendor-specific protocol and compatibility metadata out o
 | `ManagedCode.LlmTck.OpenRouter` | `openrouter` | OpenRouter | `/openrouter/api/v1/chat/completions` |
 | `ManagedCode.LlmTck.DeepSeek` | `deepseek` | DeepSeek | `/deepseek/v1/chat/completions` |
 | `ManagedCode.LlmTck.Perplexity` | `perplexity` | Perplexity | `/perplexity/v1/sonar` |
+| `ManagedCode.LlmTck.SystemOne` | `systemone` | Jev / TypeSafe and Kev native decisions | `/systemone/v1/systemone` |
+| `ManagedCode.LlmTck.Cloudflare` | `cloudflare` | Clef / Clef Flash native decisions | `/cloudflare/client/v4/accounts/{accountId}/ai/run/@cf/cloudflare/clef` |
 
 Each provider profile also carries a doc-backed `ApiContract` with official documentation links, retrieval date, API version or header requirements, documented operations, streaming support, and whether `ManagedCode.LlmTck.Hosting` currently maps the operation.
 

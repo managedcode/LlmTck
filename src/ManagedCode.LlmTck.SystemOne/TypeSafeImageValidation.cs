@@ -24,7 +24,7 @@ internal static class TypeSafeImageValidation
             || !asset.TryGetProperty("format", out var format) || format.ValueKind != JsonValueKind.String
             || format.GetString() is not ("png" or "jpg" or "jpeg")
             || !asset.TryGetProperty("data_base64", out var data) || data.ValueKind != JsonValueKind.String)
-        { return new("JSON assets require image format and data_base64; multipart parts are outside this profile."); }
+        { return new("JSON assets require image format and data_base64; part references require a multipart request."); }
         var base64 = data.GetString()!;
         if (base64.Any(char.IsWhiteSpace)) { return new("Image base64 must not contain whitespace."); }
         if (base64.Length > ((_maxImageBytes + 2) / 3) * 4) { return new("Image exceeds 16 MiB.", 413); }

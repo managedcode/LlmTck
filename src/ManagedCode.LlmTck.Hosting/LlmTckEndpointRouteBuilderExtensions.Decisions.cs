@@ -52,7 +52,19 @@ public static partial class LlmTckEndpointRouteBuilderExtensions
         { return Results.Json(new { detail = "SystemOne request body exceeds 32 MiB." }, statusCode: StatusCodes.Status413PayloadTooLarge); }
         var provider = LlmTckDecisionProvider.TypeSafe;
         var typeSafeValidation = new TypeSafeValidationResult();
-        var read = await ReadJsonAsync<SystemOneDecisionRequest>(context, SystemOneValidationError, cancellationToken, body =>
+        JsonReadResult<SystemOneDecisionRequest> read;
+        if (context.Request.ContentType?.StartsWith("multipart/form-data", StringComparison.OrdinalIgnoreCase) == true)
+        {
+            var multipart = await TypeSafeMultipartRequestReader.ReadAsync(context.Request, cancellationToken).ConfigureAwait(false);
+            if (multipart.Error is { } error) { return Results.Json(new { detail = error.Error }, statusCode: error.StatusCode); }
+            var body = JsonSerializer.SerializeToElement(multipart.Request);
+            typeSafeValidation = TypeSafeRequestValidation.Validate(body,
+                context.Request.Headers[TypeSafeRequestValidation.ImagesHeader] == TypeSafeRequestValidation.Enabled, multipart: true);
+            read = new(multipart.Request, null);
+        }
+        else
+        {
+            read = await ReadJsonAsync<SystemOneDecisionRequest>(context, SystemOneValidationError, cancellationToken, body =>
         {
             provider = ResolveSystemOneProvider(body, runtime);
             if (provider == LlmTckDecisionProvider.TypeSafe)
@@ -63,6 +75,7 @@ public static partial class LlmTckEndpointRouteBuilderExtensions
             }
             return SystemOneDecisionMapper.Validate(body, provider);
         }).ConfigureAwait(false);
+        }
         if (typeSafeValidation.Error is not null)
         {
             return typeSafeValidation.StatusCode == StatusCodes.Status422UnprocessableEntity

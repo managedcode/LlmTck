@@ -16,7 +16,7 @@ public static class SystemOneCompatibility
         {
             DocumentationUrl = "https://docs.typesafe.ai/api",
             DocumentationRetrievedOn = "2026-10-15",
-            DocumentationVersion = "Jev 1.14 JSON decisions, images and box; Kev native decisions",
+            DocumentationVersion = "Jev 1.14 JSON/multipart decisions, images and box; Kev native decisions",
             Operations = [new() { Id = LlmTckProviderOperationIds.SystemOne.DecisionsCreate, Method = "POST", Path = "/systemone/v1/systemone", DocumentationUrl = "https://docs.typesafe.ai/api", ImplementedByHosting = true, Capabilities = [LlmTckProviderCapability.Decisions] }]
         },
     };

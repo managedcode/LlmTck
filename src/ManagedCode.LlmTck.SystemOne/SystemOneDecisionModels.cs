@@ -22,8 +22,9 @@ public sealed record SystemOneDecisionRequest
 public sealed record SystemOneImageAsset
 {
     [JsonPropertyName("type")] public string Type { get; init; } = "image";
-    [JsonPropertyName("format")] public required string Format { get; init; }
-    [JsonPropertyName("data_base64")] public required string DataBase64 { get; init; }
+    [JsonPropertyName("format")][JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public string? Format { get; init; }
+    [JsonPropertyName("data_base64")][JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public string? DataBase64 { get; init; }
+    [JsonPropertyName("part")][JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public string? Part { get; init; }
 }
 
 public sealed record SystemOneBoundingBox

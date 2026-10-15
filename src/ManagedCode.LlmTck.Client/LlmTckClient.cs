@@ -92,6 +92,11 @@ public sealed class LlmTckClient(HttpClient httpClient, string? bearerToken = nu
         return new LlmTckChatClient(httpClient, defaultModelId, bearerToken);
     }
 
+    public LlmTckSystemOneClient CreateSystemOneClient()
+    {
+        return new(httpClient, bearerToken);
+    }
+
     public IEmbeddingGenerator<string, Embedding<float>> CreateEmbeddingGenerator(
         string defaultModelId = LlmTckKnownModelIds.TextEmbedding3Small
     )

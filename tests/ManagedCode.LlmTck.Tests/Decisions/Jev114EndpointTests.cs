@@ -113,7 +113,7 @@ public sealed class Jev114EndpointTests
         await Assert.That((await response.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("model").GetString()).IsEqualTo(_model);
     }
 
-    private static JsonObject Body(bool boxOnly)
+    internal static JsonObject Body(bool boxOnly)
     {
         var body = JsonNode.Parse("""{"state":{"photo":"photo-reference"},"questions":{"target":{"type":"box","instructions":"the target in photo"}}}""")!.AsObject();
         body["model"] = _model;
@@ -140,7 +140,7 @@ public sealed class Jev114EndpointTests
         await Assert.That(box.GetProperty("top").GetDouble()).IsEqualTo(0.8);
     }
 
-    private static LlmTckDecisionScenario Scenario(bool boxOnly)
+    internal static LlmTckDecisionScenario Scenario(bool boxOnly)
     {
         var scenario = new LlmTckDecisionScenario
         {
