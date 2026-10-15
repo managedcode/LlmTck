@@ -48,12 +48,27 @@ public static partial class LlmTckEndpointRouteBuilderExtensions
     private static async Task<IResult> CreateSystemOneDecisionAsync(HttpContext context, ILlmTckRuntime runtime, CancellationToken cancellationToken)
     {
         SetSystemOneRequestId(context);
+        if (context.Request.ContentLength > TypeSafeRequestValidation.MaxRequestBytes)
+        { return Results.Json(new { detail = "SystemOne request body exceeds 32 MiB." }, statusCode: StatusCodes.Status413PayloadTooLarge); }
         var provider = LlmTckDecisionProvider.TypeSafe;
+        var typeSafeValidation = new TypeSafeValidationResult();
         var read = await ReadJsonAsync<SystemOneDecisionRequest>(context, SystemOneValidationError, cancellationToken, body =>
         {
             provider = ResolveSystemOneProvider(body, runtime);
+            if (provider == LlmTckDecisionProvider.TypeSafe)
+            {
+                typeSafeValidation = TypeSafeRequestValidation.Validate(body,
+                    context.Request.Headers[TypeSafeRequestValidation.ImagesHeader] == TypeSafeRequestValidation.Enabled);
+                return new LlmTckRequestValidationResult(typeSafeValidation.Error);
+            }
             return SystemOneDecisionMapper.Validate(body, provider);
         }).ConfigureAwait(false);
+        if (typeSafeValidation.Error is not null)
+        {
+            return typeSafeValidation.StatusCode == StatusCodes.Status422UnprocessableEntity
+            ? SystemOneValidationError(typeSafeValidation.Error)
+            : Results.Json(new { detail = typeSafeValidation.Error }, statusCode: typeSafeValidation.StatusCode);
+        }
         if (read.Error is not null) { return read.Error; }
         if (read.Value is null) { return SystemOneValidationError("Missing decision body."); }
         var result = await runtime.DecideAsync(SystemOneDecisionMapper.ToRequest(read.Value, provider), ReadAccessToken(context), cancellationToken).ConfigureAwait(false);

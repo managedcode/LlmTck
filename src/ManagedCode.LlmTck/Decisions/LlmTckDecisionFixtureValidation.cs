@@ -10,6 +10,8 @@ internal static class LlmTckDecisionFixtureValidation
     public static bool IsConformant(LlmTckDecisionProvider provider, LlmTckDecisionQuestion question, LlmTckDecisionAnswer answer)
     {
         if (provider == LlmTckDecisionProvider.Unspecified || answer.Kind == LlmTckDecisionKind.Predicate) { return true; }
+        if (answer.Kind == LlmTckDecisionKind.Box)
+        { return provider == LlmTckDecisionProvider.TypeSafe && answer.Box is { IsValid: true } && answer.Confidence.HasValue && answer.Probabilities.Count == 0; }
         var domain = question.Kind == LlmTckDecisionKind.Score
             ? Enumerable.Range(0, question.Options.Count).Select(index => index.ToString(CultureInfo.InvariantCulture)).ToArray()
             : question.Options.ToArray();

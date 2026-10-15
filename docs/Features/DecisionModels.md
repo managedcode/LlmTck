@@ -16,6 +16,14 @@ Production APIs use `Authorization: Bearer <provider-token>`; Kev checks `KEV_AP
 
 ### SystemOne: Jev and Kev
 
+Jev 1.14's JSON image assets and `box` questions are covered by the
+[Jev 1.14 compatibility profile](Jev114.md). Register `jev-1.14.0` or `jev-preview`
+with `AddDecisionModel(..., LlmTckDecisionProvider.TypeSafe)` and opt each image/box
+request in through `TypeSafe-Danger-Zone-Images: true`. Structured score legends
+and the optional fixture `ResolvedModelId` retain native values and version attribution.
+Long-context headers pass through; deterministic scenarios define usage and scripted
+context-limit failures. The emulator does not tokenize images or estimate model context.
+
 Jev requires `model`, string/object/array `state`, and a nonempty question map. Kev accepts any JSON `state`, including numbers, booleans and null; instructions and criterion descriptions also accept arbitrary JSON. Kev defaults an omitted `model` to `kev-latest`; the TCK enables that default only when `AddKevLatest()` explicitly registers the Kev profile. Binary questions use `type: "noul"`; optional `criteria` maps the native `true` and `false` descriptions. Choices use an opaque ID-to-description map. Scores use an ordered criteria array.
 
 ```json

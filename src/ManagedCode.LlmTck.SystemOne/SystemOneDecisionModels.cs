@@ -8,6 +8,7 @@ public static class SystemOneDecisionTypes
     public const string Predicate = "noul";
     public const string Choice = "choice";
     public const string Score = "score";
+    public const string Box = "box";
 }
 
 public sealed record SystemOneDecisionRequest
@@ -15,6 +16,22 @@ public sealed record SystemOneDecisionRequest
     [JsonPropertyName("model")][JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public string? Model { get; init; }
     [JsonPropertyName("state")] public JsonElement State { get; init; }
     [JsonPropertyName("questions")] public Dictionary<string, SystemOneDecisionQuestion> Questions { get; init; } = [];
+    [JsonPropertyName("assets")][JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public Dictionary<string, SystemOneImageAsset>? Assets { get; init; }
+}
+
+public sealed record SystemOneImageAsset
+{
+    [JsonPropertyName("type")] public string Type { get; init; } = "image";
+    [JsonPropertyName("format")] public required string Format { get; init; }
+    [JsonPropertyName("data_base64")] public required string DataBase64 { get; init; }
+}
+
+public sealed record SystemOneBoundingBox
+{
+    [JsonPropertyName("top")] public required double Top { get; init; }
+    [JsonPropertyName("bottom")] public required double Bottom { get; init; }
+    [JsonPropertyName("left")] public required double Left { get; init; }
+    [JsonPropertyName("right")] public required double Right { get; init; }
 }
 
 public sealed record SystemOneDecisionQuestion
@@ -42,6 +59,7 @@ public sealed record SystemOneDecisionAnswer
     [JsonPropertyName("confidence")][JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public double? Confidence { get; init; }
     [JsonPropertyName("probabilities")][JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public Dictionary<string, double>? Probabilities { get; init; }
     [JsonPropertyName("legend")][JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public Dictionary<string, JsonElement>? Legend { get; init; }
+    [JsonPropertyName("box")][JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public SystemOneBoundingBox? Box { get; init; }
 }
 
 public sealed record SystemOneDecisionUsage

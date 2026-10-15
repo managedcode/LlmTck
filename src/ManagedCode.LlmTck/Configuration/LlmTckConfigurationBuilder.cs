@@ -534,6 +534,7 @@ public sealed class LlmTckConfigurationBuilder
         ArgumentNullException.ThrowIfNull(scenario);
         ArgumentException.ThrowIfNullOrWhiteSpace(scenario.Id);
         ArgumentException.ThrowIfNullOrWhiteSpace(scenario.ModelId);
+        if (scenario.ResolvedModelId is not null) { ArgumentException.ThrowIfNullOrWhiteSpace(scenario.ResolvedModelId); }
         ArgumentNullException.ThrowIfNull(scenario.Answers);
         foreach (var (name, answer) in scenario.Answers)
         {
@@ -550,6 +551,8 @@ public sealed class LlmTckConfigurationBuilder
                 ManagedCode.LlmTck.Decisions.LlmTckDecisionKind.Predicate => answer.Probability.HasValue,
                 ManagedCode.LlmTck.Decisions.LlmTckDecisionKind.Choice => answer.Choice is not null,
                 ManagedCode.LlmTck.Decisions.LlmTckDecisionKind.Score => answer.Score.HasValue,
+                ManagedCode.LlmTck.Decisions.LlmTckDecisionKind.Box => answer.Box is not null
+                    && (scenario.AllowMalformedResponse || answer.Box.IsValid) && answer.Confidence.HasValue,
                 _ => false,
             };
             if (!valid && !answer.Refused) { throw new ArgumentException("The fixture must provide the value for its decision kind.", nameof(scenario)); }

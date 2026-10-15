@@ -14,10 +14,10 @@ public static class SystemOneCompatibility
         CompatibilityTags = [ProviderId],
         ApiContract = new()
         {
-            DocumentationUrl = "https://api.typesafe.ai/openapi.json",
-            DocumentationRetrievedOn = "2026-10-08",
-            DocumentationVersion = "native decisions v1",
-            Operations = [new() { Id = LlmTckProviderOperationIds.SystemOne.DecisionsCreate, Method = "POST", Path = "/systemone/v1/systemone", DocumentationUrl = "https://api.typesafe.ai/openapi.json", ImplementedByHosting = true, Capabilities = [LlmTckProviderCapability.Decisions] }]
+            DocumentationUrl = "https://docs.typesafe.ai/api",
+            DocumentationRetrievedOn = "2026-10-15",
+            DocumentationVersion = "Jev 1.14 JSON decisions, images and box; Kev native decisions",
+            Operations = [new() { Id = LlmTckProviderOperationIds.SystemOne.DecisionsCreate, Method = "POST", Path = "/systemone/v1/systemone", DocumentationUrl = "https://docs.typesafe.ai/api", ImplementedByHosting = true, Capabilities = [LlmTckProviderCapability.Decisions] }]
         },
     };
 }

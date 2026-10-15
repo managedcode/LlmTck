@@ -26,10 +26,10 @@ public static class SystemOneDecisionMapper
     public static LlmTckRequestValidationResult Validate(JsonElement body, LlmTckDecisionProvider provider)
     {
         return ValidateCore(body, MaxChoices, provider is LlmTckDecisionProvider.TypeSafe or LlmTckDecisionProvider.Cloudflare ? JevMaxScoreLevels : KevMaxScoreLevels,
-                provider == LlmTckDecisionProvider.Kev, provider == LlmTckDecisionProvider.Cloudflare);
+                provider == LlmTckDecisionProvider.Kev, provider == LlmTckDecisionProvider.Cloudflare, provider == LlmTckDecisionProvider.TypeSafe);
     }
 
-    private static LlmTckRequestValidationResult ValidateCore(JsonElement body, int maxChoices, int maxScoreLevels, bool kev, bool allowScalarPredicateCriteria)
+    private static LlmTckRequestValidationResult ValidateCore(JsonElement body, int maxChoices, int maxScoreLevels, bool kev, bool allowScalarPredicateCriteria, bool typeSafe = false)
     {
         if (body.ValueKind != JsonValueKind.Object || (!body.TryGetProperty("model", out var model) ? !kev : model.ValueKind != JsonValueKind.String)
             || !body.TryGetProperty("state", out var state) || !IsContent(state, kev) || (!kev && state.ValueKind == JsonValueKind.Null)
@@ -38,16 +38,18 @@ public static class SystemOneDecisionMapper
         var entries = questions.EnumerateObject().ToArray();
         if (entries.Length == 0 || entries.Select(entry => entry.Name).Distinct(StringComparer.Ordinal).Count() != entries.Length)
         { return new("Questions must have unique names and at least one entry."); }
-        return entries.All(entry => ValidQuestion(entry.Value, maxChoices, maxScoreLevels, kev, allowScalarPredicateCriteria))
+        return entries.All(entry => ValidQuestion(entry.Value, maxChoices, maxScoreLevels, kev, allowScalarPredicateCriteria, typeSafe))
             ? new() : new("Every question requires a supported type and matching native criteria.");
     }
 
-    private static bool ValidQuestion(JsonElement question, int maxChoices, int maxScoreLevels, bool kev, bool allowScalarPredicateCriteria)
+    private static bool ValidQuestion(JsonElement question, int maxChoices, int maxScoreLevels, bool kev, bool allowScalarPredicateCriteria, bool typeSafe)
     {
         if (question.ValueKind != JsonValueKind.Object || !question.TryGetProperty("type", out var type)
             || type.ValueKind != JsonValueKind.String) { return false; }
         if (question.TryGetProperty("instructions", out var instructions) && !IsContent(instructions, kev)) { return false; }
         var hasCriteria = question.TryGetProperty("criteria", out var criteria);
+        if (typeSafe && type.GetString() == SystemOneDecisionTypes.Box)
+        { return !hasCriteria && question.TryGetProperty("instructions", out instructions) && IsContent(instructions, false) && instructions.ValueKind != JsonValueKind.Null; }
         if (type.GetString() == SystemOneDecisionTypes.Predicate)
         {
             return !hasCriteria || criteria.ValueKind == JsonValueKind.Null || (criteria.ValueKind == JsonValueKind.Object
@@ -74,13 +76,13 @@ public static class SystemOneDecisionMapper
         {
             Provider = provider,
             ModelId = request.Model ?? KevDefaultModel,
-            Input = JsonSerializer.Serialize(request.State),
+            Input = request.Assets is { Count: > 0 } ? JsonSerializer.Serialize(new { state = request.State, assets = request.Assets }) : JsonSerializer.Serialize(request.State),
             Questions = request.Questions.Select(entry => new LlmTckDecisionQuestion
             {
                 Name = entry.Key,
                 Kind = entry.Value.Type switch
-                { SystemOneDecisionTypes.Predicate => LlmTckDecisionKind.Predicate, SystemOneDecisionTypes.Choice => LlmTckDecisionKind.Choice, _ => LlmTckDecisionKind.Score },
-                Options = entry.Value.Type == SystemOneDecisionTypes.Predicate ? [] : entry.Value.Type == SystemOneDecisionTypes.Score
+                { SystemOneDecisionTypes.Predicate => LlmTckDecisionKind.Predicate, SystemOneDecisionTypes.Choice => LlmTckDecisionKind.Choice, SystemOneDecisionTypes.Box => LlmTckDecisionKind.Box, _ => LlmTckDecisionKind.Score },
+                Options = entry.Value.Type is SystemOneDecisionTypes.Predicate or SystemOneDecisionTypes.Box ? [] : entry.Value.Type == SystemOneDecisionTypes.Score
                     ? entry.Value.Criteria.EnumerateArray().Select(value => JsonSerializer.Serialize(value)).ToList()
                     : entry.Value.Criteria.EnumerateObject().Select(value => value.Name).ToList(),
             }).ToList(),
@@ -133,7 +135,8 @@ public static class SystemOneDecisionMapper
             Choice = answer.Kind == LlmTckDecisionKind.Choice ? answer.Choice : null,
             Score = answer.Kind == LlmTckDecisionKind.Score ? answer.Score : null,
             Confidence = answer.Kind == LlmTckDecisionKind.Predicate ? null : answer.Confidence,
-            Probabilities = answer.Kind == LlmTckDecisionKind.Predicate ? null : new(answer.Probabilities),
+            Probabilities = answer.Kind is LlmTckDecisionKind.Predicate or LlmTckDecisionKind.Box ? null : new(answer.Probabilities),
+            Box = answer.Box is { } box ? new() { Top = box.Top, Bottom = box.Bottom, Left = box.Left, Right = box.Right } : null,
             Legend = answer.Kind == LlmTckDecisionKind.Score ? question.Criteria.EnumerateArray()
                 .Select((value, index) => (index, value)).ToDictionary(entry => entry.index.ToString(CultureInfo.InvariantCulture),
                     entry => kev ? JsonSerializer.SerializeToElement(KevDecisionContent.Render(entry.value)) : entry.value.Clone()) : null,

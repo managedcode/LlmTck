@@ -57,7 +57,7 @@ public sealed partial class LlmTckRuntime
             entry => entry.Value with { Probabilities = new(entry.Value.Probabilities) }, StringComparer.Ordinal);
         AddEvent(LlmTckEventKind.Matched, scenario.Id, request.ModelId, "Decision scenario matched.",
             JsonSerializer.Serialize(request), JsonSerializer.Serialize(answers), scenario.Usage);
-        return new() { IsSuccess = true, ModelId = request.ModelId, ScenarioId = scenario.Id, Answers = answers, Usage = scenario.Usage, Metadata = scenario.Metadata };
+        return new() { IsSuccess = true, ModelId = scenario.ResolvedModelId ?? request.ModelId, ScenarioId = scenario.Id, Answers = answers, Usage = scenario.Usage, Metadata = scenario.Metadata };
     }
 
     private static bool DecisionAnswersMatch(LlmTckDecisionRequest request, LlmTckDecisionScenario scenario)

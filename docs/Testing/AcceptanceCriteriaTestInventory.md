@@ -105,6 +105,7 @@
 | Malformed duration or incomplete/mixed/overflow token configuration fails before use. | `TranscriptionUsageConfigurationTests` |
 
 | Native Jev/Kev, Clef/flash and OpenAI Decisions preserve fixture probabilities, native score, usage and tracing | `DecisionEndpointTests.NativeDecisionEndpoints_PreserveAnswersAndUsageAsync` |
+| Jev 1.14 JSON images, mixed and box-only answers, structured legends and native image opt-in validation | `Jev114EndpointTests.Jev114_JsonImagesAndBoxPreserveNativeAnswersAsync`, `Jev114EndpointTests.Jev114_RejectsInvalidImageAndBoxRequestsAsync` |
 | Decision routes enforce authentication, simulated faults, required fields and fixture mismatch | `DecisionEndpointTests.NativeDecisionEndpoints_EnforceAuthAndFaultsAsync`, `DecisionEndpointTests.NativeDecisionEndpoints_RejectMissingRequiredFieldsAsync`, `DecisionEndpointTests.DecisionControlClient_ConfiguresFixturesAndMismatchIsObservableAsync` |
 
 | Native OpenAI positional names, typed choices, score labels and message/image input constraints | `DecisionQuestionTests`, `DecisionInputTests` |

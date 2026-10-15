@@ -59,3 +59,7 @@ OpenAI compatibility is the first implemented provider endpoint surface. The hos
 Aspire integration adds the TCK through `builder.AddLlmTck()` without requiring consumer AppHosts to reference a service project, generated `Projects.*` metadata type, project path, Docker, or a container runtime. The package-owned resource starts the packaged .NET LLM TCK service executable and exposes its `http` endpoint. Consumers that explicitly want container hosting can opt in with `builder.AddLlmTckContainer()`, which uses the versioned `ghcr.io/managedcode/llm-tck` image. Consumer resources reference the `LlmTckResource`, wait for it, and read its `http` endpoint through `GetHttpEndpoint()` or Aspire's `GetEndpoint("http")`.
 
 Native decision fixtures live under the core `Decisions` slice; model profile metadata selects documented SystemOne limits and rounding. OpenAI wire contracts stay in OpenAI, SystemOne Jev/Kev contracts share their native protocol package, and Cloudflare owns Workers AI envelopes and native Clef validation. Hosting delegates the new native routes to the same authenticated/fault-injected runtime and request tracing.
+
+The [Jev 1.14 JSON extension](Features/Jev114.md) adds TypeSafe image assets and
+box answers to that same SystemOne route. Typed image validation belongs to
+SystemOne; neutral bounding-box fixtures and resolved model attribution belong to core.

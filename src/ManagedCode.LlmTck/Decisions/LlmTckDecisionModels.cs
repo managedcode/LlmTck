@@ -5,7 +5,7 @@ namespace ManagedCode.LlmTck.Decisions;
 
 public enum LlmTckDecisionProvider { Unspecified, TypeSafe, Kev, Cloudflare, OpenAI }
 
-public enum LlmTckDecisionKind { Predicate, Choice, Score }
+public enum LlmTckDecisionKind { Predicate, Choice, Score, Box }
 
 public sealed record LlmTckDecisionQuestion
 {
@@ -31,12 +31,25 @@ public sealed record LlmTckDecisionAnswer
     public double? Score { get; init; }
     public double? Confidence { get; init; }
     public Dictionary<string, double> Probabilities { get; init; } = [];
+    public LlmTckBoundingBox? Box { get; init; }
+}
+
+public sealed record LlmTckBoundingBox
+{
+    public required double Top { get; init; }
+    public required double Bottom { get; init; }
+    public required double Left { get; init; }
+    public required double Right { get; init; }
+
+    public bool IsValid => new[] { Top, Bottom, Left, Right }.All(value => double.IsFinite(value) && value >= 0 && value <= 1)
+        && Top < Bottom && Left < Right;
 }
 
 public sealed record LlmTckDecisionScenario
 {
     public string Id { get; init; } = string.Empty;
     public string ModelId { get; init; } = string.Empty;
+    public string? ResolvedModelId { get; init; }
     public string? ExpectedInput { get; init; }
     public Dictionary<string, LlmTckDecisionAnswer> Answers { get; init; } = [];
     public LlmTckTokenUsage Usage { get; init; } = new();

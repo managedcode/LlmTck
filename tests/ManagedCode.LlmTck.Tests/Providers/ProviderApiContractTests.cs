@@ -45,6 +45,7 @@ public sealed class ProviderApiContractTests
     private static readonly Uri[] _officialDocumentationHosts =
     [
         new("https://api.typesafe.ai"),
+        new("https://docs.typesafe.ai"),
         new("https://developers.cloudflare.com"),
         new("https://developers.openai.com"),
         new("https://learn.microsoft.com"),
@@ -375,7 +376,7 @@ public sealed class ProviderApiContractTests
     {
         return
         [
-            Evidence(LlmTckCompatibilityTags.SystemOne, LlmTckProviderOperationIds.SystemOne.DecisionsCreate, typeof(DecisionEndpointTests), [nameof(DecisionEndpointTests.NativeDecisionEndpoints_PreserveAnswersAndUsageAsync)]),
+            Evidence(LlmTckCompatibilityTags.SystemOne, LlmTckProviderOperationIds.SystemOne.DecisionsCreate, typeof(Jev114EndpointTests), [nameof(Jev114EndpointTests.Jev114_JsonImagesAndBoxPreserveNativeAnswersAsync), nameof(Jev114EndpointTests.Jev114_RejectsInvalidImageAndBoxRequestsAsync)]),
             Evidence(LlmTckCompatibilityTags.Cloudflare, LlmTckProviderOperationIds.Cloudflare.ClefDecisionsCreate, typeof(DecisionEndpointTests), [nameof(DecisionEndpointTests.NativeDecisionEndpoints_PreserveAnswersAndUsageAsync)]),
             Evidence(LlmTckCompatibilityTags.Cloudflare, LlmTckProviderOperationIds.Cloudflare.ClefFlashDecisionsCreate, typeof(DecisionEndpointTests), [nameof(DecisionEndpointTests.NativeDecisionEndpoints_PreserveAnswersAndUsageAsync)]),
             Evidence(LlmTckCompatibilityTags.OpenAI, LlmTckProviderOperationIds.OpenAI.DecisionsCreate, typeof(DecisionEndpointTests), [nameof(DecisionEndpointTests.NativeDecisionEndpoints_PreserveAnswersAndUsageAsync)]),
