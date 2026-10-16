@@ -27,6 +27,7 @@ public sealed partial class LlmTckRuntime
     private const int _maxRetainedEventCharacters = 8 * 1024 * 1024;
     private const int _maxRetainedMetadataCharacters = 4096;
     private const int _retainedMessageCost = 256;
+    private const int _retainedToolCost = 256;
     private const int _retainedChunkCost = 128;
 
     private readonly object _gate = new();
@@ -1369,6 +1370,7 @@ public sealed partial class LlmTckRuntime
             Message = message,
             Request = request,
             Messages = chatRequest?.Messages ?? [],
+            Tools = chatRequest?.Tools ?? [],
             Response = response,
             IsStreaming = chatRequest?.Stream ?? false,
             StreamChunks = streamChunks ?? [],
@@ -1442,6 +1444,7 @@ public sealed partial class LlmTckRuntime
         var response = RetainText(runtimeEvent.Response, ref remaining, ref truncated);
         var streamChunks = RetainChunks(runtimeEvent.StreamChunks, ref remaining, ref truncated);
         var messages = RetainMessages(runtimeEvent.Messages, ref remaining, ref truncated);
+        var tools = RetainTools(runtimeEvent.Tools, ref remaining, ref truncated);
         var request = RetainText(runtimeEvent.Request, ref remaining, ref truncated);
 
         return runtimeEvent with
@@ -1452,6 +1455,7 @@ public sealed partial class LlmTckRuntime
             Message = message,
             PromptCacheKey = promptCacheKey,
             Messages = messages,
+            Tools = tools,
             Response = response,
             StreamChunks = streamChunks,
             Request = request,
@@ -1494,6 +1498,29 @@ public sealed partial class LlmTckRuntime
             retained.Add(new LlmTckMessage { Role = role, Content = content, ToolCallId = callId, ToolCalls = calls });
         }
 
+        return retained.Count == 0 ? [] : Array.AsReadOnly(retained.ToArray());
+    }
+
+    private static IReadOnlyList<LlmTckToolDefinition> RetainTools(
+        IReadOnlyList<LlmTckToolDefinition> tools, ref int remaining, ref bool truncated)
+    {
+        if (tools.Count == 0)
+        {
+            return [];
+        }
+
+        var retained = new List<LlmTckToolDefinition>(Math.Min(tools.Count, remaining / _retainedToolCost));
+        foreach (var tool in tools)
+        {
+            if (remaining < _retainedToolCost) { truncated = true; break; }
+            remaining -= _retainedToolCost;
+            retained.Add(new LlmTckToolDefinition
+            {
+                Name = RetainRequiredText(tool.Name, ref remaining, ref truncated),
+                Description = RetainText(tool.Description, ref remaining, ref truncated),
+                ParametersJson = RetainRequiredText(tool.ParametersJson, ref remaining, ref truncated)
+            });
+        }
         return retained.Count == 0 ? [] : Array.AsReadOnly(retained.ToArray());
     }
 
@@ -1579,6 +1606,10 @@ public sealed partial class LlmTckRuntime
                 + item.ToolCalls.Sum(call => _retainedMessageCost + call.Id.Length + call.Name.Length + call.ArgumentsJson.Length);
         }
 
+        foreach (var item in runtimeEvent.Tools)
+        {
+            total += _retainedToolCost + item.Name.Length + CountCharacters(item.Description) + item.ParametersJson.Length;
+        }
         foreach (var item in runtimeEvent.StreamChunks)
         {
             total += _retainedChunkCost + item.Length;

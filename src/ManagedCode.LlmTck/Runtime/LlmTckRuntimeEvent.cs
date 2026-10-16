@@ -31,6 +31,9 @@ public sealed record LlmTckRuntimeEvent
     /// </summary>
     public IReadOnlyList<LlmTckMessage> Messages { get; init; } = [];
 
+    /// <summary>Independent tool definitions offered in the originating chat request, within the journal payload budget.</summary>
+    public IReadOnlyList<LlmTckToolDefinition> Tools { get; init; } = [];
+
     /// <summary>
     /// The response the model returned for this event (matched content or the error text),
     /// when one is available. Lets operators see exactly what the model answered.
