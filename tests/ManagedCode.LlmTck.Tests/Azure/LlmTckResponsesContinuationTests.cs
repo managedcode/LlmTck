@@ -61,4 +61,44 @@ public sealed class LlmTckResponsesContinuationTests
         await Assert.That(events.Last().Messages.Any(message => message.Role == "user" && message.Content.Contains(_prompt, StringComparison.Ordinal) && message.Content.Contains(picture, StringComparison.Ordinal))).IsTrue();
         await Assert.That(events.Last().Messages.Single(message => message.Role == "tool").Content).Contains(_evidence);
     }
+
+    [Test]
+    [Arguments(LlmTckProviderRouteNamespaces.OpenAI, false)]
+    [Arguments(LlmTckProviderRouteNamespaces.OpenAI, true)]
+    [Arguments(LlmTckProviderRouteNamespaces.AzureOpenAI, false)]
+    [Arguments(LlmTckProviderRouteNamespaces.AzureOpenAI, true)]
+    [Arguments(LlmTckProviderRouteNamespaces.MicrosoftFoundry, false)]
+    [Arguments(LlmTckProviderRouteNamespaces.MicrosoftFoundry, true)]
+    public async Task OfficialMeaiContinuation_AllowsModelChangeAndPreservesHistoryAsync(string provider, bool streaming)
+    {
+        using var host = await LlmTckTestHost.StartAsync(options => options.RequireBearerToken(_key)
+            .AddModel(LlmTckKnownModelIds.Gpt41Mini, LlmTckModelKind.Chat)
+            .AddModel(LlmTckKnownModelIds.Gpt41, LlmTckModelKind.Chat)
+            .AddChatScenario("initial-model", scenario => scenario.ForModel(LlmTckKnownModelIds.Gpt41Mini)
+                .WhenUserContains(_prompt).Responds("initial reply"))
+            .AddChatScenario("updated-model", scenario => scenario.ForModel(LlmTckKnownModelIds.Gpt41)
+                .WhenUserContains(_prompt).Responds("updated reply")));
+        using var http = host.GetTestClient();
+        var apiRoot = provider == LlmTckProviderRouteNamespaces.OpenAI ? "/v1/" : "/openai/v1/";
+        var sdk = new ResponsesClient(new ApiKeyCredential(_key), new ResponsesClientOptions
+        {
+            Endpoint = new Uri(http.BaseAddress!, provider.TrimStart('/') + apiRoot),
+            Transport = new HttpClientPipelineTransport(http)
+        });
+        using var client = sdk.AsIChatClient(LlmTckKnownModelIds.Gpt41Mini);
+        var first = await client.GetResponseAsync(_prompt);
+        await Assert.That(first.ConversationId).IsNotNull();
+        var options = new ChatOptions { ModelId = LlmTckKnownModelIds.Gpt41, ConversationId = first.ConversationId };
+        var result = streaming
+            ? await client.GetStreamingResponseAsync("continue on the updated model", options).ToChatResponseAsync()
+            : await client.GetResponseAsync("continue on the updated model", options);
+
+        await Assert.That(result.Text).IsEqualTo("updated reply");
+        await Assert.That(result.ModelId).IsEqualTo(LlmTckKnownModelIds.Gpt41);
+        var events = host.Services.GetRequiredService<ILlmTckRuntime>().GetAssertionSummary().Events;
+        await Assert.That(events.Count).IsEqualTo(2);
+        await Assert.That(events.All(item => item.Kind == LlmTckEventKind.Matched)).IsTrue();
+        await Assert.That(events.Last().Messages.Any(message => message.Role == "user" && message.Content == _prompt)).IsTrue();
+        await Assert.That(events.Last().Messages.Any(message => message.Role == "assistant" && message.Content == "initial reply")).IsTrue();
+    }
 }

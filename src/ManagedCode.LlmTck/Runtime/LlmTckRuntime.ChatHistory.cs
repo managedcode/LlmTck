@@ -18,7 +18,7 @@ public sealed partial class LlmTckRuntime
         }
         if (request.PreviousResponseId is null) { return null; }
         if (!_chatResponses.TryGetValue(request.PreviousResponseId, out var previous)
-            || previous.Namespace != request.HistoryNamespace || previous.Model != request.ModelId
+            || previous.Namespace != request.HistoryNamespace
             || previous.TokenHash != TokenHash(token))
         {
             return LlmTckChatResult.Failure(request.ModelId, 404, "response_not_found", "The previous response is unavailable in this scope.");
@@ -35,13 +35,13 @@ public sealed partial class LlmTckRuntime
         if (!request.StoreResponse) { return result; }
         var messages = SnapshotHistory(request.Messages);
         messages.Add(new LlmTckMessage { Role = "assistant", Content = result.Content, ToolCalls = [.. result.ToolCalls] });
-        var bytes = HistoryBytes(messages) + Encoding.UTF8.GetByteCount(request.HistoryNamespace!) + Encoding.UTF8.GetByteCount(request.ModelId);
+        var bytes = HistoryBytes(messages) + Encoding.UTF8.GetByteCount(request.HistoryNamespace!);
         if (_chatResponses.Count >= _configuration.MaxStoredChatResponses || bytes > _configuration.MaxStoredChatResponseBytes - _chatResponseBytes)
         {
             return LlmTckChatResult.Failure(request.ModelId, 409, "llm_tck_response_capacity_exceeded", "Response history capacity exceeded. Reset the runtime or increase its configured capacity.");
         }
         var id = $"resp_{Guid.NewGuid():N}";
-        _chatResponses.Add(id, new StoredChatResponse(request.HistoryNamespace!, request.ModelId, TokenHash(token), messages));
+        _chatResponses.Add(id, new StoredChatResponse(request.HistoryNamespace!, TokenHash(token), messages));
         _chatResponseBytes += bytes;
         return result with { ResponseId = id };
     }
@@ -70,5 +70,5 @@ public sealed partial class LlmTckRuntime
             + Encoding.UTF8.GetByteCount(call.Name) + Encoding.UTF8.GetByteCount(call.ArgumentsJson)));
     }
 
-    private sealed record StoredChatResponse(string Namespace, string Model, string TokenHash, List<LlmTckMessage> Messages);
+    private sealed record StoredChatResponse(string Namespace, string TokenHash, List<LlmTckMessage> Messages);
 }

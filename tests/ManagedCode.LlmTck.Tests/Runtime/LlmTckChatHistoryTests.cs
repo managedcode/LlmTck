@@ -40,7 +40,6 @@ public sealed class LlmTckChatHistoryTests
     [Test]
     [Arguments("missing")]
     [Arguments("namespace")]
-    [Arguments("model")]
     [Arguments("token")]
     [Arguments("reset")]
     [Arguments("configure")]
@@ -55,7 +54,6 @@ public sealed class LlmTckChatHistoryTests
         {
             "missing" => request with { PreviousResponseId = "resp_missing" },
             "namespace" => request with { HistoryNamespace = "another-scope" },
-            "model" => request with { ModelId = LlmTckKnownModelIds.Gpt41 },
             _ => request
         };
         var rejected = await runtime.CompleteChatAsync(request, change == "token" ? "foreign-token" : _token);
@@ -64,6 +62,29 @@ public sealed class LlmTckChatHistoryTests
         await Assert.That(runtime.GetAssertionSummary().Events.Last().Messages.Any(message => message.Content == _prompt)).IsFalse();
         var accepted = await runtime.CompleteChatAsync(Request() with { StoreResponse = false }, _token);
         await Assert.That(accepted.Content).IsEqualTo(change is "reset" or "configure" ? "first" : "second");
+    }
+
+    [Test]
+    public async Task Continuation_AllowsAnotherModelWithinTheSameCredentialAndProviderAsync()
+    {
+        var configuration = Configuration();
+        configuration.ChatScenarios.Add(new LlmTckScenarioBuilder("changed-model")
+            .ForModel(LlmTckKnownModelIds.Gpt41).WhenUserContains(_prompt).Responds("changed model").Build());
+        var runtime = new LlmTckRuntime(configuration);
+        var first = await runtime.CompleteChatAsync(Request(), _token);
+        var result = await runtime.CompleteChatAsync(Request() with
+        {
+            ModelId = LlmTckKnownModelIds.Gpt41,
+            PreviousResponseId = first.ResponseId,
+            Messages = [new() { Role = "user", Content = "continue with another model" }]
+        }, _token);
+
+        await Assert.That(result.IsSuccess).IsTrue();
+        await Assert.That(result.ModelId).IsEqualTo(LlmTckKnownModelIds.Gpt41);
+        await Assert.That(result.Content).IsEqualTo("changed model");
+        var messages = runtime.GetAssertionSummary().Events.Last().Messages;
+        await Assert.That(messages.Any(message => message.Content == _prompt)).IsTrue();
+        await Assert.That(messages.Any(message => message.Role == "assistant" && message.Content == "first")).IsTrue();
     }
 
     [Test]

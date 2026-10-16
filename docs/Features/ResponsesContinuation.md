@@ -5,8 +5,10 @@ official SDK sends `previous_response_id` with only the new tool output or user 
 responses return the same runtime-owned response identity. Image/file input remains in normalized messages.
 
 The provider-neutral runtime stores independent ordered snapshots of input plus assistant output/tool calls.
-History is isolated by exact provider namespace, model and a hash of the supplied credential. New request
-instructions replace earlier system/developer instructions, as required by the
+History is isolated by exact provider namespace and a hash of the supplied credential.
+A continuation may select another model within that same provider and credential scope; it retains the
+visible conversation, as described in [OpenAI conversation continuity](https://developers.openai.com/api/docs/guides/reasoning#preserve-reasoning-across-calls).
+New request instructions replace earlier system/developer instructions, as required by the
 [OpenAI Responses contract](https://developers.openai.com/api/docs/guides/migrate-to-responses) and
 [Azure Responses contract](https://learn.microsoft.com/en-us/rest/api/aifoundry/azureopenai/responses).
 
@@ -34,9 +36,11 @@ Acceptance:
 
 1. An ordinary or streamed official SDK tool loop reaches its scripted final response and the runtime journal
    contains the original text/image input plus the actual tool result (`LlmTckResponsesContinuationTests`).
-2. Another provider, model or credential cannot read a parent; reset/configure invalidates every parent
+2. Another provider or credential cannot read a parent; reset/configure invalidates every parent
    (`LlmTckChatHistoryTests`).
 3. Stored input snapshots survive caller mutation and do not carry old instructions into a new request
    (`LlmTckChatHistoryTests`).
-4. Disabled/full count or byte capacity fails visibly without consuming a fixture; `store=false` remains
+4. Changing the model preserves original user and assistant messages and selects the new model in ordinary
+   and streaming official SDK calls (`LlmTckChatHistoryTests`, `LlmTckResponsesContinuationTests`).
+5. Disabled/full count or byte capacity fails visibly without consuming a fixture; `store=false` remains
    stateless (`LlmTckChatHistoryTests`, existing OpenRouter provider regressions).
